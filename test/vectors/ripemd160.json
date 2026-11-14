@@ -1,0 +1,50 @@
+[
+ {
+  "name": "ripemd160('')",
+  "input": "",
+  "inputHex": "",
+  "hex": "9c1185a5c5e9fc54612808977ee8f548b2258d31"
+ },
+ {
+  "name": "ripemd160('a')",
+  "input": "a",
+  "inputHex": "61",
+  "hex": "0bdc9d2d256b3ee9daae347be6f4dc835a467ffe"
+ },
+ {
+  "name": "ripemd160('abc')",
+  "input": "abc",
+  "inputHex": "616263",
+  "hex": "8eb208f7e05d987a9b044a8e98c6b087f15a0bfc"
+ },
+ {
+  "name": "ripemd160('message digest')",
+  "input": "message digest",
+  "inputHex": "6d65737361676520646967657374",
+  "hex": "5d0689ef49d2fae572b881b123a85ffa21595f36"
+ },
+ {
+  "name": "ripemd160('a..z')",
+  "input": "abcdefghijklmnopqrstuvwxyz",
+  "inputHex": "6162636465666768696a6b6c6d6e6f707172737475767778797a",
+  "hex": "f71c27109c692c1b56bbdceb5b9d2865b3708dbc"
+ },
+ {
+  "name": "ripemd160('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq')",
+  "input": "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+  "inputHex": "6162636462636465636465666465666765666768666768696768696a68696a6b696a6b6c6a6b6c6d6b6c6d6e6c6d6e6f6d6e6f706e6f7071",
+  "hex": "12a053384a9c0c88e405a06c27dcf49ada62eb2b"
+ },
+ {
+  "name": "ripemd160('A..Za..z0..9')",
+  "input": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+  "inputHex": "4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a30313233343536373839",
+  "hex": "b0e20b6e3116640286ed3a87a5713079b21f5189"
+ },
+ {
+  "name": "ripemd160('1234567890' x 8)",
+  "input": "12345678901234567890123456789012345678901234567890123456789012345678901234567890",
+  "inputHex": "3132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930",
+  "hex": "9b752e45573d4b39f4dbd3323cab82bf63326bfb"
+ }
+]

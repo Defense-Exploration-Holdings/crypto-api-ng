@@ -1,0 +1,58 @@
+[
+ {
+  "name": "hmac-sha224('Hi There', 0x0b x 20)",
+  "key": "\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b\u000b",
+  "keyHex": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+  "input": "Hi There",
+  "inputHex": "4869205468657265",
+  "hex": "896fb1128abbdf196832107cd49df33f47b4b1169912ba4f53684b22"
+ },
+ {
+  "name": "hmac-sha224('what do ya want for nothing?', 'Jefe')",
+  "key": "Jefe",
+  "keyHex": "4a656665",
+  "input": "what do ya want for nothing?",
+  "inputHex": "7768617420646f2079612077616e7420666f72206e6f7468696e673f",
+  "hex": "a30e01098bc6dbbf45690f3a7e9e6d0f8bbea2a39e6148008fd05e44"
+ },
+ {
+  "name": "hmac-sha224(0xdd x 50, 0xaa x 20)",
+  "key": "ªªªªªªªªªªªªªªªªªªªª",
+  "keyHex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "input": "ÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝÝ",
+  "inputHex": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "hex": "7fb3cb3588c6c1f6ffa9694d7d6ad2649365b0c1f65d69d1ec8333ea"
+ },
+ {
+  "name": "hmac-sha224(0xcd x 50, 0x0102030405060708090a0b0c0d0e0f10111213141516171819)",
+  "key": "\u0001\u0002\u0003\u0004\u0005\u0006\u0007\b\t\n\u000b\f\r\u000e\u000f\u0010\u0011\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019",
+  "keyHex": "0102030405060708090a0b0c0d0e0f10111213141516171819",
+  "input": "ÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ",
+  "inputHex": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+  "hex": "6c11506874013cac6a2abc1bb382627cec6a90d86efc012de7afec5a"
+ },
+ {
+  "name": "hmac-sha224('Test With Truncation', 0x0c x 20)",
+  "key": "\f\f\f\f\f\f\f\f\f\f\f\f\f\f\f\f\f\f\f\f",
+  "keyHex": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+  "input": "Test With Truncation",
+  "inputHex": "546573742057697468205472756e636174696f6e",
+  "hex": "0e2aea68a90c8d37c988bcdb9fca6fa8099cd857c7ec4a1815cac54c"
+ },
+ {
+  "name": "hmac-sha224('Test Using Larger Than Block-Size Key - Hash Key First', 0xaa x 131)",
+  "key": "ªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªª",
+  "keyHex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "input": "Test Using Larger Than Block-Size Key - Hash Key First",
+  "inputHex": "54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374",
+  "hex": "95e9a0db962095adaebe9b2d6f0dbce2d499f112f2d2b7273fa6870e"
+ },
+ {
+  "name": "hmac-sha224('This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm.', 0xaa x 131)",
+  "key": "ªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªªª",
+  "keyHex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "input": "This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm.",
+  "inputHex": "5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e",
+  "hex": "3a854166ac5d9f023f54d517d0b39dbd946770db9c2b95c9f6f565d1"
+ }
+]
