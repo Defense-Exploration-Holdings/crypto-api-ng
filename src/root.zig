@@ -6,12 +6,14 @@
 //! `wasm.zig`.
 
 pub const runtime = @import("runtime.zig");
+pub const md2 = @import("hash/md2.zig");
 pub const md5 = @import("hash/md5.zig");
 pub const be32 = @import("hash/be32.zig");
 pub const sha1 = @import("hash/sha1.zig");
 pub const sha256 = @import("hash/sha256.zig");
 pub const sm3 = @import("hash/sm3.zig");
 pub const sha512 = @import("hash/sha512.zig");
+pub const whirlpool = @import("hash/whirlpool.zig");
 
 test {
     // Pull in tests from every module referenced above.

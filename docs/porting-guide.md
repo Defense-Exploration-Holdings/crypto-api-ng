@@ -84,6 +84,25 @@ The guards are the ones of the MD5 facade (state shape, `processBlock` and the o
 - The length field is 16 bytes, eight zero bytes then the same 32-bit-bug field as the other hashers (`be32.lengthField`); padding goes to offset 112, or 240 when the tail is 112 bytes or more.
 - `reset()` is overridden for `length` 224 and 256 only: the original derives their IV with a full SHA-512 of `"SHA-512/224"` (resp. 256) on every construction, which cost more than hashing a short message. The facade writes the FIPS 180-4 constants instead (a Zig test derives them with the same procedure and compares). Every other length, and any subclass that patched the original `reset`, still runs the original code. The state it leaves is identical, key order included.
 
+### Whirlpool: three variants, one module
+
+`Whirlpool` is a `Hasher32be` with 64-byte blocks, so it uses the same glue as SHA-512 (`outOff: 256`, because its `State` is 152 bytes). What is specific to it:
+
+- **Variants.** Whirlpool-0 (`type: '0'`), Whirlpool-T (`type: 't'`) and Whirlpool differ only in tables. The Zig core derives them at compile time exactly like the original's `calculateSBOX()`/`calculateRC()` (Whirlpool-0's S-box stays a literal), and keeps only the 256-entry `C[0]` column (2 KB per variant); the other seven columns are rotations by whole bytes. One module exports three sets of the same functions (`whirlpool_*`, `whirlpool0_*`, `whirlpoolt_*`, made with `@export` from one comptime function), and the facade owns three accelerators on one shared instance. A Zig test pins FNV-1a fingerprints of all of `C[0..8]` and `RC`, taken from the original's own tables, for each variant.
+- **The facade does not read `options.type`.** The original's constructor turns it into a pair of module-private tables (`this.C`, `this.RC`) with a `switch` that accepts `0`, `'0'`, `'t'`, `true`, `'x'`, ... in its own way (the number `0` becomes `''` first and selects plain Whirlpool). The facade finds the three tables by constructing one original hasher per type on first use and compares by identity, so whatever the original selects, wasm serves. Tables an instance or subclass replaced with something else are unknown and run the original.
+- **Rounds** 1..10 run in wasm. 11 and above read `RC[r*2]` past the end of the original's table (`undefined`), so they stay on the original.
+- **Padding** differs from the `be32` default: a tail shorter than 32 bytes is padded to offset 56, any other to 120, then the usual 8-byte length field (the original's field is 8 bytes, not the specification's 32; for messages below 2^31 bytes the bytes are the same). `whirlpool.zig` has its own `finalTail`.
+- Hash words only go through XOR and shifts in the original, so any integer word is exact; the shared `hashOk` bound (|word| < 2^52) is harmless here.
+
+### MD2: byte-oriented, its own module
+
+`Md2` is a `Hasher8`: 16-byte blocks, no length field (it never looks at `state.length`, so the length bug does not exist here), and a state that is **two arrays**, `state.hash` (48 numbers) and `state.checksum` (16 numbers). The glue in `be32.mjs` does not fit (words, length, ISO padding), so `md2.mjs` is a standalone facade in the shape of `md5.mjs`:
+
+- A pristine state holds `new Array(48)` and `new Array(16)`: holes in memory, `null` after `getState()`, and the original reads both as 0. The facade accepts `undefined`, `null` and integers 0..255 in either array, sends them to wasm as bytes and writes **every** entry back, in place, afterwards. That is exactly the original's end state, because with `rounds >= 1` each block rewrites all 48 hash bytes and all 16 checksum bytes. Anything else (fractions, strings, values above 255 that wide characters leave behind, a wrong length) runs the original.
+- If a wide character shows up after some blocks already ran in wasm, the consumed blocks' hash and checksum are written back before the original takes over; if it shows up in the first chunk nothing is written, so a state with holes is left untouched.
+- `finalize()` is two compressions (the PKCS#7-padded tail, then the checksum as one more block) and leaves the checksum advanced by that second block; wasm does both and the facade writes both arrays back. `rounds` 1..2^32-1 is served (the round counter only matters through its low byte).
+- MD2 is a serial chain (each step's S-box index is the previous step's result), so wasm gains little: about 1.1 to 1.3x end to end in the measurements below. It is its own family module `md2.wasm` (1.4 KB) instead of joining `md`, so the MD4 port does not collide with it.
+
 Things the pattern taught that apply to every family:
 
 - Give the facade an explicit `constructor(options) { super(options); }`. An implicit derived constructor has `length` 0 and the harness's shape test checks `Class.length`.
@@ -129,3 +148,17 @@ Decisions taken from the measurements:
 - **Per-family modules, built `--release=small`.** `md.wasm` is 3.0 KB with `small`, 25 KB with `fast` (full unrolling), 56 KB with `safe`, 650 KB in debug. `fast` hashes 20 to 25 percent quicker in isolation and makes no visible difference end to end. A single combined module cannot be compared yet with one algorithm in it; re-measure when the SHA families land. The scaffold's `crypto-api.wasm` (general runtime, 1.1 KB) stays for the loader tests.
 - **Copy-in skip is not worth it.** Copying the 96-byte state in and out costs about 50 to 70 ns per call, and the facade no longer copies state at all: the hash words and tail are written straight into scratch.
 - **Small appends cost nothing in wasm.** `update()` below one block never calls wasm (`process()` returns early), so `Hmac`'s 64 one-byte updates are plain string work.
+
+### MD2 and Whirlpool (Node 22 in the cloud sandbox, `--release=small`, ratios only)
+
+One `new` + `update` + `finalize` round, original vs facade:
+
+| Input | MD2 | Whirlpool | Whirlpool-0 |
+|---|---|---|---|
+| 0 B | 1.3x | 3.0 to 6x | 6.0x |
+| 64 B | 1.2x | 5.2 to 6x | 5.4x |
+| 1 KiB | 1.2x | 4.5 to 7x | 7.4x |
+| 64 KiB | 1.2x | 6.7 to 7.4x | 6.9x |
+| 1 MiB | 1.1x | 6.8 to 8.2x | 7.3x |
+
+Wasm compression alone: Whirlpool about 60 to 70 MB/s (`small`, 9.9 KB module for all three variants), 78 MB/s with `fast` (60 KB, not worth it); MD2 about 7 MB/s, which is the dependency chain (`t = hash[j] ^= SBOX[t]`, one S-box load per step) and not the language. Spreading `C[0]` into eight full tables would avoid the byte rotations but cost 16 KB per variant and not fit the fixed 2-page memory; unrolling the lookups did not help. Not a benchmark; WP-J does that.

@@ -55,7 +55,7 @@ pub fn build(b: *std.Build) void {
     // imports one algorithm only pays for that family. To add a family, append
     // its name to `families`; the root file must exist at src/wasm/<name>.zig.
     // Each is also embedded as packages/crypto-api/wasm/<name>.mjs (see `js`).
-    const families = [_][]const u8{ "md", "sha1", "sha256", "sha512", "sm3" };
+    const families = [_][]const u8{ "md", "md2", "sha1", "sha256", "sha512", "sm3", "whirlpool" };
     // Fixed linear memory: 2 pages = 128 KiB (scratch 64 KiB + 256 B, a 16 KiB
     // stack, data). max == initial so memory can never grow and JS may cache
     // views of it.
