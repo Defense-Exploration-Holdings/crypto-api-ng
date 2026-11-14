@@ -26,13 +26,13 @@ fn Exports(comptime variant: sha1.Variant) type {
             return @sizeOf(sha1.State);
         }
         fn init(state: u32, rounds: u32) i32 {
-            if (rounds < 1 or rounds > sha1.max_rounds) return @intFromEnum(Status.invalid_argument);
+            if (rounds < 1 or rounds > sha1.max_rounds) return @backingInt(Status.invalid_argument);
             sha1.init(statePtr(state), rounds);
             return 0;
         }
         fn update(state: u32, data: u32, len: u32) i32 {
             const st = statePtr(state);
-            if (!okRounds(st)) return @intFromEnum(Status.invalid_argument);
+            if (!okRounds(st)) return @backingInt(Status.invalid_argument);
             const p: [*]const u8 = @ptrFromInt(data);
             sha1.update(variant, st, p[0..len]);
             return 0;
@@ -40,14 +40,14 @@ fn Exports(comptime variant: sha1.Variant) type {
         /// Compress `len` bytes (a multiple of 64) into the hash words at `state`.
         fn blocks(state: u32, data: u32, len: u32) i32 {
             const st = statePtr(state);
-            if (!okRounds(st) or len % sha1.block_len != 0) return @intFromEnum(Status.invalid_argument);
+            if (!okRounds(st) or len % sha1.block_len != 0) return @backingInt(Status.invalid_argument);
             const p: [*]const u8 = @ptrFromInt(data);
             sha1.blocks(variant, st, p[0..len]);
             return 0;
         }
         fn final(state: u32, out: u32) i32 {
             const st = statePtr(state);
-            if (!okRounds(st) or st.buffered >= sha1.block_len) return @intFromEnum(Status.invalid_argument);
+            if (!okRounds(st) or st.buffered >= sha1.block_len) return @backingInt(Status.invalid_argument);
             sha1.final(variant, st, @ptrFromInt(out));
             return 0;
         }

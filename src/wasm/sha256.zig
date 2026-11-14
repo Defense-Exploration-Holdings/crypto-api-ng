@@ -27,14 +27,14 @@ export fn sha256_state_size() u32 {
 
 /// `length` is the original's option: 224 selects the SHA-224 IV, anything else SHA-256.
 export fn sha256_init(state: u32, length: u32, rounds: u32) i32 {
-    if (rounds < 1 or rounds > sha256.max_rounds) return @intFromEnum(Status.invalid_argument);
+    if (rounds < 1 or rounds > sha256.max_rounds) return @backingInt(Status.invalid_argument);
     sha256.init(statePtr(state), length, rounds);
     return 0;
 }
 
 export fn sha256_update(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
-    if (!okRounds(st)) return @intFromEnum(Status.invalid_argument);
+    if (!okRounds(st)) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
     sha256.update(st, p[0..len]);
     return 0;
@@ -43,7 +43,7 @@ export fn sha256_update(state: u32, data: u32, len: u32) i32 {
 /// Compress `len` bytes (a multiple of 64) into the hash words at `state`.
 export fn sha256_blocks(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
-    if (!okRounds(st) or len % sha256.block_len != 0) return @intFromEnum(Status.invalid_argument);
+    if (!okRounds(st) or len % sha256.block_len != 0) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
     sha256.blocks(st, p[0..len]);
     return 0;
@@ -52,7 +52,7 @@ export fn sha256_blocks(state: u32, data: u32, len: u32) i32 {
 /// Writes all 32 bytes of the hash words to `out`.
 export fn sha256_final(state: u32, out: u32) i32 {
     const st = statePtr(state);
-    if (!okRounds(st) or st.buffered >= sha256.block_len) return @intFromEnum(Status.invalid_argument);
+    if (!okRounds(st) or st.buffered >= sha256.block_len) return @backingInt(Status.invalid_argument);
     sha256.final(st, @ptrFromInt(out));
     return 0;
 }

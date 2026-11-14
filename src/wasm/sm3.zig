@@ -24,14 +24,14 @@ export fn sm3_state_size() u32 {
 }
 
 export fn sm3_init(state: u32, rounds: u32) i32 {
-    if (rounds < 1 or rounds > sm3.max_rounds) return @intFromEnum(Status.invalid_argument);
+    if (rounds < 1 or rounds > sm3.max_rounds) return @backingInt(Status.invalid_argument);
     sm3.init(statePtr(state), rounds);
     return 0;
 }
 
 export fn sm3_update(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
-    if (!okRounds(st)) return @intFromEnum(Status.invalid_argument);
+    if (!okRounds(st)) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
     sm3.update(st, p[0..len]);
     return 0;
@@ -40,7 +40,7 @@ export fn sm3_update(state: u32, data: u32, len: u32) i32 {
 /// Compress `len` bytes (a multiple of 64) into the hash words at `state`.
 export fn sm3_blocks(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
-    if (!okRounds(st) or len % sm3.block_len != 0) return @intFromEnum(Status.invalid_argument);
+    if (!okRounds(st) or len % sm3.block_len != 0) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
     sm3.blocks(st, p[0..len]);
     return 0;
@@ -48,7 +48,7 @@ export fn sm3_blocks(state: u32, data: u32, len: u32) i32 {
 
 export fn sm3_final(state: u32, out: u32) i32 {
     const st = statePtr(state);
-    if (!okRounds(st) or st.buffered >= sm3.block_len) return @intFromEnum(Status.invalid_argument);
+    if (!okRounds(st) or st.buffered >= sm3.block_len) return @backingInt(Status.invalid_argument);
     sm3.final(st, @ptrFromInt(out));
     return 0;
 }
