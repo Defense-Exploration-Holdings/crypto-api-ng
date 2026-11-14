@@ -79,6 +79,20 @@ const FAMILY_ALGOS = {
 };
 
 
+// Run-to-run spread of the v1/0.8.5 ratio for the same cell (only meaningful with 2+ runs).
+let spreadText = '';
+if (runs.length > 1) {
+  const byRun = runs.map((r) => new Map((r.throughput ?? []).filter((c) => c.status === 'ok').map((c) => [`${c.variant}|${c.size}|${c.mode}`, c.results.orig.median_ms / c.results.v1.median_ms])));
+  const spreads = [];
+  for (const k of byRun[0].keys()) {
+    const vs = byRun.map((m) => m.get(k)).filter(Boolean);
+    if (vs.length > 1) spreads.push(Math.max(...vs) / Math.min(...vs));
+  }
+  spreads.sort((a, b) => a - b);
+  const q = (f) => spreads[Math.min(spreads.length - 1, Math.floor(spreads.length * f))];
+  spreadText = `Between runs the same cell's ratio differs by ${((q(0.5) - 1) * 100).toFixed(0)}% at the median, ${((q(0.95) - 1) * 100).toFixed(0)}% at p95 and ${((spreads[spreads.length - 1] - 1) * 100).toFixed(0)}% at worst (${spreads.length} cells), so read single-cell ratios as good to within roughly 30% on this machine.`;
+}
+
 // ---------------------------------------------------------------- sections
 const out = [];
 const p = (s = '') => out.push(s);
@@ -100,7 +114,7 @@ p(table(['', ''], [
   ['Memory', `${env.memory_mb} MB`],
   ['Build', `Zig ${env.zig}, \`--release=small\``],
   ['Commit', `\`${env.commit}\` (crypto-api 0.8.5 at \`${env.original}\`)`],
-  ['Runs', `${runs.length} full run${runs.length > 1 ? 's' : ''}; cells report the median of medians`],
+  ['Runs', `${runs.length} run${runs.length > 1 ? 's' : ''} (${runs.map((r) => r.mode).join(', ')}); cells report the median of medians. ${spreadText}`],
   ['Samples per cell', `${runs[0].measure.samples} (${runs[0].measure.slowSamples} for operations over 0.5 s), interleaved between contenders, each sample ≥ ${runs[0].measure.minSampleMs} ms`],
 ], ['l', 'l']));
 p();
@@ -165,7 +179,10 @@ if (bunRuns.length) {
   const bsizes = [64, 1024, 65536, 1048576].filter((s) => btp.some((r) => r.size === s));
   p(`## Bun ${be.runtime_version}`);
   p();
-  p('The same benchmark under Bun (JavaScriptCore). JavaScriptCore runs the original JavaScript faster than V8 does for several algorithms (0.8.5 MD5 runs about 3× faster than under Node), so the margin is smaller: the geometric mean is about 2×, SHA-224/256 and SM3 gain only 1.0 to 1.3×, and **MD2 is 1 to 7% slower than 0.8.5**. MD2 is a serial chain of table lookups; the likely cause is that JavaScriptCore compiles that loop as well as it compiles wasm, leaving only the facade overhead. Single `update()` call, v1 time ÷ 0.8.5 time.');
+  const bmd2 = bsizes.map((sz) => bc('md2', sz)).filter(Boolean).map((c) => ratio(c));
+  const bgm = bsizes.map((sz) => geomean(names.map((n) => bc(n, sz)).filter(Boolean).map((c) => ratio(c))));
+  const bsha = ['sha224', 'sha256', 'sm3'].flatMap((n) => bsizes.map((sz) => bc(n, sz)).filter(Boolean).map((c) => ratio(c)));
+  p(`The same benchmark under Bun (JavaScriptCore), ${bunRuns.length} run${bunRuns.length > 1 ? 's' : ''}. JavaScriptCore runs the original JavaScript faster than V8 does for several algorithms (0.8.5 MD5 runs about 3× faster than under Node), so the margin is smaller: the geometric mean is ${Math.min(...bgm).toFixed(1)} to ${Math.max(...bgm).toFixed(1)}×, SHA-224/256 and SM3 gain only ${Math.min(...bsha).toFixed(2)} to ${Math.max(...bsha).toFixed(2)}×, and **MD2 is ${Math.min(...bmd2).toFixed(2)} to ${Math.max(...bmd2).toFixed(2)}×**, i.e. at best a few percent faster and in some cells slower than 0.8.5. MD2 is a serial chain of table lookups; the likely cause is that JavaScriptCore compiles that loop as well as it compiles wasm, leaving only the facade overhead. Cells near 1× are within the run-to-run noise of a shared machine. Single \`update()\` call, v1 time ÷ 0.8.5 time.`);
   p();
   p(table(['Variant', ...bsizes.map(sizeName)], [
     ...names.map((n) => [n, ...bsizes.map((s) => { const c = bc(n, s); return c ? x(ratio(c)) : 'n/a'; })]),
@@ -297,7 +314,7 @@ function STATIC_TAIL(runs) {
     '',
     '- The big wins are where 0.8.5 does the most JavaScript work per byte (SHA-512 and its relatives: 64-bit arithmetic emulated with pairs of 32-bit integers; MD5/MD4; Whirlpool). Algorithms whose original JavaScript is already close to a plain loop (HAS-160, RIPEMD) gain less, and the serial S-box chains of MD2 and Snefru gain least, because the bottleneck is a dependent load chain that wasm and JavaScript run at the same speed.',
     '- Construction costs the same (about 100 ns) on both sides, so small-input gains come from `update`/`finalize` (padding and the last compression), not from `new`. The one exception is SHA-512/224 and SHA-512/256: 0.8.5 hashes `"SHA-512/t"` on every construction to derive the IV (about 11 µs); v1 writes the constants, hence the 18 to 24× at 0 to 64 B.',
-    '- Cold start is **slower** in v1, by about 1 to 3 ms per family (5.6 ms for the whole facade). About 1.5 to 2 ms is `import`: v1 loads more files (the facade, the shared glue and the original engine it keeps as the fallback) and parses the embedded base64 module. About 0.5 to 0.8 ms more is in the first digest: the synchronous wasm compile and instantiation, which happens lazily on first use, per family. For a long-running server that is irrelevant; for a short-lived function that hashes once it is the whole story. Trimming it (smaller embedded form, lazy fallback import) is v1.x work.',
+    '- Cold start is **slower** in v1, by about 1.5 to 3 ms per family (5.8 ms for the whole facade). About 1 to 2 ms is `import`: v1 loads more files (the facade, the shared glue and the original engine it keeps as the fallback) and parses the embedded base64 module. About 0.4 to 1 ms more is in the first digest: the synchronous wasm compile and instantiation, which happens lazily on first use, per family. For a long-running server that is irrelevant; for a short-lived function that hashes once it is the whole story. Trimming it (smaller embedded form, lazy fallback import) is v1.x work.',
     '- Raw wasm numbers are what bytes-in/bytes-out can reach and are why v2 changes the API; they are not claims about v1.',
     '',
     '## Reproduce',
