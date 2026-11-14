@@ -125,4 +125,4 @@ These are bugs of the original that existing users may depend on, so v1 keeps th
 
 ## License
 
-The original `crypto-api` is MIT licensed, Copyright (c) 2015 nf404; its notice is in `LICENSE` and applies to the code derived from it. The license of the new Zig/WebAssembly code is decided by the maintainers before release.
+MIT. The original `crypto-api` is Copyright (c) 2015 nf404, and the Zig/WebAssembly port is Copyright (c) 2026 Defense Exploration Holdings; both notices are in `LICENSE`.

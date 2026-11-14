@@ -3,7 +3,7 @@
   "version": "1.0.0-dev.0",
   "description": "Hashing library with no dependencies: maintained Zig/WebAssembly port of crypto-api",
   "private": true,
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "author": "Aleksandr Mogilnikov <nf404.name@gmail.com> (https://nf404.name/)",
   "homepage": "https://github.com/Defense-Exploration-Holdings/crypto-api-ng",
   "repository": {
