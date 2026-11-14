@@ -10,9 +10,13 @@ let oracle;
 let target;
 before(async () => ({ oracle, target } = await loadBoth()));
 
+// A facade may extend the legacy engine of the same name (Md5 -> Md5 -> Hasher32le -> Hasher), so
+// consecutive repeats are collapsed. `instanceof` against the base classes is tested separately.
 const chain = (Cls) => {
   const names = [];
-  for (let c = Cls; c && c !== Function.prototype; c = Object.getPrototypeOf(c)) names.push(c.name);
+  for (let c = Cls; c && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
+    if (names[names.length - 1] !== c.name) names.push(c.name);
+  }
   return names;
 };
 const protoMethods = (Cls) => {
