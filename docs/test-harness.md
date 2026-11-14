@@ -8,7 +8,7 @@ test (the **target**) is `packages/crypto-api`, or any other package root named 
 `CRYPTO_API_TARGET`. Zero npm dependencies: only Node 22 (`node:test`, `node:crypto`).
 
 ```
-npm run test:parity          # everything below, ~20 s
+npm run test:parity          # everything below, ~20 s (run `zig build js --release=small` first: the facades import the embedded wasm)
 npm run test:legacy-suite    # the original 286 mocha tests against the target
 npm run test:compat          # differential fuzzing and the other compat tests
 npm run vendor               # regenerate packages/crypto-api/{legacy,src} from the submodule

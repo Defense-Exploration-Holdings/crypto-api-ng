@@ -58,6 +58,31 @@ Copy `md5.mjs` and change the algorithm-specific parts. The parts that carry the
 
 Known, deliberate non-parity of the MD5 facade: `blockUnits` (an `@private` scratch array in `Hasher32le`) is not filled on the wasm path. Nothing else differs; `Object.keys(hasher)`, `JSON.stringify(hasher)`, `hasher.state` and the live-reference behavior of `setState()` are identical.
 
+## Sharing the facade glue: the 32-bit big-endian family
+
+SHA-0, SHA-1, SHA-224/256 and SM3 differ from each other only in numbers (hash words, `State` offsets, the option rules), so their `process()`/`finalize()` logic lives once in `packages/crypto-api/src/wasm/be32.mjs` and each facade is about 30 lines:
+
+```js
+const accel = createAccelerator({family, name: 'sha1', legacy: LegacySha1, words: 5,
+  roundsOff: 20, lengthOff: 24, bufferedOff: 32, bufOff: 40,
+  rounds: (o) => roundsIn(o, 80), outBytes: () => 20, facade: () => Sha1});
+class Sha1 extends LegacySha1 {
+  constructor(options) { super(options); }   // keeps Sha1.length === 1
+  process() { if (!accel.process(this)) super.process(); }
+  finalize() { const r = accel.finalize(this); return r === null ? super.finalize() : r; }
+}
+```
+
+The guards are the ones of the MD5 facade (state shape, `processBlock` and the other internals not overridden, `blockSizeInBytes` 64, wide characters, a missing runtime) plus option checks done **at call time**, because the original reads `this.options.rounds` and `this.options.length` on every block: `rounds` must be an integer in 1..max, and `finalize()` needs a `length` the wasm output size supports (SHA-224/256: 224 or 256, SM3: 256). `process()` does not look at `length`, which only picks the IV in the original's `reset()` and the output size in `finalize()`. A little-endian family (MD4, HAS-160, RIPEMD) would add a sibling `le32.mjs`; do not bend `be32.mjs` for it.
+
+Things the pattern taught that apply to every family:
+
+- Give the facade an explicit `constructor(options) { super(options); }`. An implicit derived constructor has `length` 0 and the harness's shape test checks `Class.length`.
+- The original `finalize()` calls `this.process()`, so a facade whose `finalize()` falls back still runs the final block in wasm through its own `process()` when it can. Expect that when counting wasm calls in tests.
+- Families whose algorithms share a module (`sha1` serves SHA-0 and SHA-1) share one instance through `createFamily` in a small `src/wasm/<family>-family.mjs`.
+- Wasm exports that read `rounds` from the State validate it and return `Status.invalid_argument`, so a bad State cannot write out of bounds in a `small` build, where asserts are compiled out.
+- Known non-parity, same as `blockUnits`: the `@private` scratch array `this.W` (the message schedule) stays empty on the wasm path, so `JSON.stringify(hasher)` shows an unfilled `W`. `getState()` is unaffected.
+
 ## Tests every port needs
 
 - Zig: official vectors, `std.crypto` cross-check at every length 0..300 with random update splits, quirk functions against values captured from 0.8.5.

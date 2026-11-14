@@ -58,6 +58,43 @@ pub fn finalTail(tail: []const u8, len_lo: u32, out: *[2 * block_size]u8) []cons
     return out[0..total];
 }
 
+/// Streaming over any `S` with the fields `length: u64`, `buffered: u32` and
+/// `buf: [64]u8`; `blocksFn(st, data)` compresses whole blocks into `st.hash`.
+/// Same buffering as the original `update()`/`process()`.
+pub fn update(comptime S: type, comptime blocksFn: fn (*S, []const u8) void, st: *S, data: []const u8) void {
+    st.length +%= data.len;
+    var rest = data;
+
+    if (st.buffered != 0) {
+        const room = block_size - st.buffered;
+        const n = @min(room, rest.len);
+        @memcpy(st.buf[st.buffered..][0..n], rest[0..n]);
+        st.buffered += @intCast(n);
+        rest = rest[n..];
+        if (st.buffered < block_size) return;
+        blocksFn(st, &st.buf);
+        st.buffered = 0;
+    }
+
+    const whole = rest.len - rest.len % block_size;
+    blocksFn(st, rest[0..whole]);
+    rest = rest[whole..];
+
+    @memcpy(st.buf[0..rest.len], rest);
+    st.buffered = @intCast(rest.len);
+}
+
+/// Pad and compress the last block(s) of `st` exactly like the original
+/// `finalize()`: afterwards the buffer is drained, the hash words are advanced
+/// and `length` is untouched, so a second `finish` or an `update` after it
+/// gives what crypto-api 0.8.5 gives.
+pub fn finish(comptime S: type, comptime blocksFn: fn (*S, []const u8) void, st: *S) void {
+    var buf: [2 * block_size]u8 = undefined;
+    blocksFn(st, finalTail(st.buf[0..st.buffered], @truncate(st.length), &buf));
+    st.buffered = 0;
+    @memset(&st.buf, 0);
+}
+
 /// Write `hash` words big-endian into `out` (the original `getStateHash()`).
 pub fn wordsToBytes(hash: []const u32, out: []u8) void {
     std.debug.assert(out.len >= hash.len * 4);

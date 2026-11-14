@@ -4,7 +4,7 @@ A maintained port of [`crypto-api`](https://github.com/nf404/crypto-api) to Zig,
 
 Goals: keep the original list of crypto APIs, add current and relevant ones, and be much faster. Release plan: **v1** = behavior-identical port (a drop-in for existing users), **v2** = bug fixes and API cleanup.
 
-> **Status: first algorithm ported.** MD5 is the template (Zig core, wasm family module, JS facade with fallback to the original 0.8.5 code, differential tests). Everything else is still to come, see `docs/PORT_PLAN.md` once merged. `src/wasm.zig` is the general runtime module (metadata, `alloc`/`free`, a `smoke_xor` plumbing check).
+> **Status: MD5, SHA-0, SHA-1, SHA-224/256 and SM3 ported.** MD5 is the template (Zig core, wasm family module, JS facade with fallback to the original 0.8.5 code, differential tests). Everything else is still to come, see `docs/PORT_PLAN.md` once merged. `src/wasm.zig` is the general runtime module (metadata, `alloc`/`free`, a `smoke_xor` plumbing check).
 
 ## Required toolchain
 

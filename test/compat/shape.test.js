@@ -10,9 +10,14 @@ let oracle;
 let target;
 before(async () => ({ oracle, target } = await loadBoth()));
 
+// A facade (docs/porting-guide.md) is a class with the same name as the verbatim
+// original it extends, so `Sha1 -> Sha1 -> Hasher32be`. That one extra link is the
+// design, not a divergence: collapse a class into its parent when the names match.
 const chain = (Cls) => {
   const names = [];
-  for (let c = Cls; c && c !== Function.prototype; c = Object.getPrototypeOf(c)) names.push(c.name);
+  for (let c = Cls; c && c !== Function.prototype; c = Object.getPrototypeOf(c)) {
+    if (names[names.length - 1] !== c.name) names.push(c.name);
+  }
   return names;
 };
 const protoMethods = (Cls) => {
