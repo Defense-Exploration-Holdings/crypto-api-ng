@@ -1,5 +1,5 @@
-//! wasm root for the "md" family (MD5 now; MD4 and MD2 join in later work
-//! packages). Compiled to zig-out/wasm/md.wasm by build.zig.
+//! wasm root for the "md" family (MD5 and MD4 now; MD2 joins in a later work
+//! package). Compiled to zig-out/wasm/md.wasm by build.zig.
 //!
 //! Export shape (see docs/abi.md and docs/porting-guide.md):
 //!
@@ -15,6 +15,7 @@
 
 comptime {
     _ = @import("common.zig");
+    @import("le32_exports.zig").exportHasher("md4", @import("core").md4);
 }
 
 const md5 = @import("core").md5;
