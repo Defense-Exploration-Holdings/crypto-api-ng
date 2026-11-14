@@ -6,6 +6,7 @@
 //! `wasm.zig`.
 
 pub const runtime = @import("runtime.zig");
+pub const md5 = @import("hash/md5.zig");
 
 test {
     // Pull in tests from every module referenced above.

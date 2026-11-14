@@ -22,4 +22,5 @@ jobs:
       - name: Parity harness (original suite + differential fuzz)
         run: npm run test:parity
       - run: zig build check
+      - run: zig build check --release=small
       - run: zig build wasm --release=small
