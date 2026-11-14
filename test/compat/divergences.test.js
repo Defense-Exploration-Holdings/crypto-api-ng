@@ -33,8 +33,7 @@ describe('divergence 1: configurations that hang in 0.8.5', () => {
       assert.equal(r.error?.code, 'ETIMEDOUT', `expected the oracle to hang, got status ${r.status} stdout ${r.stdout}`);
     });
 
-    // Turns green once WP-H (Snefru) lands. Until then the target is the vendored original, which hangs.
-    it(`the target throws RangeError instead: ${label}`, { todo: 'WP-H: Snefru throws RangeError for block size <= 0' }, () => {
+    it(`the target throws RangeError instead: ${label}`, () => {
       const r = run('target', h.family, h.options, 4000);
       assert.equal(r.error?.code, undefined, 'target hung');
       assert.match(r.stdout, /^RangeError\b/, `target (${targetRoot()}) answered: ${r.stdout}`);

@@ -14,6 +14,11 @@ pub const sha256 = @import("hash/sha256.zig");
 pub const sm3 = @import("hash/sm3.zig");
 pub const sha512 = @import("hash/sha512.zig");
 pub const whirlpool = @import("hash/whirlpool.zig");
+pub const le32 = @import("hash/le32.zig");
+pub const md4 = @import("hash/md4.zig");
+pub const has160 = @import("hash/has160.zig");
+pub const ripemd = @import("hash/ripemd.zig");
+pub const snefru = @import("hash/snefru.zig");
 
 test {
     // Pull in tests from every module referenced above.
