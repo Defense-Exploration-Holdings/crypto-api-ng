@@ -94,8 +94,9 @@ describe('tarball contents', () => {
   // The budget is for the shipped wasm (small, fast). release-gates.sh sets this for debug and safe builds.
   it('stays small', { skip: process.env.CRYPTO_API_SKIP_SIZE_BUDGET === '1' }, () => {
     const { size, unpackedSize } = packed['crypto-api-ng'];
-    assert.ok(size < 1.5 * 1024 * 1024, `tarball ${size} bytes`);
-    assert.ok(unpackedSize < 3 * 1024 * 1024, `unpacked ${unpackedSize} bytes`);
+    const hint = ' (debug wasm embedded? build with: zig build js --release=small)';
+    assert.ok(size < 1.5 * 1024 * 1024, `tarball ${size} bytes${hint}`);
+    assert.ok(unpackedSize < 3 * 1024 * 1024, `unpacked ${unpackedSize} bytes${hint}`);
   });
 });
 
