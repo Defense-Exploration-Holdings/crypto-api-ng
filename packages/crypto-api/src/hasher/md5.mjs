@@ -81,14 +81,21 @@ export const _internal = {
   }
 };
 
+/** Largest word magnitude for which the original's `word + a` is exact in a double (a is int32). */
+const MAX_WORD = 2 ** 52;
+
 /** True when the four hash words can be handed to wasm without changing what the original computes. */
 function hashOk(hash) {
-  // Any integer is safe: the original computes (word + a) | 0 and word | 0,
-  // which is int32 arithmetic for integers. Fractions, strings and the like
-  // are not, so those go to the original.
-  return Array.isArray(hash) && hash.length === 4 &&
-    Number.isSafeInteger(hash[0]) && Number.isSafeInteger(hash[1]) &&
-    Number.isSafeInteger(hash[2]) && Number.isSafeInteger(hash[3]);
+  // Any integer up to 2^52 in magnitude is safe: the original computes
+  // (word + a) | 0 and word | 0, which equals int32 arithmetic while the double
+  // sum is exact. Larger words round in the sum, and fractions or strings
+  // behave differently still, so those go to the original.
+  if (!Array.isArray(hash) || hash.length !== 4) return false;
+  for (let i = 0; i < 4; i++) {
+    const w = hash[i];
+    if (typeof w !== 'number' || !Number.isInteger(w) || w > MAX_WORD || w < -MAX_WORD) return false;
+  }
+  return true;
 }
 
 /**

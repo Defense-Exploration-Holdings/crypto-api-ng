@@ -253,6 +253,7 @@ test('odd states take the original code path and stay faithful', () => {
     'huge words': { message: 'abc', length: 3, hash: [2 ** 40 + 5, -(2 ** 33), 2, 3] },
     'fractional word': { message: 'abc', length: 3, hash: [1.5, 1, 2, 3] },
     'string word': { message: 'abc', length: 3, hash: ['1', 1, 2, 3] },
+    'word near 2^53 (double sum rounds)': { message: 'x'.repeat(130), length: 130, hash: [2 ** 53 - 1, -(2 ** 53 - 1), 2 ** 53 - 3, 2 ** 52 + 1] },
     'NaN word': { message: 'abc', length: 3, hash: [NaN, 1, 2, 3] },
     'short hash': { message: 'abc', length: 3, hash: [1, 2, 3] },
     'long hash': { message: 'abc', length: 3, hash: [1, 2, 3, 4, 5] },
@@ -293,7 +294,7 @@ test('odd states take the original code path and stay faithful', () => {
 });
 
 test('integer hash words outside int32 are still computed by wasm, identically', () => {
-  const state = { message: 'abc', length: 3, hash: [4023233417, 1, 2 ** 40 + 5, -(2 ** 33)] };
+  const state = { message: 'abc', length: 3, hash: [4023233417, 1, 2 ** 40 + 5, -(2 ** 52)] };
   const a = new Md5();
   const b = new LegacyMd5();
   a.setState(structuredClone(state));
