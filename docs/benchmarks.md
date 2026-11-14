@@ -280,7 +280,7 @@ All families together: 60.8 KiB (small), 331.2 KiB (fast). v1 ships `small`; `fa
 
 ### JavaScript per import (unminified module closure, bytes)
 
-Everything reachable from the deep import `crypto-api/src/hasher/<name>.mjs`, concatenated. v1 includes the verbatim original engine (the fallback), the facade, the shared glue and the wasm module embedded as base64. No minifier was run; minified sizes are WP-I.
+Everything reachable from the deep import `crypto-api/src/hasher/<name>.mjs`, concatenated. v1 includes the verbatim original engine (the fallback), the facade, the shared glue and the wasm module embedded as base64. No minifier was run; `node scripts/size-report.mjs` reports minified sizes.
 
 | Import | files 0.8.5 | files v1 | 0.8.5 | 0.8.5 gzip | v1 | v1 gzip | v1 ÷ 0.8.5 (gzip) |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -312,7 +312,7 @@ Speed numbers only mean something next to this. The same commit passes:
 
 - **Operation:** `new Hasher(options)`, `update(input)`, `finalize()`; the result is the binary digest string. Inputs are deterministic pseudo-random binary strings (one character per byte, the 0.8.5 API), so the wasm path is used in full. Inputs with characters above 0xFF, other option values and odd states run the original JavaScript in v1 and cost the same as 0.8.5.
 - **Timing:** `bench/lib/stats.mjs`. Each contender is warmed up, its iteration count is calibrated so a sample takes about 25 ms, and samples are taken round-robin between contenders so drift hits all of them equally. Reported: median per operation, plus p95 in the JSON.
-- **Not measured here:** browsers and other runtimes (the harness runs under Bun too, results labeled separately), third-party libraries (`hash-wasm`, `@noble/hashes`, `crypto-js`), a quiet dedicated machine. Plan §6 asks for those; they are follow-ups.
+- **Not measured here:** browsers and other runtimes (the harness runs under Bun too, results labeled separately), third-party libraries (`hash-wasm`, `@noble/hashes`, `crypto-js`), a quiet dedicated machine. These are follow-ups.
 
 ## Reading the results honestly
 

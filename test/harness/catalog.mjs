@@ -7,7 +7,7 @@
 // Option cells were probed against the original (see docs/test-harness.md). Values
 // that make the original loop forever are deliberately absent (see HANGS below).
 
-/** Hasher classes, in the order of the plan's inventory table. */
+/** Hasher classes, in the order of the algorithm list in the README. */
 export const FAMILIES = [
   { id: 'has160',    file: 'has160',    className: 'Has160',    blockBytes: 64,  lengthFieldBytes: 8 },
   { id: 'md2',       file: 'md2',       className: 'Md2',       blockBytes: 16,  lengthFieldBytes: 0 },
@@ -133,8 +133,7 @@ export const OPTION_CELLS = {
 
 /**
  * Configurations where the ORIGINAL never returns. They are not fuzzed against the
- * oracle (it would hang the test run). Plan section 3.5 item 1: v1 throws RangeError
- * for these instead.
+ * oracle (it would hang the test run). v1 throws RangeError for these instead.
  */
 export const HANGS = [
   { family: 'snefru', options: { length: 512 }, note: 'block size 0, update() loops forever' },

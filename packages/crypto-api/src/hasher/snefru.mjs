@@ -150,7 +150,7 @@ class Snefru extends LegacySnefru {
 
     if (size <= 0) {
       // 0.8.5 loops forever here (block size 0 or negative: `length >= 512`) unless
-      // processBlock throws first. Throw instead (v1 divergence 1, PORT_PLAN 3.5).
+      // processBlock throws first. Throw instead (a deliberate v1 difference, see the package README).
       if (this.processBlock === ORIGINAL_BLOCK && options !== null && typeof options === 'object' &&
         typeof options.rounds === 'number' && (options.rounds << 1) <= 16) {
         throw new RangeError('Snefru: options.length ' + this.options.length +

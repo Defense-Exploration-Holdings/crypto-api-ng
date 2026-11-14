@@ -1,6 +1,6 @@
 // Structural parity: same class names, inheritance chains, methods, instance
 // properties, and the same behavior when users subclass a hasher and override its
-// internals (the extension API the plan promises to keep).
+// internals (the extension API v1 keeps).
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadBoth } from '../harness/load.mjs';

@@ -7,13 +7,13 @@
 //
 // Prerequisite: `zig build js --release=small` (writes packages/crypto-api/wasm/, which the facades import).
 //
-// The package name is configurable because it is not decided yet (see PORT_PLAN section 9): the committed
+// The package name is configurable because it is not final yet: the committed
 // package.json says `crypto-api-ng`, and `--name` (or the CRYPTO_API_PACKAGE_NAME environment variable)
 // replaces it in the staged package.json and in the `{{name}}` placeholders of README.md and example/*.
 // Staging copies exactly what package.json `files` lists, so the tarball can never pick up stray files.
 //
 // `--pack` never publishes anything. `private: true` stays in the staged package.json unless `--public`
-// is given, so a stray `npm publish` fails until the release gate (WP-I) decides.
+// is given, so a stray `npm publish` fails until a release is cut.
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';

@@ -1,10 +1,10 @@
-// The complete list of intentional v1 divergences (docs/PORT_PLAN.md section 3.5).
+// The complete list of intentional v1 divergences (see "Differences from crypto-api 0.8.5" in packages/crypto-api/README.md).
 // Everything else must be identical to 0.8.5; anything not listed here that differs
 // is a bug in the port.
 //
 //   1. Configurations where the original never returns throw RangeError instead.
 //   2. setState(obj) no longer keeps a live reference to obj (see quirks.test.js).
-//   3. main / index.js exists (checked by the packaging work package, WP-F).
+//   3. main / index.js exists (checked in test/package/).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';

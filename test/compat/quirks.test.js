@@ -1,4 +1,4 @@
-// Executable form of the verified-behavior appendix in docs/PORT_PLAN.md.
+// Executable form of the documented quirks of crypto-api 0.8.5.
 // 1. The oracle must still give the pinned answer (the claim is true).
 // 2. The target must give the same answer (v1 keeps the quirk), except for the
 //    documented v1 divergences, where the listed alternative is also accepted.
@@ -34,7 +34,7 @@ const PINNED = {
   'setState keeps a live reference in the original': { live: true },
 };
 
-/** Documented v1 divergences (plan section 3.5): extra answers the target may give. */
+/** Documented v1 divergences: extra answers the target may give. */
 const DIVERGENCES = {
   'setState keeps a live reference in the original': [{ live: false }],
 };
@@ -47,7 +47,7 @@ describe('verified quirks of crypto-api 0.8.5', () => {
   for (const name of Object.keys(QUIRK_PROBES)) {
     it(name, () => {
       assert.ok(name in PINNED, 'probe has no pinned answer');
-      assert.deepStrictEqual(QUIRK_PROBES[name](oracle), PINNED[name], 'the oracle no longer behaves as the plan says');
+      assert.deepStrictEqual(QUIRK_PROBES[name](oracle), PINNED[name], 'the oracle no longer behaves as documented');
       const got = QUIRK_PROBES[name](target);
       const allowed = [PINNED[name], ...(DIVERGENCES[name] ?? [])];
       assert.ok(allowed.some((a) => JSON.stringify(a) === JSON.stringify(got)), `target answered ${JSON.stringify(got)}, allowed ${JSON.stringify(allowed)}`);

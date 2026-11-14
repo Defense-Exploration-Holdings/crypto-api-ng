@@ -1,5 +1,4 @@
-//! wasm root for the "md" family (MD5 and MD4 now; MD2 joins in a later work
-//! package). Compiled to zig-out/wasm/md.wasm by build.zig.
+//! wasm root for the "md" family (MD4 and MD5; MD2 has its own root). Compiled to zig-out/wasm/md.wasm by build.zig.
 //!
 //! Export shape (see docs/abi.md and docs/porting-guide.md):
 //!

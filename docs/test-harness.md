@@ -25,9 +25,9 @@ npm run vectors              # regenerate test/vectors from the original test fi
 | `compat/vectors.test.js` | The 238 hash and HMAC vectors of the original suite (`test/vectors/*.json`) in one `update()`, byte by byte, and with a `getState()`/`setState()` round trip at every 7th offset. |
 | `compat/openssl.test.js` | Independent oracle: `node:crypto` for MD5, SHA-1, SHA-224/256/384/512, SHA-512/224, SHA-512/256, RIPEMD-160 and SM3 (every block/padding boundary length plus random lengths, one million `a`), and `createHmac` for 8 of them with key lengths around the block size. |
 | `compat/diff-mac-encoders-facade.test.js` | `Hmac` over every variant (including hostile keys and a user-written hasher), the four encoders with lone surrogates and code units above 0xFF, the rotate helpers, and the `CryptoApi` facade: every `getHasher` name with option variants, unknown names, `hash`, `hmac`, `getHmac`. |
-| `compat/quirks.test.js` | The verified-behavior appendix of `PORT_PLAN.md` as 20 executable probes (pinned oracle answers, target must match), the 32-bit length field for all 24 variants at 17 lengths up to 2^53 (set through `state.length`, because 2 GiB inputs are impractical), and direct reads/writes of `.state`. |
+| `compat/quirks.test.js` | The documented quirks of 0.8.5 as 20 executable probes (pinned oracle answers, target must match), the 32-bit length field for all 24 variants at 17 lengths up to 2^53 (set through `state.length`, because 2 GiB inputs are impractical), and direct reads/writes of `.state`. |
 | `compat/shape.test.js` | Class names, inheritance chains, prototype methods, instance properties, `instanceof` against the target's own base classes, and user subclasses overriding `processBlock`, `update`, `finalize`, `getStateHash`, `addLengthBits` behaving identically. |
-| `compat/divergences.test.js` | The three intentional v1 divergences. The Snefru `length >= 512` hang is proved against the original in a child process with a timeout. The "target throws RangeError" half passes since the Snefru port (WP-H). |
+| `compat/divergences.test.js` | The three intentional v1 divergences. The Snefru `length >= 512` hang is proved against the original in a child process with a timeout. The "target throws RangeError" half passes. |
 | `compat/vendor.test.js` | Every file under `packages/crypto-api/{src,legacy}` equals the original with only relative import specifiers changed, and each import still resolves to the same module. `vendor-legacy.mjs --check` and `extract-vectors.mjs --check` show no drift. |
 
 ## Environment variables
@@ -35,7 +35,7 @@ npm run vectors              # regenerate test/vectors from the original test fi
 | Variable | Default | Meaning |
 |---|---|---|
 | `CRYPTO_API_TARGET` | `packages/crypto-api` | Package root under test (needs `src/` with the original layout). |
-| `FUZZ_ITERS` | `200` | Iterations per option cell. Use `100000` for the release gate (WP-I). |
+| `FUZZ_ITERS` | `200` | Iterations per option cell. Use `100000` for a release (`scripts/release-gates.sh`). |
 | `FUZZ_SEED` | `1` | Base seed. Every cell derives its own stream, so cells are independent and reproducible. |
 | `FUZZ_ONLY` | none | Only run families whose id contains this text, e.g. `FUZZ_ONLY=md5`. |
 
@@ -45,7 +45,7 @@ scenario as JSON and the first differing observation, for example
 `FUZZ_SEED` and `FUZZ_ONLY`, or paste the scenario into `runScenario()` from
 `test/harness/diff.mjs`.
 
-## Conventions for porting threads
+## Conventions
 
 - **Facade marker.** A hand-written file under `packages/crypto-api/src/` must contain the line
   `// crypto-api-ng:facade`. `scripts/vendor-legacy.mjs` never overwrites such a file, and
@@ -68,7 +68,7 @@ scenario as JSON and the first differing observation, for example
 
 ## What it does not cover (yet)
 
-- **NIST CAVP / official vector files** are not vendored (no network access when this was written).
+- **NIST CAVP / official vector files** are not vendored.
   `node:crypto` plays that role for the algorithms OpenSSL implements. MD2, MD4, HAS-160,
   RIPEMD-128/256/320, SHA-0, Snefru, Whirlpool(-0/-T) have only the original suite's published
   vectors plus the differential fuzzer. Adding CAVP `.rsp` conversion would be a good follow-up.
@@ -76,9 +76,9 @@ scenario as JSON and the first differing observation, for example
 - **`src/index.mjs`** of the original assigns `module.exports` and cannot load as native ESM. In the package it is a
   facade file (default export), so the harness does not compare it with the original. `test/package/` (`npm run
   test:package`) covers the CJS entry, the global build, the tarball and the examples.
-- **Environments** (browsers, Bun, Deno, CSP, Workers) belong to WP-I. The harness is plain ESM and
+- **Environments** (browsers, Bun, Deno, CSP, Workers) are covered by `scripts/release-gates.sh`, `test/runtimes/smoke.mjs` and the release-gates workflow. The harness is plain ESM and
   has no Node-only dependency except `node:test` and `node:crypto` in the test files themselves.
-- **Speed** is WP-J.
+- **Speed** is measured by `bench/` (see [benchmarks.md](benchmarks.md)).
 - **Hangs in the target.** A synchronous infinite loop cannot be interrupted by `node:test`. CI has a
   job timeout; locally interrupt with Ctrl-C. Only `divergences.test.js` deliberately triggers a hang,
   in a child process with a timeout.

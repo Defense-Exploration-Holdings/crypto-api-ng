@@ -4,7 +4,7 @@ Hashing library for JavaScript with no dependencies: a maintained port of [`cryp
 
 **Version 1 is a drop-in replacement for `crypto-api@0.8.5`**: same classes, same import paths, same options, same digests and the same `getState()` JSON for every input the original accepts, bugs included. Where a hasher is used outside what the WebAssembly code models exactly (unusual options, non-string input, characters above `\xFF`, subclasses overriding internals, no WebAssembly in the environment), the original JavaScript code runs instead, so the result is the same either way. Fixes and new algorithms are planned for version 2.
 
-> Status: pre-release (`1.0.0-dev`). The package is `private` until the maintainers release it.
+> Status: pre-release. Not yet published to npm; the package name is not final.
 
 ## Install
 
@@ -85,7 +85,7 @@ Where WebAssembly is missing or blocked (a page whose Content-Security-Policy la
 * Encodings: `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64`
 * The `CryptoApi` object: `getHasher`, `hash`, `getHmac`, `hmac`, `encoder`
 
-The API documentation of 0.8.5 applies unchanged. Which algorithms already run in WebAssembly is tracked in the repository README; the others are served by the original code until they are ported.
+The API documentation of 0.8.5 applies unchanged. All of them run their compression function in WebAssembly, with the original JavaScript as the fallback.
 
 ## Package layout
 

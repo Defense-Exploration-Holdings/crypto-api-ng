@@ -1,4 +1,4 @@
-// The behaviors of crypto-api 0.8.5 that docs/PORT_PLAN.md (appendix) verified by
+// The behaviors of crypto-api 0.8.5 that were verified by
 // running the original, as executable probes. Each probe takes an API tree
 // (oracle or target) and returns JSON-able observations. quirks.test.js pins the
 // oracle's answers (so the claims stay true) and requires the target to give
