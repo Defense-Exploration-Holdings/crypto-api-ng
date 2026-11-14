@@ -60,4 +60,8 @@ describe('generated files are current', () => {
     const r = run('extract-vectors.mjs');
     assert.equal(r.status, 0, r.stderr + r.stdout);
   });
+  it('scripts/gen-snefru-rand.mjs --check', () => {
+    const r = run('gen-snefru-rand.mjs');
+    assert.equal(r.status, 0, r.stderr + r.stdout);
+  });
 });
