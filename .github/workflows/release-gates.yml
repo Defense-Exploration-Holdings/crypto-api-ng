@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       fuzz_iters:
-        description: Differential fuzz iterations per cell (release: 100000)
+        description: "Differential fuzz iterations per cell (100000 for a release)"
         default: "100000"
   push:
     tags: ["v*"]
