@@ -4,7 +4,7 @@ A maintained port of [`crypto-api`](https://github.com/nf404/crypto-api) to Zig,
 
 Goals: keep the original list of crypto APIs, add current and relevant ones, and be much faster. Release plan: **v1** = behavior-identical port (a drop-in for existing users), **v2** = bug fixes and API cleanup.
 
-> **Status: scaffold only.** The runtime, build, loader and test wiring exist; no algorithms are ported yet. `src/wasm.zig` exports only module metadata, `alloc`/`free`, and a `smoke_xor` plumbing check.
+> **Status: first algorithm ported.** MD5 is the template (Zig core, wasm family module, JS facade with fallback to the original 0.8.5 code, differential tests). Everything else is still to come, see `docs/PORT_PLAN.md` once merged. `src/wasm.zig` is the general runtime module (metadata, `alloc`/`free`, a `smoke_xor` plumbing check).
 
 ## Required toolchain
 
@@ -34,7 +34,8 @@ The script installs Zig from the official `ziglang` PyPI wheel, because `ziglang
 ```sh
 zig build                         # build zig-out/wasm/crypto-api.wasm (debug)
 zig build wasm --release=small    # size-optimized wasm   (also: --release=fast | --release=safe)
-zig build js                      # generate js/generated/wasm-bytes.js (embedded wasm for sync loading)
+zig build families                # build zig-out/wasm/<family>.wasm, one module per algorithm family
+zig build js                      # generate embedded wasm byte modules (js/generated/, packages/crypto-api/wasm/)
 zig build test                    # Zig unit tests, native target
 zig build test-js                 # build wasm, then run Node tests (test/*.test.js)
 zig build check                   # everything above; run this before every commit
@@ -48,17 +49,21 @@ zig build check                   # everything above; run this before every comm
 build.zig, build.zig.zon   build graph and package manifest
 src/root.zig               target-agnostic library root; native tests start here
 src/runtime.zig            ABI version, status codes, shared conventions
-src/wasm.zig               the wasm export surface (only file with `export fn`)
+src/hash/<algo>.zig        algorithm cores (target-agnostic, with tests)
+src/wasm.zig               general runtime wasm module (metadata, alloc/free, smoke test)
+src/wasm/<family>.zig      one wasm root per algorithm family (the only other files with `export fn`)
+packages/crypto-api/       the package under construction: facades in src/, verbatim original code in legacy/
 js/index.js, index.d.ts    loader: async `load()` and sync `loadSync()`, ABI check, byte in/out helpers
 js/sync.js                 sync entry: instantiates embedded bytes on import (needs `zig build js`)
 test/*.test.js             Node tests run against the built wasm
 docs/abi.md                JS <-> wasm calling conventions (read before adding exports)
+docs/porting-guide.md      how to port an algorithm, using MD5 as the template
 scripts/install-zig.sh     pinned Zig installer
 scripts/embed-wasm.mjs     wasm -> base64 JS module generator (used by `zig build js`)
 crypto-api/                upstream crypto-api as a git submodule (the behavioral oracle)
 ```
 
-Add algorithms as target-agnostic Zig under `src/` (with `test` blocks, re-exported from `src/root.zig`), export them from `src/wasm.zig`, then wrap them in `js/`.
+To add an algorithm, follow [docs/porting-guide.md](docs/porting-guide.md): core in `src/hash/`, exports in a family root under `src/wasm/`, facade in `packages/crypto-api/src/hasher/`, differential tests in `test/`.
 
 ## Upstream submodule
 
