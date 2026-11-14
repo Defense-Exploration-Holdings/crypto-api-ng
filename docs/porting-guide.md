@@ -48,7 +48,7 @@ Copy `md5.mjs` and change the algorithm-specific parts. The parts that carry the
 2. Override `process()`:
    - `const state = this.state`; if it is not an object, or `state.message` is not a string, `return super.process()`.
    - If `message.length < blockSizeInBytes`, return (that is what the original does).
-   - Delegate to `super.process()` unless `this.processBlock === ORIGINAL_BLOCK` (a subclass or instance patch must be honored), the hash words are safe integers (`hashOk`), and the runtime loaded.
+   - Delegate to `super.process()` unless `this.processBlock === ORIGINAL_BLOCK` (a subclass or instance patch must be honored), the hash words are integers of magnitude at most 2^52 (`hashOk`; beyond that the original's double sum `word + a` rounds), and the runtime loaded.
    - Copy the block-aligned part of the message into scratch in chunks of the scratch capacity, OR-ing the code units. If any is above 0xFF, write back what has been consumed so far (always whole blocks), set `state.message = message.substr(pos)` and `return super.process()`. The original then handles the rest, garbage output included.
    - Write the hash words back **in place** (`state.hash[i] = ...`, as the original does) and set `state.message = message.substr(total)`.
 3. Override `finalize()` only if the padding and last block are worth accelerating. Guard on everything it relies on (`process`, `processBlock`, `addLengthBits`, `addPaddingISO7816`, `getStateHash` not overridden; message short and narrow; hash and length safe integers), fill the scratch `State`, call `<algo>_final`, copy the new hash words back, set `state.message = ''`, and build the digest with `String.fromCharCode`. Nothing in `this` may be touched before the guards pass.

@@ -4,7 +4,7 @@ A maintained port of [`crypto-api`](https://github.com/nf404/crypto-api) to Zig,
 
 Goals: keep the original list of crypto APIs, add current and relevant ones, and be much faster. Release plan: **v1** = behavior-identical port (a drop-in for existing users), **v2** = bug fixes and API cleanup.
 
-> **Status: MD2, MD4, MD5, HAS-160, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512 (with SHA-512/224 and /256), SM3, Snefru and Whirlpool (with -0 and -T) ported.** MD5 is the template (Zig core, wasm family module, JS facade with fallback to the original 0.8.5 code, differential tests). See `docs/PORT_PLAN.md` once merged. `src/wasm.zig` is the general runtime module (metadata, `alloc`/`free`, a `smoke_xor` plumbing check).
+> **Status: MD2, MD5, MD4, HAS-160, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512 (with SHA-512/224 and /256), SM3, Snefru and Whirlpool (with -0 and -T) ported.** MD5 is the template (Zig core, wasm family module, JS facade with fallback to the original 0.8.5 code, differential tests). Everything else is still to come, see `docs/PORT_PLAN.md` once merged. `src/wasm.zig` is the general runtime module (metadata, `alloc`/`free`, a `smoke_xor` plumbing check).
 
 ## Required toolchain
 
@@ -63,6 +63,18 @@ scripts/embed-wasm.mjs     wasm -> base64 JS module generator (used by `zig buil
 crypto-api/                upstream crypto-api as a git submodule (the behavioral oracle)
 ```
 
+## Package
+
+`packages/crypto-api` is the npm package (`crypto-api-ng` for now; the name is configurable, see `scripts/build-package.mjs`). `npm ci`, `zig build js --release=small`, then:
+
+```sh
+npm run build:package             # ES5 UMD bundles crypto-api.js / crypto-api.min.js + example vectors
+npm run pack                      # stage + npm pack into dist/   (npm run pack -- --name crypto-api)
+npm run test:package              # bundle vs original, tarball contents, smoke imports, Chromium (needs playwright)
+```
+
+`private: true` stays set; nothing is published by these commands. The package README documents usage, the differences from 0.8.5 and the kept bugs.
+
 To add an algorithm, follow [docs/porting-guide.md](docs/porting-guide.md): core in `src/hash/`, exports in a family root under `src/wasm/`, facade in `packages/crypto-api/src/hasher/`, differential tests in `test/`.
 
 ## Upstream submodule
@@ -71,4 +83,4 @@ To add an algorithm, follow [docs/porting-guide.md](docs/porting-guide.md): core
 
 ## License
 
-See [LICENSE-NOTES.md](LICENSE-NOTES.md). The license for this repository has not been chosen yet, and upstream's notice must be preserved.
+MIT, see [LICENSE](LICENSE): Copyright (c) 2026 Defense Exploration Holdings LLC for the Zig/WebAssembly port, and Copyright (c) 2015 nf404 for the original `crypto-api` it derives from. Both notices must be kept. Background in [LICENSE-NOTES.md](LICENSE-NOTES.md).
