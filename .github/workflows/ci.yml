@@ -7,10 +7,11 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: false
+          submodules: true
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -18,5 +19,7 @@ jobs:
         run: |
           scripts/install-zig.sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Parity harness (original suite + differential fuzz)
+        run: npm run test:parity
       - run: zig build check
       - run: zig build wasm --release=small

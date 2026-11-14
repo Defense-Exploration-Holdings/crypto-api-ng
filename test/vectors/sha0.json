@@ -1,0 +1,50 @@
+[
+ {
+  "name": "sha0('')",
+  "input": "",
+  "inputHex": "",
+  "hex": "f96cea198ad1dd5617ac084a3d92c6107708c0ef"
+ },
+ {
+  "name": "sha0('a')",
+  "input": "a",
+  "inputHex": "61",
+  "hex": "37f297772fae4cb1ba39b6cf9cf0381180bd62f2"
+ },
+ {
+  "name": "sha0('abc')",
+  "input": "abc",
+  "inputHex": "616263",
+  "hex": "0164b8a914cd2a5e74c4f7ff082c4d97f1edf880"
+ },
+ {
+  "name": "sha0('message digest')",
+  "input": "message digest",
+  "inputHex": "6d65737361676520646967657374",
+  "hex": "c1b0f222d150ebb9aa36a40cafdc8bcbed830b14"
+ },
+ {
+  "name": "sha0('a..z')",
+  "input": "abcdefghijklmnopqrstuvwxyz",
+  "inputHex": "6162636465666768696a6b6c6d6e6f707172737475767778797a",
+  "hex": "b40ce07a430cfd3c033039b9fe9afec95dc1bdcd"
+ },
+ {
+  "name": "sha0('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq')",
+  "input": "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+  "inputHex": "6162636462636465636465666465666765666768666768696768696a68696a6b696a6b6c6a6b6c6d6b6c6d6e6c6d6e6f6d6e6f706e6f7071",
+  "hex": "d2516ee1acfa5baf33dfc1c471e438449ef134c8"
+ },
+ {
+  "name": "sha0('A..Za..z0..9')",
+  "input": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+  "inputHex": "4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a30313233343536373839",
+  "hex": "79e966f7a3a990df33e40e3d7f8f18d2caebadfa"
+ },
+ {
+  "name": "sha0('1234567890' x 8)",
+  "input": "12345678901234567890123456789012345678901234567890123456789012345678901234567890",
+  "inputHex": "3132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930",
+  "hex": "4aa29d14d171522ece47bee8957e35a41f3e9cff"
+ }
+]

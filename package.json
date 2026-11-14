@@ -12,6 +12,12 @@
     "build:debug": "zig build wasm",
     "test": "zig build check",
     "test:zig": "zig build test",
-    "test:js": "zig build test-js"
+    "test:js": "zig build test-js",
+    "vendor": "node scripts/vendor-legacy.mjs",
+    "vectors": "node scripts/extract-vectors.mjs",
+    "test:compat": "node --test \"test/compat/*.test.js\"",
+    "test:legacy-suite": "node test/legacy-suite/run.mjs target",
+    "test:legacy-suite:oracle": "node test/legacy-suite/run.mjs oracle",
+    "test:parity": "npm run test:legacy-suite && npm run test:compat"
   }
 }
