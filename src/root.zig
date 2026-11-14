@@ -7,6 +7,10 @@
 
 pub const runtime = @import("runtime.zig");
 pub const md5 = @import("hash/md5.zig");
+pub const be32 = @import("hash/be32.zig");
+pub const sha1 = @import("hash/sha1.zig");
+pub const sha256 = @import("hash/sha256.zig");
+pub const sm3 = @import("hash/sm3.zig");
 
 test {
     // Pull in tests from every module referenced above.
