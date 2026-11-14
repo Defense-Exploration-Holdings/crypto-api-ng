@@ -21,8 +21,8 @@ jobs:
         run: |
           scripts/install-zig.sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: Embed wasm (the facades import the generated modules)
-        run: zig build js
+      - name: Embed wasm (the facades import the generated modules; small is what ships)
+        run: zig build js --release=small
       - name: Parity harness (original suite + differential fuzz)
         run: npm run test:parity
       - name: Package (bundles, npm pack, smoke imports, Chromium global build)
