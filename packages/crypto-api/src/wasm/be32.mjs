@@ -4,9 +4,9 @@
 import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
- * Shared wasm glue for the 32-bit big-endian, 64-byte-block hashers (SHA-0,
- * SHA-1, SHA-224/256, SM3). They differ only in numbers (hash words, State
- * offsets, option rules), so the two methods every facade overrides,
+ * Shared wasm glue for the 32-bit big-endian hashers (SHA-0, SHA-1, SHA-224/256
+ * and SM3 with 64-byte blocks; SHA-384/512 with `spec.block` 128). They differ
+ * only in numbers (hash words, State offsets, option rules), so the two methods every facade overrides,
  * `process()` and `finalize()`, are written once here. The recipe and the
  * guarantees are the ones of the MD5 template (docs/porting-guide.md); read
  * `src/hasher/md5.mjs` first.
@@ -23,7 +23,7 @@ import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
  * state that is still exactly what the original expects.
  */
 
-const BLOCK = 64;
+const DEFAULT_BLOCK = 64;
 // hash words are added as `(word + a) | 0` in the original, which stays exact
 // as long as the sum is a safe integer; leave a margin for the addend.
 const WORD_LIMIT = 2 ** 52;
@@ -88,12 +88,17 @@ export function createFamily(getBytes, stateSizes) {
  * @param {number} spec.lengthOff
  * @param {number} spec.bufferedOff
  * @param {number} spec.bufOff
+ * @param {number} [spec.block=64] - block size in bytes (128 for SHA-384/512, whose units are still 32-bit)
+ * @param {number} [spec.outOff] - scratch offset the digest is written to (default `OUT_OFF`; SHA-512's
+ *   State is larger than the 128-byte state slot, so it uses `INPUT_OFF`, which `final` does not read)
  * @param {(options: *) => number} spec.rounds - rounds the wasm code may run for these options, or 0
  * @param {(options: *) => number} spec.outBytes - digest bytes for these options, or 0 if unsupported
  * @param {() => Function} spec.facade - the facade class (its own `process` must be the running one)
  */
 export function createAccelerator(spec) {
   const {family, name, legacy, words, roundsOff, lengthOff, bufferedOff, bufOff} = spec;
+  const BLOCK = spec.block || DEFAULT_BLOCK;
+  const outOff = spec.outOff === undefined ? OUT_OFF : spec.outOff;
   const P = legacy.prototype;
   // The internals the wasm code replaces. An override of any of them must be honored.
   const ORIGINAL_BLOCK = P.processBlock;
@@ -191,7 +196,7 @@ export function createAccelerator(spec) {
     u32[(st + lengthOff + 4) >> 2] = Math.floor(length / 4294967296) >>> 0;
     u32[(st + bufferedOff) >> 2] = n;
 
-    const out = rt.base + OUT_OFF;
+    const out = rt.base + outOff;
     rt.ex[final](st, out);
     wasmCalls++;
 

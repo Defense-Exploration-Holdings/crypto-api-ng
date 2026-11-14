@@ -1,4 +1,5 @@
-// Facade tests for the 32-bit big-endian family (SHA-0, SHA-1, SHA-224/256, SM3):
+// Facade tests for the 32-bit big-endian family (SHA-0, SHA-1, SHA-224/256, SM3,
+// and SHA-384/512 with 128-byte blocks, which use the same glue):
 // wasm-accelerated classes vs the untouched crypto-api 0.8.5 classes.
 //
 // The oracle is packages/crypto-api/legacy/hasher/<algo>.mjs, a verbatim copy of
@@ -13,10 +14,12 @@ import { readFileSync } from 'node:fs';
 import Sha0, { _internal as sha0Internal } from '../packages/crypto-api/src/hasher/sha0.mjs';
 import Sha1, { _internal as sha1Internal } from '../packages/crypto-api/src/hasher/sha1.mjs';
 import Sha256, { _internal as sha256Internal } from '../packages/crypto-api/src/hasher/sha256.mjs';
+import Sha512, { _internal as sha512Internal } from '../packages/crypto-api/src/hasher/sha512.mjs';
 import Sm3, { _internal as sm3Internal } from '../packages/crypto-api/src/hasher/sm3.mjs';
 import LegacySha0 from '../packages/crypto-api/legacy/hasher/sha0.mjs';
 import LegacySha1 from '../packages/crypto-api/legacy/hasher/sha1.mjs';
 import LegacySha256 from '../packages/crypto-api/legacy/hasher/sha256.mjs';
+import LegacySha512 from '../packages/crypto-api/legacy/hasher/sha512.mjs';
 import LegacySm3 from '../packages/crypto-api/legacy/hasher/sm3.mjs';
 import Hasher from '../packages/crypto-api/src/hasher/hasher.mjs';
 import Hasher32be from '../packages/crypto-api/src/hasher/hasher32be.mjs';
@@ -80,10 +83,31 @@ const ALGOS = [
   {
     id: 'sha256', Facade: Sha256, Legacy: LegacySha256, internal: sha256Internal, words: 8, maxRounds: 64,
     variants: [{ file: 'sha256', options: {}, node: 'sha256' }, { file: 'sha224', options: { length: 224 }, node: 'sha224' }],
-    hmac: ['sha224', 'sha256'],
+    hmac: ['sha224', 'sha256'], hmacOptions: { sha224: { length: 224 } },
+    lateLengths: [224, 256, 160, 224],
     inside: [{}, { length: 224 }, { length: 256 }, { rounds: 1 }, { rounds: 33, length: 224 }, { rounds: 63 }, { rounds: 64 }],
     processOnly: [{ length: 160 }, { length: 128 }, { length: 384 }, { length: '224' }, { length: 224.5 }],
     outside: [{ rounds: 65 }, { rounds: 80 }, { rounds: 2.5 }, { rounds: '40' }, { rounds: -3 }]
+  },
+  {
+    id: 'sha512', Facade: Sha512, Legacy: LegacySha512, internal: sha512Internal, words: 16, maxRounds: 160,
+    block: 128, units: 32, padAt: 112,
+    variants: [
+      { file: 'sha512', options: {}, node: 'sha512' },
+      { file: 'sha384', options: { length: 384 }, node: 'sha384' },
+      { file: 'sha512-224', options: { length: 224 }, node: 'sha512-224' },
+      { file: 'sha512-256', options: { length: 256 }, node: 'sha512-256' }
+    ],
+    hmac: ['sha384', 'sha512'], hmacOptions: { sha384: { length: 384 } },
+    lateLengths: [384, 224, 256, 160, 100, 600, 512, 31],
+    // rounds are half-steps: 159 and 160 (and 1 and 2) are the same computation. `length` only picks
+    // the digest size at finalize(); any integer 32..512 is served by wasm, including the SHA-512/t
+    // IVs the original derives for other t.
+    inside: [{}, { length: 384 }, { length: 224 }, { length: 256 }, { length: 100 }, { length: 480 }, { length: 32 },
+      { rounds: 1 }, { rounds: 2 }, { rounds: 3 }, { rounds: 31 }, { rounds: 32 }, { rounds: 33, length: 384 }, { rounds: 64 },
+      { rounds: 100, length: 256 }, { rounds: 159 }, { rounds: 160 }, { rounds: 0 }, { rounds: NaN }],
+    processOnly: [{ length: 600 }, { length: 1000 }, { length: 2.5 }, { length: -5 }, { length: '224' }, { length: '384' }, { length: 224.5 }, { length: 31 }, { length: true }],
+    outside: [{ rounds: 161 }, { rounds: 200 }, { rounds: 2.5 }, { rounds: '40' }, { rounds: -3 }, { rounds: true }]
   },
   {
     id: 'sm3', Facade: Sm3, Legacy: LegacySm3, internal: sm3Internal, words: 8, maxRounds: 64,
@@ -105,6 +129,8 @@ const nodeHas = (alg) => {
 
 for (const A of ALGOS) {
   const { Facade: F, Legacy: L, internal, words } = A;
+  const B = A.block || 64; // block size in bytes
+  const T = A.padAt || 56; // tail length at which padding needs a second block
   const wasmUsed = (fn) => {
     const before = internal.wasmCalls();
     fn();
@@ -133,7 +159,7 @@ for (const A of ALGOS) {
       assert.ok(internal.runtime(), 'wasm failed to instantiate; run `zig build js` first');
       assert.equal(wasmUsed(() => {
         const h = new F();
-        h.update('x'.repeat(100));
+        h.update('x'.repeat(B + 36));
         h.finalize();
       }), 2, 'one process() call and one finalize() call');
     });
@@ -146,8 +172,8 @@ for (const A of ALGOS) {
       assert.equal(F.length, L.length);
       assert.equal(h.unitSize, 4);
       assert.equal(h.unitOrder, 1);
-      assert.equal(h.blockSize, 16);
-      assert.equal(h.blockSizeInBytes, 64);
+      assert.equal(h.blockSize, A.units || 16);
+      assert.equal(h.blockSizeInBytes, B);
       const o = {};
       assert.equal(new F(o).options, o, 'options object is kept by reference');
       assert.deepEqual(new F().options, new L().options);
@@ -167,7 +193,7 @@ for (const A of ALGOS) {
     }
 
     for (const name of A.hmac) {
-      const options = name === 'sha224' ? { length: 224 } : {};
+      const options = (A.hmacOptions && A.hmacOptions[name]) || {};
       for (const t of vec(`hmac-${name}`)) {
         test(`vector: ${t.name}`, () => {
           for (const Class of [F, L]) {
@@ -193,7 +219,7 @@ for (const A of ALGOS) {
 
     test('differential: random messages split across random update() calls, every option set', () => {
       const rand = rng(2);
-      const lengths = [0, 1, 15, 16, 17, 55, 56, 57, 63, 64, 65, 119, 120, 121, 127, 128, 129];
+      const lengths = [0, 1, 15, 16, 17, 55, 56, 57, 63, 64, 65, 111, 112, 113, 119, 120, 121, 127, 128, 129, 239, 240, 241, 255, 256, 257];
       const optionSets = [...A.inside, ...(A.processOnly || []), ...A.outside];
       for (const options of optionSets) {
         for (let it = 0; it < Math.max(20, FUZZ_ITERS / 4); it++) {
@@ -221,7 +247,7 @@ for (const A of ALGOS) {
       for (const options of A.inside) {
         assert.equal(wasmUsed(() => {
           const h = new F(opts(options));
-          h.update('x'.repeat(130));
+          h.update('x'.repeat(2 * B + 2));
           h.finalize();
         }), 2, JSON.stringify(options));
       }
@@ -230,7 +256,7 @@ for (const A of ALGOS) {
       for (const options of A.processOnly || []) {
         assert.equal(wasmUsed(() => {
           const h = new F(opts(options));
-          h.update('x'.repeat(130));
+          h.update('x'.repeat(2 * B + 2));
           attempt(() => h.finalize());
         }), 2, JSON.stringify(options)); // update() and the original finalize() both call process()
       }
@@ -239,7 +265,7 @@ for (const A of ALGOS) {
         const a = new F(opts(options));
         const used = wasmUsed(() => {
           attempt(() => {
-            a.update('x'.repeat(130));
+            a.update('x'.repeat(2 * B + 2));
             a.finalize();
           });
         });
@@ -250,16 +276,16 @@ for (const A of ALGOS) {
     test('options changed after construction are honored on the next call', () => {
       const a = new F();
       const b = new L();
-      a.update('a'.repeat(100));
-      b.update('a'.repeat(100));
+      a.update('a'.repeat(B + 36));
+      b.update('a'.repeat(B + 36));
       for (const rounds of [A.maxRounds - 1, 5, A.maxRounds + 1, 2.5, A.maxRounds]) {
         a.options.rounds = rounds;
         b.options.rounds = rounds;
-        assert.deepEqual(attempt(() => (a.update('b'.repeat(70)), json(a))), attempt(() => (b.update('b'.repeat(70)), json(b))), `rounds ${rounds}`);
+        assert.deepEqual(attempt(() => (a.update('b'.repeat(B + 6)), json(a))), attempt(() => (b.update('b'.repeat(B + 6)), json(b))), `rounds ${rounds}`);
       }
       assert.deepEqual(attempt(() => hex(a)), attempt(() => hex(b)));
-      if (A.id === 'sha256') {
-        for (const length of [224, 256, 160, 224]) {
+      if (A.lateLengths) {
+        for (const length of A.lateLengths) {
           const x = new F();
           const y = new L();
           x.update('abc');
@@ -274,7 +300,7 @@ for (const A of ALGOS) {
     test('finalize() twice and update() after finalize() match the original', () => {
       same([update('abc'), finalize(), finalize(), finalize()], 'finalize x3');
       same([update('abc'), finalize(), update('abc'), finalize()], 'update after finalize');
-      same([update('x'.repeat(100)), finalize(), update('y'.repeat(70)), finalize()], 'blocks after finalize');
+      same([update('x'.repeat(B + 36)), finalize(), update('y'.repeat(B + 6)), finalize()], 'blocks after finalize');
       same([finalize(), update(''), finalize()], 'finalize before any update');
     });
 
@@ -307,7 +333,7 @@ for (const A of ALGOS) {
       assert.equal(json(a), JSON.stringify({ message: '', length: 0, hash: iv() }));
       a.update('abc');
       assert.equal(JSON.parse(json(a)).message, 'abc');
-      a.update('d'.repeat(62));
+      a.update('d'.repeat(B - 2));
       assert.equal(JSON.parse(json(a)).message, 'd');
       assert.deepEqual(Object.keys(a.getState()), ['message', 'length', 'hash']);
       const s = a.getState();
@@ -356,8 +382,8 @@ for (const A of ALGOS) {
       a.setState(oa);
       b.setState(ob);
       assert.equal(a.state, oa);
-      a.update('z'.repeat(100));
-      b.update('z'.repeat(100));
+      a.update('z'.repeat(B + 36));
+      b.update('z'.repeat(B + 36));
       assert.deepEqual(oa, ob);
       assert.equal(hex(a), hex(b));
       assert.deepEqual(oa, ob);
@@ -375,10 +401,10 @@ for (const A of ALGOS) {
         'NaN word': { message: 'abc', length: 3, hash: h0.map((x, i) => (i ? x : NaN)) },
         'short hash': { message: 'abc', length: 3, hash: h0.slice(0, 3) },
         'long hash': { message: 'abc', length: 3, hash: [...h0, 1, 2] },
-        'full block in message': { message: 'a'.repeat(64), length: 64, hash: h0 },
+        'full block in message': { message: 'a'.repeat(B), length: B, hash: h0 },
         'long message': { message: 'a'.repeat(200), length: 200, hash: h0 },
         'wide message': { message: 'aĀb', length: 3, hash: h0 },
-        'wide block': { message: 'a'.repeat(63) + 'Ā' + 'b'.repeat(70), length: 134, hash: h0 },
+        'wide block': { message: 'a'.repeat(B - 1) + 'Ā' + 'b'.repeat(B + 6), length: 2 * B + 6, hash: h0 },
         'negative length': { message: '', length: -5, hash: h0 },
         'fractional length': { message: '', length: 2.5, hash: h0 },
         'string length': { message: '', length: '7', hash: h0 },
@@ -399,7 +425,7 @@ for (const A of ALGOS) {
           (h) => h.getState(),
           finalize(),
           (h) => h.getState(),
-          update('x'.repeat(130)),
+          update('x'.repeat(2 * B + 2)),
           finalize()
         ];
         const a = new F();
@@ -424,7 +450,7 @@ for (const A of ALGOS) {
     test('the 2^31-byte length bug is kept (setState with huge lengths)', () => {
       const lengths = [(2 ** 31) - 1, 2 ** 31, 2 ** 31 + 5, 2 ** 32 - 1, 2 ** 32, 2 ** 32 + 7, 3 * 2 ** 31 + 9, 2 ** 40 + 3, Number.MAX_SAFE_INTEGER, -1, -(2 ** 31), -(2 ** 33) - 5];
       for (const length of lengths) {
-        for (const message of ['', 'abc', 'x'.repeat(55), 'y'.repeat(56), 'z'.repeat(63)]) {
+        for (const message of ['', 'abc', 'x'.repeat(T - 1), 'y'.repeat(T), 'z'.repeat(B - 1)]) {
           const a = new F();
           const b = new L();
           a.setState({ message, length, hash: [...iv()] });
@@ -443,11 +469,11 @@ for (const A of ALGOS) {
         'max code unit': '￿',
         'lone surrogate': 'a\ud800b',
         'emoji': 'x\u{1f600}y',
-        'wide after a full block': 'a'.repeat(64) + 'ā' + 'b'.repeat(10),
-        'wide in the first block': 'a'.repeat(30) + 'ā' + 'b'.repeat(100),
+        'wide after a full block': 'a'.repeat(B) + 'ā' + 'b'.repeat(10),
+        'wide in the first block': 'a'.repeat(30) + 'ā' + 'b'.repeat(B + 36),
         'wide in a later 64 KiB chunk': 'q'.repeat(70000) + 'Ω' + 'r'.repeat(5000),
         'wide exactly at a chunk boundary': 'q'.repeat(65536) + 'Ω' + 'r'.repeat(100),
-        'wide only in the unprocessed tail': 'q'.repeat(64) + 'abcĀ'
+        'wide only in the unprocessed tail': 'q'.repeat(B) + 'abcĀ'
       };
       for (const [name, wide] of Object.entries(cases)) {
         same([update('prefix'), update(wide), update('suffix'), finalize(), update(wide), finalize()], name);
@@ -469,7 +495,7 @@ for (const A of ALGOS) {
         'symbol': Symbol('s')
       };
       for (const [name, input] of Object.entries(inputs)) {
-        const steps = [update('abc'), (h) => h.update(input), update('d'.repeat(70)), finalize(), (h) => h.getState()];
+        const steps = [update('abc'), (h) => h.update(input), update('d'.repeat(B + 6)), finalize(), (h) => h.getState()];
         const a = new F();
         const b = new L();
         for (const [i, step] of steps.entries()) {
@@ -489,8 +515,8 @@ for (const A of ALGOS) {
       b.state.length = 1000;
       a.state.hash[2] = 42;
       b.state.hash[2] = 42;
-      a.state.message = 'r'.repeat(70);
-      b.state.message = 'r'.repeat(70);
+      a.state.message = 'r'.repeat(B + 6);
+      b.state.message = 'r'.repeat(B + 6);
       assert.equal(wasmUsed(() => a.process()), 1);
       b.process();
       assert.equal(json(a), json(b));
@@ -566,7 +592,7 @@ for (const A of ALGOS) {
       class Plain extends F {}
       assert.equal(wasmUsed(() => {
         const p = new Plain();
-        p.update('a'.repeat(64));
+        p.update('a'.repeat(B));
         p.finalize();
       }), 2);
     });
@@ -581,14 +607,14 @@ for (const A of ALGOS) {
           calls++;
           return original.call(this, block);
         };
-        h.update('x'.repeat(130));
+        h.update('x'.repeat(2 * B + 2));
       }
       assert.equal(calls, 4);
       assert.equal(hex(a), hex(b));
     });
 
     test('a changed blockSizeInBytes is honored by the original code', () => {
-      same([(h) => { h.blockSizeInBytes = 32; }, update('x'.repeat(100)), finalize()], 'blockSizeInBytes 32');
+      same([(h) => { h.blockSizeInBytes = 32; }, update('x'.repeat(B + 36)), finalize()], 'blockSizeInBytes 32');
     });
 
     test('falls back to the original when WebAssembly is unavailable', () => {
@@ -710,4 +736,111 @@ test('SHA-0 differs from SHA-1 (the rotation is the only difference)', () => {
   a.update('abc');
   b.update('abc');
   assert.notEqual(hex(a), hex(b));
+});
+
+describe('sha512: reset() and initial hash words', () => {
+  const lengths = [512, 384, 224, 256, 160, 128, 100, 480, 32, 33, 31, 1, 600, 2.5, -5, '224', '256', '384', true, 224.5];
+
+  test('constructing with any length gives the original state, key order and IV included', () => {
+    for (const length of lengths) {
+      const a = new Sha512({ length });
+      const b = new LegacySha512({ length });
+      assert.equal(json(a), json(b), `length ${JSON.stringify(length)}`);
+      assert.deepEqual(a.options, b.options);
+      assert.deepEqual(Object.keys(a.state), Object.keys(b.state));
+    }
+  });
+
+  test('SHA-512/224 and /256 IVs are the original\'s, as int32', () => {
+    for (const length of [224, 256]) {
+      const a = new Sha512({ length });
+      assert.deepEqual(a.state.hash, new LegacySha512({ length }).state.hash);
+      assert.ok(a.state.hash.every((x) => Number.isInteger(x) && x >= -(2 ** 31) && x < 2 ** 31));
+    }
+  });
+
+  test('the cached IV is not shared between instances', () => {
+    const a = new Sha512({ length: 224 });
+    const b = new Sha512({ length: 224 });
+    assert.notEqual(a.state.hash, b.state.hash);
+    a.state.hash[0] = 1;
+    assert.notEqual(b.state.hash[0], 1);
+    assert.deepEqual(new Sha512({ length: 224 }).state.hash, new LegacySha512({ length: 224 }).state.hash);
+    a.update('abc');
+    const c = new Sha512({ length: 224 });
+    assert.deepEqual(c.state, new LegacySha512({ length: 224 }).state);
+  });
+
+  test('reset() after changing options.length picks the IV for the new length', () => {
+    for (const from of [512, 224, 256, 384, 100]) {
+      for (const to of [224, 256, 384, 512, 100, 160]) {
+        const a = new Sha512({ length: from });
+        const b = new LegacySha512({ length: from });
+        a.update('abc');
+        b.update('abc');
+        a.options.length = to;
+        b.options.length = to;
+        a.reset();
+        b.reset();
+        assert.equal(json(a), json(b), `${from} -> ${to}`);
+        a.update('hello');
+        b.update('hello');
+        assert.equal(hex(a), hex(b), `${from} -> ${to}`);
+      }
+    }
+  });
+
+  test('reset() with options that are not an object throws like the original, with the same state left behind', () => {
+    for (const options of [null, 5, 'x', undefined]) {
+      const a = new Sha512();
+      const b = new LegacySha512();
+      a.update('abc');
+      b.update('abc');
+      a.options = options;
+      b.options = options;
+      assert.deepEqual(attempt(() => a.reset()), attempt(() => b.reset()), String(options));
+      assert.equal(json(a), json(b), String(options));
+    }
+  });
+
+  test('a subclass that overrides reset() sees its own reset() and super works', () => {
+    let calls = 0;
+    class Sub extends Sha512 {
+      reset() {
+        calls++;
+        super.reset();
+      }
+    }
+    const a = new Sub({ length: 256 });
+    assert.equal(calls, 1);
+    assert.deepEqual(a.state, new LegacySha512({ length: 256 }).state);
+    a.reset();
+    assert.equal(calls, 2);
+  });
+
+  test('SHA-512/t digests for t other than 224 and 256 (IV derived by the original, compressed in wasm)', () => {
+    for (const length of [32, 64, 96, 128, 160, 192, 288, 320, 352, 416, 448, 480]) {
+      for (const len of [0, 3, 111, 112, 127, 128, 200, 300]) {
+        const msg = 'm'.repeat(len);
+        const a = new Sha512({ length });
+        const b = new LegacySha512({ length });
+        a.update(msg);
+        b.update(msg);
+        assert.equal(hex(a), hex(b), `t=${length} len=${len}`);
+        assert.equal(hex(a).length, length / 4);
+      }
+    }
+  });
+});
+
+test('SHA-512 rounds are half-steps: 159 = 160 and 1 = 2, 3 differs from 2', () => {
+  const run = (rounds) => {
+    const h = new Sha512({ rounds });
+    h.update('abc');
+    return hex(h);
+  };
+  assert.equal(run(159), run(160));
+  assert.equal(run(1), run(2));
+  assert.notEqual(run(2), run(3));
+  assert.equal(run(160), 'ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f');
 });

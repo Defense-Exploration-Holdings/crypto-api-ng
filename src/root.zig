@@ -11,6 +11,7 @@ pub const be32 = @import("hash/be32.zig");
 pub const sha1 = @import("hash/sha1.zig");
 pub const sha256 = @import("hash/sha256.zig");
 pub const sm3 = @import("hash/sm3.zig");
+pub const sha512 = @import("hash/sha512.zig");
 
 test {
     // Pull in tests from every module referenced above.
