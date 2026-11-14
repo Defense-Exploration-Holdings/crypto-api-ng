@@ -13,11 +13,11 @@ Every number compares the **same public API** on both sides: `new Hasher(options
 | Platform | linux x64 6.18.44-fc-v470 |
 | Memory | 16088 MB |
 | Build | Zig 0.17.1, `--release=small` |
-| Commit | `22f18f0` (crypto-api 0.8.5 at `d39f6ce`) |
-| Runs | 1 full run; cells report the median of medians |
+| Commit | `47fc335` (crypto-api 0.8.5 at `d39f6ce`) |
+| Runs | 2 runs (full, default); cells report the median of medians. Between runs the same cell's ratio differs by 3% at the median, 28% at p95 and 47% at worst (192 cells), so read single-cell ratios as good to within roughly 30% on this machine. |
 | Samples per cell | 15 (5 for operations over 0.5 s), interleaved between contenders, each sample ≥ 25 ms |
 
-Shared cloud sandbox; absolute numbers move with the machine, ratios are what to read. Absolute numbers move with the machine; read the ratios.
+Shared cloud sandbox, not a quiet dedicated machine. Absolute numbers move with the machine; read the ratios.
 
 ## Headline
 
@@ -25,10 +25,10 @@ Speedup of v1 over 0.8.5 for one `new` + `update` + `finalize()`, across all 24 
 
 | Input | Geometric mean | Smallest | Largest |
 | :--- | ---: | ---: | ---: |
-| 64 B | 3.82× | 1.22× (md2) | 18.4× (sha512-224) |
-| 1 KiB | 3.37× | 1.22× (md2) | 10.2× (sha512-256) |
-| 64 KiB | 3.57× | 1.18× (md2) | 13.5× (sha384) |
-| 1 MiB | 3.54× | 1.21× (md2) | 13.0× (sha384) |
+| 64 B | 4.05× | 1.19× (md2) | 21.5× (sha512-224) |
+| 1 KiB | 3.73× | 1.18× (md2) | 11.0× (sha512-256) |
+| 64 KiB | 3.81× | 1.18× (md2) | 15.6× (sha512-256) |
+| 1 MiB | 3.82× | 1.22× (md2) | 15.3× (sha512-224) |
 
 **No throughput cell is slower than 0.8.5** (240 cells: 24 variants, 7 sizes, single call and 4 KiB chunks).
 
@@ -40,30 +40,30 @@ v1 time ÷ 0.8.5 time, single `update()` call. Higher is better; `n/a` means 0.8
 
 | Variant | 0 B | 16 B | 64 B | 1 KiB | 64 KiB | 1 MiB | 16 MiB |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| has160 | 3.14× | 2.07× | 2.51× | 1.90× | 2.25× | 2.25× | 2.25× |
-| md2 | 1.29× | 1.18× | 1.22× | 1.22× | 1.18× | 1.21× | 1.21× |
-| md4 | 4.14× | 3.53× | 3.24× | 3.85× | 4.79× | 4.44× | 4.01× |
-| md5 | 9.53× | 8.25× | 8.33× | 5.90× | 5.35× | 5.43× | 6.43× |
-| ripemd128 | 3.09× | 2.71× | 2.63× | 2.10× | 3.31× | 2.19× | 1.80× |
-| ripemd160 | 3.12× | 4.31× | 2.95× | 2.23× | 1.64× | 1.64× | 1.68× |
-| ripemd256 | 2.47× | 2.20× | 1.91× | 1.55× | 1.42× | 1.40× | 1.43× |
-| ripemd320 | 2.26× | 2.10× | 1.89× | 1.52× | 1.50× | 1.48× | 1.26× |
-| sha0 | 2.61× | 1.93× | 2.04× | 1.86× | 1.51× | 1.84× | 1.87× |
-| sha1 | 3.73× | 3.36× | 2.39× | 1.63× | 1.79× | 1.82× | 1.84× |
-| sha224 | 4.19× | 2.89× | 3.02× | 2.21× | 1.83× | 1.76× | 1.80× |
-| sha256 | 2.46× | 3.11× | 2.71× | 2.14× | 1.84× | 1.81× | 1.81× |
-| sha384 | 10.8× | 9.36× | 10.0× | 8.39× | 13.5× | 13.0× | 13.4× |
-| sha512 | 10.0× | 9.36× | 8.37× | 9.42× | 13.2× | 12.7× | 12.0× |
-| sha512-224 | 23.5× | 19.7× | 18.4× | 9.37× | 12.3× | 12.9× | 11.6× |
-| sha512-256 | 21.6× | 18.6× | 17.9× | 10.2× | 12.0× | 12.9× | 12.3× |
-| sm3 | 3.47× | 3.57× | 3.29× | 2.99× | 3.37× | 3.20× | 3.44× |
-| snefru128-2 | 2.73× | 2.79× | 2.80× | 2.95× | 2.94× | 2.88× | 2.92× |
-| snefru128-8 | 2.73× | 2.96× | 2.99× | 2.80× | 2.77× | 2.77× | 2.80× |
-| snefru256-4 | 2.54× | 2.62× | 2.52× | 2.71× | 2.72× | 2.73× | 2.84× |
-| snefru256-8 | 2.68× | 2.71× | 2.69× | 2.75× | 2.73× | 2.75× | 2.74× |
-| whirlpool | 5.55× | 5.20× | 5.67× | 7.04× | 7.77× | 8.24× | 9.00× |
-| whirlpool-0 | 5.45× | 5.07× | 5.85× | 7.37× | 7.75× | 8.13× | 6.65× |
-| whirlpool-t | 5.55× | 5.11× | 5.80× | 7.51× | 7.94× | 7.96× | 8.08× |
+| has160 | 3.04× | 2.68× | 2.54× | 2.57× | 2.53× | 2.55× | 2.51× |
+| md2 | 1.32× | 1.20× | 1.19× | 1.18× | 1.18× | 1.22× | 1.20× |
+| md4 | 4.09× | 3.49× | 3.40× | 4.36× | 4.61× | 4.72× | 4.55× |
+| md5 | 8.52× | 7.45× | 8.98× | 6.87× | 6.22× | 6.48× | 6.30× |
+| ripemd128 | 3.08× | 2.55× | 2.64× | 2.40× | 2.17× | 2.14× | 2.24× |
+| ripemd160 | 4.67× | 3.59× | 3.03× | 2.16× | 1.81× | 1.82× | 1.89× |
+| ripemd256 | 2.42× | 2.12× | 1.94× | 1.66× | 1.65× | 1.65× | 1.65× |
+| ripemd320 | 2.27× | 2.03× | 2.05× | 1.57× | 1.68× | 1.69× | 1.73× |
+| sha0 | 2.41× | 2.00× | 2.01× | 1.97× | 1.95× | 1.93× | 1.94× |
+| sha1 | 4.57× | 3.44× | 2.82× | 2.95× | 1.84× | 1.87× | 1.94× |
+| sha224 | 4.97× | 3.62× | 3.46× | 3.06× | 2.00× | 1.99× | 1.89× |
+| sha256 | 3.67× | 4.01× | 3.44× | 2.91× | 2.05× | 2.00× | 1.78× |
+| sha384 | 11.5× | 9.57× | 11.5× | 8.79× | 15.4× | 15.0× | 13.9× |
+| sha512 | 10.7× | 9.59× | 9.39× | 8.97× | 15.1× | 15.0× | 15.3× |
+| sha512-224 | 23.3× | 23.9× | 21.5× | 10.8× | 15.3× | 15.3× | 14.5× |
+| sha512-256 | 24.3× | 21.4× | 18.4× | 11.0× | 15.6× | 15.3× | 15.7× |
+| sm3 | 3.82× | 3.93× | 3.63× | 3.20× | 3.51× | 3.41× | 3.45× |
+| snefru128-2 | 2.69× | 2.97× | 2.74× | 2.87× | 2.88× | 2.75× | 2.90× |
+| snefru128-8 | 2.82× | 2.88× | 2.87× | 2.71× | 2.68× | 2.72× | 2.72× |
+| snefru256-4 | 2.43× | 2.62× | 2.65× | 2.76× | 2.83× | 2.81× | 2.83× |
+| snefru256-8 | 2.72× | 2.69× | 2.60× | 2.75× | 2.65× | 2.89× | 2.68× |
+| whirlpool | 5.71× | 5.41× | 6.16× | 7.37× | 8.29× | 8.28× | 7.91× |
+| whirlpool-0 | 5.70× | 5.42× | 5.99× | 7.86× | 8.25× | 8.50× | 7.99× |
+| whirlpool-t | 5.72× | 5.38× | 5.99× | 7.99× | 8.24× | 8.52× | 9.30× |
 
 ## Throughput at 1 MiB (MB/s)
 
@@ -71,30 +71,30 @@ One `update()` call over a 1 MiB binary string. **raw wasm** calls the v1 wasm m
 
 | Variant | 0.8.5 | v1 | v1 ÷ 0.8.5 | raw wasm | node:crypto |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| has160 | 72.8 | 164 | 2.25× | 269 | – |
-| md2 | 5.8 | 7.0 | 1.21× | 7.2 | – |
-| md4 | 51.4 | 228 | 4.44× | 569 | – |
-| md5 | 34.4 | 187 | 5.43× | 404 | 598 |
-| ripemd128 | 52.3 | 114 | 2.19× | 200 | – |
-| ripemd160 | 77.8 | 128 | 1.64× | 188 | 240 |
-| ripemd256 | 108 | 152 | 1.40× | 241 | – |
-| ripemd320 | 82.8 | 123 | 1.48× | 173 | – |
-| sha0 | 72.4 | 133 | 1.84× | 202 | – |
-| sha1 | 75.7 | 138 | 1.82× | 209 | 1519 |
-| sha224 | 67.3 | 118 | 1.76× | 173 | 1359 |
-| sha256 | 66.3 | 120 | 1.81× | 172 | 1355 |
-| sha384 | 11.7 | 152 | 13.0× | 253 | 594 |
-| sha512 | 11.5 | 147 | 12.7× | 254 | 602 |
-| sha512-224 | 11.5 | 149 | 12.9× | 250 | 598 |
-| sha512-256 | 11.7 | 151 | 12.9× | 250 | 604 |
-| sm3 | 32.5 | 104 | 3.20× | 140 | 295 |
-| snefru128-2 | 28.7 | 82.5 | 2.88× | 105 | – |
-| snefru128-8 | 9.7 | 26.9 | 2.77× | 28.8 | – |
-| snefru256-4 | 12.9 | 35.1 | 2.73× | 38.2 | – |
-| snefru256-8 | 6.8 | 18.6 | 2.75× | 19.1 | – |
-| whirlpool | 6.1 | 50.2 | 8.24× | 59.8 | – |
-| whirlpool-0 | 6.8 | 55.4 | 8.13× | 62.7 | – |
-| whirlpool-t | 7.1 | 56.3 | 7.96× | 65.8 | – |
+| has160 | 83.0 | 212 | 2.55× | 299 | – |
+| md2 | 6.8 | 8.3 | 1.22× | 8.6 | – |
+| md4 | 69.3 | 327 | 4.72× | 685 | – |
+| md5 | 45.2 | 293 | 6.48× | 555 | 805 |
+| ripemd128 | 82.5 | 176 | 2.14× | 270 | – |
+| ripemd160 | 107 | 194 | 1.82× | 268 | 309 |
+| ripemd256 | 130 | 215 | 1.65× | 304 | – |
+| ripemd320 | 89.8 | 152 | 1.69× | 197 | – |
+| sha0 | 89.4 | 172 | 1.93× | 232 | – |
+| sha1 | 86.5 | 161 | 1.87× | 215 | 1699 |
+| sha224 | 80.0 | 160 | 1.99× | 210 | 1551 |
+| sha256 | 81.1 | 163 | 2.00× | 212 | 1595 |
+| sha384 | 14.4 | 217 | 15.0× | 307 | 729 |
+| sha512 | 13.9 | 208 | 15.0× | 300 | 699 |
+| sha512-224 | 13.6 | 208 | 15.3× | 301 | 701 |
+| sha512-256 | 13.2 | 201 | 15.3× | 291 | 679 |
+| sm3 | 38.8 | 132 | 3.41× | 165 | 351 |
+| snefru128-2 | 38.8 | 107 | 2.75× | 129 | – |
+| snefru128-8 | 11.5 | 31.2 | 2.72× | 32.7 | – |
+| snefru256-4 | 16.2 | 45.6 | 2.81× | 48.2 | – |
+| snefru256-8 | 7.8 | 22.4 | 2.89× | 23.5 | – |
+| whirlpool | 8.3 | 68.4 | 8.28× | 76.5 | – |
+| whirlpool-0 | 8.5 | 72.7 | 8.50× | 80.1 | – |
+| whirlpool-t | 7.8 | 66.8 | 8.52× | 73.2 | – |
 
 For the fast algorithms (MD4, MD5, SHA-1/2, HAS-160, RIPEMD) v1 sits well below raw wasm: the 0.8.5 API forces a string-to-bytes copy (a `charCodeAt` per byte) and the facade moves state in and out of wasm. For MD2, Snefru and Whirlpool the compression dominates and v1 is within a few percent of raw wasm. Bytes-in APIs are v2 work.
 
@@ -102,66 +102,66 @@ For the fast algorithms (MD4, MD5, SHA-1/2, HAS-160, RIPEMD) v1 sits well below 
 
 | Variant | 64 KiB | 1 MiB | 16 MiB |
 | :--- | ---: | ---: | ---: |
-| has160 | 1.99× | 1.99× | 1.99× |
-| md2 | 1.16× | 1.17× | 1.17× |
-| md4 | 3.38× | 3.52× | 3.45× |
-| md5 | 3.78× | 4.03× | 4.75× |
-| ripemd128 | 1.67× | 1.70× | 1.69× |
-| ripemd160 | 1.50× | 1.45× | 1.47× |
-| ripemd256 | 1.27× | 1.27× | 1.28× |
-| ripemd320 | 1.34× | 1.37× | 1.37× |
-| sha0 | 1.69× | 1.72× | 1.70× |
-| sha1 | 1.69× | 1.66× | 1.79× |
-| sha224 | 1.65× | 1.64× | 1.66× |
-| sha256 | 1.62× | 1.62× | 1.63× |
-| sha384 | 11.9× | 11.7× | 11.6× |
-| sha512 | 11.2× | 11.4× | 12.0× |
-| sha512-224 | 11.9× | 12.0× | 11.7× |
-| sha512-256 | 11.8× | 12.5× | 12.2× |
-| sm3 | 3.03× | 2.96× | 2.99× |
-| snefru128-2 | 2.54× | 2.50× | 2.65× |
-| snefru128-8 | 2.77× | 2.76× | 2.76× |
-| snefru256-4 | 2.64× | 2.66× | 2.82× |
-| snefru256-8 | 2.79× | 2.73× | 2.70× |
-| whirlpool | 7.94× | 7.43× | 7.37× |
-| whirlpool-0 | 7.79× | 7.63× | 7.08× |
-| whirlpool-t | 7.41× | 7.32× | 7.22× |
+| has160 | 2.15× | 2.20× | 2.15× |
+| md2 | 1.18× | 1.17× | 1.15× |
+| md4 | 3.70× | 3.33× | 3.81× |
+| md5 | 5.20× | 5.14× | 5.19× |
+| ripemd128 | 1.82× | 1.90× | 1.75× |
+| ripemd160 | 1.59× | 1.59× | 1.53× |
+| ripemd256 | 1.43× | 1.41× | 1.37× |
+| ripemd320 | 1.46× | 1.38× | 1.51× |
+| sha0 | 1.63× | 1.75× | 1.65× |
+| sha1 | 1.72× | 1.67× | 1.74× |
+| sha224 | 1.78× | 1.78× | 1.77× |
+| sha256 | 1.78× | 1.75× | 1.77× |
+| sha384 | 13.0× | 13.1× | 12.3× |
+| sha512 | 13.2× | 13.3× | 12.5× |
+| sha512-224 | 13.1× | 13.0× | 14.3× |
+| sha512-256 | 13.1× | 13.0× | 13.8× |
+| sm3 | 3.15× | 3.16× | 3.11× |
+| snefru128-2 | 2.73× | 2.71× | 2.95× |
+| snefru128-8 | 2.62× | 2.64× | 2.61× |
+| snefru256-4 | 2.65× | 2.65× | 2.57× |
+| snefru256-8 | 2.62× | 2.67× | 2.67× |
+| whirlpool | 7.86× | 7.90× | 7.75× |
+| whirlpool-0 | 7.80× | 7.76× | 7.82× |
+| whirlpool-t | 7.81× | 8.01× | 7.79× |
 
 ## Bun 1.4.4
 
-The same benchmark under Bun (JavaScriptCore). JavaScriptCore runs the original JavaScript faster than V8 does for several algorithms (0.8.5 MD5 runs about 3× faster than under Node), so the margin is smaller: the geometric mean is about 2×, SHA-224/256 and SM3 gain only 1.0 to 1.3×, and **MD2 is 1 to 7% slower than 0.8.5**. MD2 is a serial chain of table lookups; the likely cause is that JavaScriptCore compiles that loop as well as it compiles wasm, leaving only the facade overhead. Single `update()` call, v1 time ÷ 0.8.5 time.
+The same benchmark under Bun (JavaScriptCore), 1 run. JavaScriptCore runs the original JavaScript faster than V8 does for several algorithms (0.8.5 MD5 runs about 3× faster than under Node), so the margin is smaller: the geometric mean is 2.0 to 2.3×, SHA-224/256 and SM3 gain only 0.94 to 1.34×, and **MD2 is 0.89 to 1.08×**, i.e. at best a few percent faster and in some cells slower than 0.8.5. MD2 is a serial chain of table lookups; the likely cause is that JavaScriptCore compiles that loop as well as it compiles wasm, leaving only the facade overhead. Cells near 1× are within the run-to-run noise of a shared machine. Single `update()` call, v1 time ÷ 0.8.5 time.
 
 | Variant | 64 B | 1 KiB | 64 KiB | 1 MiB |
 | :--- | ---: | ---: | ---: | ---: |
-| has160 | 2.14× | 2.73× | 2.79× | 2.58× |
-| md2 | 0.96× | 0.95× | 0.94× | 0.93× |
-| md4 | 2.01× | 1.96× | 1.97× | 1.90× |
-| md5 | 1.98× | 2.13× | 2.01× | 1.93× |
-| ripemd128 | 1.27× | 1.37× | 1.34× | 1.40× |
-| ripemd160 | 1.19× | 1.34× | 1.24× | 1.31× |
-| ripemd256 | 1.40× | 1.51× | 1.40× | 1.51× |
-| ripemd320 | 1.40× | 1.51× | 1.41× | 1.43× |
-| sha0 | 1.36× | 1.43× | 1.39× | 1.29× |
-| sha1 | 1.25× | 1.45× | 1.23× | 1.31× |
-| sha224 | 1.06× | 1.13× | 1.12× | 1.12× |
-| sha256 | 1.14× | 1.04× | 1.15× | 1.11× |
-| sha384 | 2.76× | 1.83× | 2.83× | 5.48× |
-| sha512 | 2.60× | 4.05× | 6.88× | 7.11× |
-| sha512-224 | 6.26× | 4.84× | 6.79× | 6.99× |
-| sha512-256 | 6.27× | 4.90× | 8.57× | 6.90× |
-| sm3 | 1.06× | 1.27× | 1.21× | 1.22× |
-| snefru128-2 | 1.72× | 2.00× | 2.03× | 2.04× |
-| snefru128-8 | 1.97× | 2.10× | 2.12× | 2.14× |
-| snefru256-4 | 1.85× | 2.16× | 2.13× | 2.17× |
-| snefru256-8 | 2.01× | 1.90× | 2.21× | 2.21× |
-| whirlpool | 3.47× | 3.91× | 4.29× | 4.25× |
-| whirlpool-0 | 2.81× | 3.19× | 3.29× | 3.32× |
-| whirlpool-t | 2.80× | 3.08× | 3.22× | 3.86× |
-| **geometric mean** | 1.90× | 2.00× | 2.15× | 2.21× |
+| has160 | 2.13× | 2.71× | 3.04× | 2.81× |
+| md2 | 0.99× | 1.08× | 0.89× | 0.95× |
+| md4 | 1.85× | 2.47× | 2.51× | 2.22× |
+| md5 | 1.89× | 2.30× | 1.99× | 1.00× |
+| ripemd128 | 1.33× | 1.60× | 1.44× | 1.33× |
+| ripemd160 | 1.38× | 1.56× | 1.44× | 1.42× |
+| ripemd256 | 1.64× | 1.66× | 1.48× | 1.47× |
+| ripemd320 | 1.53× | 1.61× | 1.51× | 1.54× |
+| sha0 | 1.36× | 1.52× | 1.37× | 1.51× |
+| sha1 | 1.34× | 1.49× | 1.39× | 1.35× |
+| sha224 | 1.09× | 1.16× | 0.94× | 1.07× |
+| sha256 | 1.18× | 1.20× | 1.09× | 1.07× |
+| sha384 | 2.95× | 1.86× | 6.24× | 7.22× |
+| sha512 | 2.85× | 4.29× | 7.78× | 7.14× |
+| sha512-224 | 6.54× | 5.63× | 7.72× | 7.25× |
+| sha512-256 | 6.58× | 5.45× | 7.74× | 7.34× |
+| sm3 | 1.08× | 1.32× | 1.23× | 1.34× |
+| snefru128-2 | 1.88× | 1.82× | 2.00× | 2.00× |
+| snefru128-8 | 2.04× | 2.07× | 2.09× | 2.09× |
+| snefru256-4 | 2.03× | 2.04× | 2.03× | 2.02× |
+| snefru256-8 | 2.08× | 2.07× | 2.08× | 2.07× |
+| whirlpool | 2.97× | 3.13× | 3.08× | 4.11× |
+| whirlpool-0 | 2.77× | 3.92× | 3.97× | 4.00× |
+| whirlpool-t | 3.71× | 3.87× | 3.99× | 4.12× |
+| **geometric mean** | 1.99× | 2.14× | 2.28× | 2.24× |
 
-Cells slower than 0.8.5 under Bun: md2 0 B oneshot (0.99×), md2 16 B oneshot (0.95×), md2 64 B oneshot (0.96×), md2 1 KiB oneshot (0.95×), md2 64 KiB oneshot (0.94×), md2 64 KiB stream (0.94×), md2 1 MiB oneshot (0.93×), md2 1 MiB stream (0.94×).
+Cells slower than 0.8.5 under Bun: md2 16 B oneshot (0.97×), md2 64 B oneshot (0.99×), md2 64 KiB oneshot (0.89×), md2 64 KiB stream (0.94×), md2 1 MiB oneshot (0.95×), md2 1 MiB stream (0.93×), md5 1 MiB oneshot (1.00×), sha224 64 KiB oneshot (0.94×).
 
-Cold start under Bun (import plus first digest, median): has160 2.7 → 4.3 ms; md2 2.7 → 4.1 ms; md4 3.4 → 4.6 ms; md5 3.0 → 4.1 ms; ripemd 3.4 → 5.3 ms; sha0 2.9 → 4.7 ms; sha1 3.0 → 4.7 ms; sha256 2.8 → 4.5 ms; sha512 3.4 → 4.4 ms; sm3 3.6 → 5.0 ms; snefru 8.2 → 9.6 ms; whirlpool 5.9 → 8.1 ms; crypto-api (all hashers) 11.7 → 17.5 ms.
+Cold start under Bun (import plus first digest, median): has160 2.9 → 4.5 ms; md2 2.7 → 4.3 ms; md4 3.0 → 4.2 ms; md5 3.1 → 4.3 ms; ripemd 3.5 → 5.2 ms; sha0 3.0 → 4.7 ms; sha1 2.9 → 4.8 ms; sha256 3.2 → 4.5 ms; sha512 3.7 → 4.8 ms; sm3 3.1 → 4.3 ms; snefru 7.5 → 9.3 ms; whirlpool 5.3 → 6.8 ms; crypto-api (all hashers) 10.6 → 14.8 ms.
 
 ## Per-call costs
 
@@ -169,61 +169,61 @@ Cold start under Bun (import plus first digest, median): has160 2.7 → 4.3 ms; 
 
 | Variant | 0.8.5 | v1 | v1 ÷ 0.8.5 |
 | :--- | ---: | ---: | ---: |
-| has160 | 102 ns | 99 ns | 1.02× |
-| md2 | 103 ns | 103 ns | 1.00× |
-| md4 | 108 ns | 123 ns | 0.88× |
-| md5 | 115 ns | 114 ns | 1.01× |
-| ripemd128 | 91 ns | 92 ns | 0.99× |
-| ripemd160 | 97 ns | 101 ns | 0.96× |
-| ripemd256 | 89 ns | 92 ns | 0.97× |
-| ripemd320 | 88 ns | 92 ns | 0.96× |
-| sha0 | 113 ns | 110 ns | 1.03× |
-| sha1 | 114 ns | 114 ns | 1.00× |
-| sha224 | 120 ns | 116 ns | 1.03× |
-| sha256 | 116 ns | 114 ns | 1.02× |
-| sha384 | 164 ns | 165 ns | 1.00× |
-| sha512 | 160 ns | 159 ns | 1.01× |
-| sha512-224 | 11.39 µs | 213 ns | 53.5× |
-| sha512-256 | 11.02 µs | 225 ns | 48.9× |
-| sm3 | 186 ns | 186 ns | 1.00× |
-| snefru128-2 | 114 ns | 114 ns | 1.00× |
-| snefru128-8 | 115 ns | 115 ns | 1.00× |
-| snefru256-4 | 114 ns | 113 ns | 1.01× |
-| snefru256-8 | 120 ns | 115 ns | 1.04× |
-| whirlpool | 114 ns | 120 ns | 0.95× |
-| whirlpool-0 | 112 ns | 115 ns | 0.97× |
-| whirlpool-t | 121 ns | 123 ns | 0.98× |
+| has160 | 89 ns | 92 ns | 0.97× |
+| md2 | 110 ns | 108 ns | 1.02× |
+| md4 | 107 ns | 120 ns | 0.90× |
+| md5 | 101 ns | 102 ns | 0.99× |
+| ripemd128 | 86 ns | 81 ns | 1.06× |
+| ripemd160 | 87 ns | 79 ns | 1.10× |
+| ripemd256 | 82 ns | 81 ns | 1.01× |
+| ripemd320 | 86 ns | 83 ns | 1.03× |
+| sha0 | 112 ns | 113 ns | 0.98× |
+| sha1 | 106 ns | 105 ns | 1.01× |
+| sha224 | 110 ns | 111 ns | 1.00× |
+| sha256 | 116 ns | 121 ns | 0.96× |
+| sha384 | 171 ns | 175 ns | 0.98× |
+| sha512 | 174 ns | 178 ns | 0.98× |
+| sha512-224 | 9.63 µs | 302 ns | 31.8× |
+| sha512-256 | 10.10 µs | 329 ns | 30.7× |
+| sm3 | 174 ns | 177 ns | 0.98× |
+| snefru128-2 | 94 ns | 101 ns | 0.93× |
+| snefru128-8 | 107 ns | 106 ns | 1.01× |
+| snefru256-4 | 101 ns | 102 ns | 0.99× |
+| snefru256-8 | 104 ns | 108 ns | 0.97× |
+| whirlpool | 104 ns | 103 ns | 1.01× |
+| whirlpool-0 | 104 ns | 105 ns | 0.99× |
+| whirlpool-t | 113 ns | 114 ns | 0.99× |
 
 ### `CryptoApi.hash(name, message)` (43-byte message, hex output)
 
 | Name | 0.8.5 ops/s | v1 ops/s | v1 ÷ 0.8.5 |
 | :--- | ---: | ---: | ---: |
-| md2 | 76,807 | 86,986 | 1.13× |
-| md4 | 304,544 | 494,529 | 1.62× |
-| md5 | 273,870 | 562,502 | 2.05× |
-| has160 | 332,994 | 478,800 | 1.44× |
-| ripemd160 | 344,255 | 436,134 | 1.27× |
-| sha0 | 338,271 | 417,989 | 1.24× |
-| sha1 | 329,266 | 418,738 | 1.27× |
-| sha224 | 267,362 | 331,084 | 1.24× |
-| sha256 | 238,037 | 285,506 | 1.20× |
-| sha384 | 84,762 | 265,406 | 3.13× |
-| sha512 | 71,619 | 209,532 | 2.93× |
-| snefru | 77,882 | 184,337 | 2.37× |
-| whirlpool | 40,142 | 161,052 | 4.01× |
-| whirlpool-t | 40,599 | 168,955 | 4.16× |
+| md2 | 86,412 | 100,056 | 1.16× |
+| md4 | 340,216 | 539,527 | 1.59× |
+| md5 | 292,671 | 641,811 | 2.19× |
+| has160 | 396,143 | 583,990 | 1.47× |
+| ripemd160 | 397,277 | 510,784 | 1.29× |
+| sha0 | 402,218 | 507,800 | 1.26× |
+| sha1 | 359,333 | 476,942 | 1.33× |
+| sha224 | 264,362 | 351,120 | 1.33× |
+| sha256 | 314,168 | 419,167 | 1.33× |
+| sha384 | 92,856 | 315,015 | 3.39× |
+| sha512 | 86,601 | 277,404 | 3.20× |
+| snefru | 92,608 | 211,787 | 2.29× |
+| whirlpool | 48,381 | 200,400 | 4.14× |
+| whirlpool-t | 45,447 | 183,732 | 4.04× |
 
 ### HMAC (`new Hmac(key, hasher)`, `update`, `finalize`)
 
 | Variant | 64 B 0.8.5 ops/s | v1 ops/s | × | 1 KiB 0.8.5 ops/s | v1 ops/s | × |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
-| has160 | 105,310 | 177,782 | 1.69× | 43,249 | 77,750 | 1.80× |
-| md5 | 72,232 | 193,004 | 2.67× | 25,043 | 100,456 | 4.01× |
-| sha1 | 100,406 | 135,186 | 1.35× | 42,992 | 65,777 | 1.53× |
-| sha224 | 90,824 | 120,321 | 1.32× | 36,974 | 58,926 | 1.59× |
-| sha256 | 91,291 | 123,302 | 1.35× | 34,106 | 51,874 | 1.52× |
-| sha384 | 19,202 | 64,444 | 3.36× | 6,503 | 39,593 | 6.09× |
-| sha512 | 19,417 | 62,251 | 3.21× | 7,146 | 39,661 | 5.55× |
+| has160 | 124,070 | 216,816 | 1.75× | 50,041 | 108,492 | 2.17× |
+| md5 | 91,778 | 261,109 | 2.85× | 28,401 | 129,424 | 4.56× |
+| sha1 | 114,389 | 156,124 | 1.36× | 48,111 | 79,838 | 1.66× |
+| sha224 | 109,250 | 155,858 | 1.43× | 44,051 | 76,760 | 1.74× |
+| sha256 | 106,648 | 153,913 | 1.44× | 43,138 | 76,991 | 1.78× |
+| sha384 | 22,936 | 71,826 | 3.13× | 8,851 | 56,823 | 6.42× |
+| sha512 | 24,257 | 72,954 | 3.01× | 8,664 | 53,874 | 6.22× |
 
 HMAC is the original JavaScript class in both trees, wrapping a hasher: the gain comes entirely from the hashing underneath (an inner and an outer hash plus key handling), so it follows the hasher speedup, diluted by the unchanged key padding and string handling.
 
@@ -233,11 +233,11 @@ Same JavaScript in both trees, so this should be 1×. It is here to show the fac
 
 | Variant | getState 0.8.5 | v1 | × | setState 0.8.5 | v1 | × |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
-| md5 | 981 ns | 962 ns | 1.02× | 20 ns | 19 ns | 1.03× |
-| sha1 | 1.08 µs | 1.06 µs | 1.02× | 20 ns | 20 ns | 1.01× |
-| sha256 | 1.38 µs | 1.39 µs | 1.00× | 19 ns | 19 ns | 0.99× |
-| sha512 | 1.74 µs | 1.75 µs | 1.00× | 18 ns | 19 ns | 0.96× |
-| whirlpool | 1.81 µs | 1.80 µs | 1.01× | 30 ns | 29 ns | 1.01× |
+| md5 | 736 ns | 736 ns | 1.00× | 15 ns | 15 ns | 1.00× |
+| sha1 | 871 ns | 868 ns | 1.00× | 19 ns | 19 ns | 1.00× |
+| sha256 | 1.06 µs | 1.08 µs | 0.98× | 17 ns | 16 ns | 1.01× |
+| sha512 | 1.49 µs | 1.48 µs | 1.01× | 17 ns | 16 ns | 1.02× |
+| whirlpool | 1.54 µs | 1.53 µs | 1.01× | 23 ns | 24 ns | 0.99× |
 
 ## Cold start
 
@@ -245,19 +245,19 @@ Fresh process per measurement (alternating 0.8.5 and v1). *Import* is the dynami
 
 | Module | import 0.8.5 | import v1 | first digest 0.8.5 | first digest v1 | total 0.8.5 | total v1 | Δ |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| has160 | 1.7 | 3.4 | 0.6 | 1.2 | 2.2 | 4.6 | +2.4 |
-| md2 | 1.2 | 2.1 | 0.5 | 1.2 | 1.7 | 3.3 | +1.6 |
-| md4 | 1.6 | 3.3 | 0.5 | 1.2 | 2.1 | 4.5 | +2.4 |
-| md5 | 1.8 | 2.9 | 0.6 | 1.1 | 2.4 | 4.0 | +1.6 |
-| ripemd | 1.7 | 3.7 | 0.6 | 1.2 | 2.3 | 4.9 | +2.6 |
-| sha0 | 1.6 | 3.7 | 0.5 | 1.4 | 2.1 | 5.1 | +3.0 |
-| sha1 | 1.6 | 3.7 | 0.5 | 1.3 | 2.1 | 4.9 | +2.9 |
-| sha256 | 1.6 | 3.2 | 0.6 | 1.3 | 2.1 | 4.6 | +2.4 |
-| sha512 | 1.8 | 3.6 | 1.1 | 1.4 | 2.8 | 5.1 | +2.3 |
-| sm3 | 1.7 | 3.5 | 0.7 | 1.3 | 2.4 | 4.7 | +2.3 |
-| snefru | 12.2 | 12.6 | 0.8 | 1.4 | 13.0 | 14.1 | +1.1 |
-| whirlpool | 4.2 | 6.1 | 0.8 | 1.5 | 5.0 | 7.8 | +2.8 |
-| crypto-api (all hashers) | 20.9 | 26.1 | 0.9 | 1.4 | 21.9 | 27.5 | +5.6 |
+| has160 | 1.4 | 3.0 | 0.5 | 1.1 | 2.0 | 4.1 | +2.1 |
+| md2 | 1.3 | 2.2 | 0.5 | 1.1 | 1.8 | 3.3 | +1.5 |
+| md4 | 1.5 | 3.2 | 0.4 | 1.2 | 2.0 | 4.3 | +2.3 |
+| md5 | 1.6 | 2.4 | 0.5 | 1.1 | 2.1 | 3.6 | +1.5 |
+| ripemd | 1.6 | 3.4 | 0.6 | 1.4 | 2.1 | 4.9 | +2.8 |
+| sha0 | 1.6 | 3.7 | 0.5 | 1.3 | 2.2 | 5.1 | +2.9 |
+| sha1 | 1.5 | 3.4 | 0.5 | 1.3 | 2.0 | 4.6 | +2.6 |
+| sha256 | 1.5 | 3.6 | 0.5 | 1.4 | 2.0 | 5.1 | +3.1 |
+| sha512 | 1.6 | 3.3 | 0.9 | 1.3 | 2.6 | 4.6 | +2.0 |
+| sm3 | 1.8 | 3.5 | 0.6 | 1.6 | 2.4 | 5.7 | +3.2 |
+| snefru | 9.4 | 10.7 | 0.6 | 1.3 | 10.1 | 12.0 | +1.9 |
+| whirlpool | 4.0 | 5.7 | 0.7 | 1.4 | 4.7 | 7.2 | +2.5 |
+| crypto-api (all hashers) | 17.2 | 22.3 | 0.6 | 1.3 | 17.9 | 23.6 | +5.8 |
 
 ## Size
 
@@ -287,7 +287,7 @@ Everything reachable from the deep import `crypto-api/src/hasher/<name>.mjs`, co
 | has160 | 4 | 8 | 11390 | 2845 | 27612 | 9286 | 3.26× |
 | md2 | 3 | 6 | 8857 | 2495 | 19868 | 7045 | 2.82× |
 | md4 | 4 | 8 | 12556 | 2672 | 32037 | 10317 | 3.86× |
-| md5 | 4 | 7 | 13997 | 2979 | 29522 | 9398 | 3.15× |
+| md5 | 4 | 7 | 13997 | 2979 | 29789 | 9525 | 3.20× |
 | ripemd | 4 | 8 | 19259 | 3715 | 44786 | 13800 | 3.71× |
 | sha0 | 4 | 9 | 9966 | 2514 | 29483 | 9716 | 3.86× |
 | sha1 | 4 | 9 | 9958 | 2497 | 29475 | 9690 | 3.88× |
@@ -296,7 +296,7 @@ Everything reachable from the deep import `crypto-api/src/hasher/<name>.mjs`, co
 | sm3 | 4 | 8 | 11405 | 2812 | 27959 | 9144 | 3.25× |
 | snefru | 4 | 7 | 80658 | 32684 | 118514 | 57731 | 1.77× |
 | whirlpool | 4 | 8 | 15640 | 4092 | 43777 | 17699 | 4.33× |
-| crypto-api (all hashers) | 22 | 46 | 166740 | 47704 | 314138 | 112233 | 2.35× |
+| crypto-api (all hashers) | 22 | 46 | 166740 | 47704 | 314405 | 112393 | 2.36× |
 
 ## Correctness score
 
@@ -318,7 +318,7 @@ Speed numbers only mean something next to this. The same commit passes:
 
 - The big wins are where 0.8.5 does the most JavaScript work per byte (SHA-512 and its relatives: 64-bit arithmetic emulated with pairs of 32-bit integers; MD5/MD4; Whirlpool). Algorithms whose original JavaScript is already close to a plain loop (HAS-160, RIPEMD) gain less, and the serial S-box chains of MD2 and Snefru gain least, because the bottleneck is a dependent load chain that wasm and JavaScript run at the same speed.
 - Construction costs the same (about 100 ns) on both sides, so small-input gains come from `update`/`finalize` (padding and the last compression), not from `new`. The one exception is SHA-512/224 and SHA-512/256: 0.8.5 hashes `"SHA-512/t"` on every construction to derive the IV (about 11 µs); v1 writes the constants, hence the 18 to 24× at 0 to 64 B.
-- Cold start is **slower** in v1, by about 1 to 3 ms per family (5.6 ms for the whole facade). About 1.5 to 2 ms is `import`: v1 loads more files (the facade, the shared glue and the original engine it keeps as the fallback) and parses the embedded base64 module. About 0.5 to 0.8 ms more is in the first digest: the synchronous wasm compile and instantiation, which happens lazily on first use, per family. For a long-running server that is irrelevant; for a short-lived function that hashes once it is the whole story. Trimming it (smaller embedded form, lazy fallback import) is v1.x work.
+- Cold start is **slower** in v1, by about 1.5 to 3 ms per family (5.8 ms for the whole facade). About 1 to 2 ms is `import`: v1 loads more files (the facade, the shared glue and the original engine it keeps as the fallback) and parses the embedded base64 module. About 0.4 to 1 ms more is in the first digest: the synchronous wasm compile and instantiation, which happens lazily on first use, per family. For a long-running server that is irrelevant; for a short-lived function that hashes once it is the whole story. Trimming it (smaller embedded form, lazy fallback import) is v1.x work.
 - Raw wasm numbers are what bytes-in/bytes-out can reach and are why v2 changes the API; they are not claims about v1.
 
 ## Reproduce
