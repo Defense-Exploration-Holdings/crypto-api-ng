@@ -370,6 +370,7 @@ for (const A of ALGOS) {
         'extra key': { message: 'abc', length: 3, hash: h0, extra: 1 },
         'unsigned words': { message: 'abc', length: 3, hash: h0.map((x) => x >>> 0) },
         'huge words': { message: 'abc', length: 3, hash: h0.map((x, i) => (i % 2 ? -(2 ** 33) : 2 ** 40 + 5)) },
+        'words near 2^53': { message: 'abc', length: 3, hash: h0.map((x, i) => (i % 2 ? 2 ** 53 - 1 : -(2 ** 52) + 1)) },
         'fractional word': { message: 'abc', length: 3, hash: h0.map((x, i) => (i ? x : 1.5)) },
         'string word': { message: 'abc', length: 3, hash: h0.map((x, i) => (i ? x : '1')) },
         'NaN word': { message: 'abc', length: 3, hash: h0.map((x, i) => (i ? x : NaN)) },
