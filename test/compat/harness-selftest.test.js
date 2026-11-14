@@ -1,7 +1,7 @@
 // A parity harness that cannot fail proves nothing. This test builds copies of the
 // original sources with one small deliberate defect each (a changed constant, a
 // wrong default, an extra state field...) and requires the differential fuzzer to
-// reject every one. The mutated trees come from the submodule, not from
+// reject every one. The mutated trees come from the upstream checkout, not from
 // packages/crypto-api, so the test stays valid once facades replace the vendored files.
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';

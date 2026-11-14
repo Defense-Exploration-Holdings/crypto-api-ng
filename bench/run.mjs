@@ -8,7 +8,7 @@
 //   --quick    sizes 64 B, 64 KiB, 1 MiB, 10 samples    a couple of minutes, smoke test
 //   --full     adds 16 MiB                               ~20 min
 //
-// Prerequisites: `git submodule update --init crypto-api` and `zig build js --release=small`.
+// Prerequisites: `scripts/fetch-upstream.sh` and `zig build js --release=small`.
 // Works under Node 22+ and Bun (`bun bench/run.mjs`). Details: bench/README.md.
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';

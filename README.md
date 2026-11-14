@@ -60,7 +60,7 @@ docs/abi.md                JS <-> wasm calling conventions (read before adding e
 docs/porting-guide.md      how to port an algorithm, using MD5 as the template
 scripts/install-zig.sh     pinned Zig installer
 scripts/embed-wasm.mjs     wasm -> base64 JS module generator (used by `zig build js`)
-crypto-api/                upstream crypto-api as a git submodule (the behavioral oracle)
+crypto-api/                upstream crypto-api at the pinned commit (the behavioral oracle), fetched by scripts/fetch-upstream.sh
 ```
 
 ## Package
@@ -77,9 +77,9 @@ npm run test:package              # bundle vs original, tarball contents, smoke 
 
 To add an algorithm, follow [docs/porting-guide.md](docs/porting-guide.md): core in `src/hash/`, exports in a family root under `src/wasm/`, facade in `packages/crypto-api/src/hasher/`, differential tests in `test/`.
 
-## Upstream submodule
+## Upstream checkout
 
-`crypto-api/` is a git submodule of upstream (`.gitmodules`). Run `git submodule update --init` to check it out. Treat it as read-only: it is the reference implementation that ports are compared against.
+`crypto-api/` is a checkout of upstream pinned at d39f6ce ("Release 0.8.5"). It is not stored in this repository: run `scripts/fetch-upstream.sh` to fetch it (CI does the same). Treat it as read-only: it is the reference implementation that ports are compared against.
 
 ## License
 

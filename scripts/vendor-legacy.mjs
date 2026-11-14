@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Vendors the original crypto-api 0.8.5 sources (git submodule `crypto-api/`)
+// Vendors the original crypto-api 0.8.5 sources (the upstream checkout `crypto-api/`)
 // into packages/crypto-api, changing nothing but relative import specifiers
 // (an explicit ".mjs" is appended so Node's native ESM resolver accepts them).
 //
@@ -86,7 +86,7 @@ export function plan() {
 
 function main() {
   if (!existsSync(oracleSrc)) {
-    console.error('crypto-api submodule missing. Run: git submodule update --init crypto-api');
+    console.error('crypto-api/ checkout missing. Run: scripts/fetch-upstream.sh');
     process.exit(2);
   }
   const check = process.argv.includes('--check');

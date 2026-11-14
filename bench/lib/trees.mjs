@@ -1,6 +1,6 @@
 // Loads the two implementations being compared, without any resolve hook:
 //
-//   orig  crypto-api 0.8.5, the `crypto-api/` submodule copied to bench/.cache with ".mjs"
+//   orig  crypto-api 0.8.5, the `crypto-api/` checkout copied to bench/.cache with ".mjs"
 //         appended to relative import specifiers (the only change; same rewrite as
 //         scripts/vendor-legacy.mjs, and what a bundler does for real users). Node's
 //         loader hook is avoided on purpose: it adds a per-import cost the original
@@ -23,7 +23,7 @@ export const HASHER_FILES = [
 export function prepareOriginal() {
   const srcDir = join(REPO, 'crypto-api', 'src');
   if (!existsSync(join(srcDir, 'hasher', 'md5.mjs'))) {
-    throw new Error('crypto-api submodule missing. Run: git submodule update --init crypto-api');
+    throw new Error('crypto-api/ checkout missing. Run: scripts/fetch-upstream.sh');
   }
   for (const rel of listOriginalFiles()) {
     const dest = join(ORIG_SRC, rel);

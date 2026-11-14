@@ -1,5 +1,5 @@
 // Bundle-size report: every deep import and the full facade, minified and gzipped, for the original
-// crypto-api 0.8.5 (the `crypto-api/` submodule) and this port. Needs `npm ci` and `zig build js --release=small`.
+// crypto-api 0.8.5 (the `crypto-api/` checkout) and this port. Needs `npm ci` and `zig build js --release=small`.
 //
 //   node scripts/size-report.mjs            Markdown table on stdout
 //   node scripts/size-report.mjs --json
