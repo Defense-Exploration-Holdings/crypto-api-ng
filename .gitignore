@@ -1,0 +1,19 @@
+# Zig
+.zig-cache/
+zig-cache/
+zig-out/
+zig-pkg/
+
+# Node
+node_modules/
+*.tgz
+npm-debug.log*
+
+# Local toolchain installs
+.tools/
+
+# Editors / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp

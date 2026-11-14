@@ -1,0 +1,15 @@
+.{
+    .name = .crypto_api_ng,
+    .version = "0.0.0",
+    .fingerprint = 0x451fe0e10f8d4e60, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.17.1",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "js",
+        "LICENSE-NOTES.md",
+        "README.md",
+    },
+}

@@ -1,0 +1,22 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Install Zig
+        run: |
+          scripts/install-zig.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: zig build check
+      - run: zig build wasm --release=small

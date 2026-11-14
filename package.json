@@ -1,0 +1,17 @@
+{
+  "name": "crypto-api-ng",
+  "version": "0.0.0",
+  "description": "Maintained Zig/WebAssembly port of crypto-api",
+  "private": true,
+  "type": "module",
+  "main": "js/index.js",
+  "types": "js/index.d.ts",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "zig build wasm --release=small",
+    "build:debug": "zig build wasm",
+    "test": "zig build check",
+    "test:zig": "zig build test",
+    "test:js": "zig build test-js"
+  }
+}
