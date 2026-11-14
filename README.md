@@ -63,6 +63,18 @@ scripts/embed-wasm.mjs     wasm -> base64 JS module generator (used by `zig buil
 crypto-api/                upstream crypto-api as a git submodule (the behavioral oracle)
 ```
 
+## Package
+
+`packages/crypto-api` is the npm package (`crypto-api-ng` for now; the name is configurable, see `scripts/build-package.mjs`). `npm ci`, `zig build js --release=small`, then:
+
+```sh
+npm run build:package             # ES5 UMD bundles crypto-api.js / crypto-api.min.js + example vectors
+npm run pack                      # stage + npm pack into dist/   (npm run pack -- --name crypto-api)
+npm run test:package              # bundle vs original, tarball contents, smoke imports, Chromium (needs playwright)
+```
+
+`private: true` stays set; nothing is published by these commands. The package README documents usage, the differences from 0.8.5 and the kept bugs.
+
 To add an algorithm, follow [docs/porting-guide.md](docs/porting-guide.md): core in `src/hash/`, exports in a family root under `src/wasm/`, facade in `packages/crypto-api/src/hasher/`, differential tests in `test/`.
 
 ## Upstream submodule

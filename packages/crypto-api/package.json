@@ -1,0 +1,42 @@
+{
+  "name": "crypto-api-ng",
+  "version": "1.0.0-dev.0",
+  "description": "Hashing library with no dependencies: maintained Zig/WebAssembly port of crypto-api",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Aleksandr Mogilnikov <nf404.name@gmail.com> (https://nf404.name/)",
+  "homepage": "https://github.com/Defense-Exploration-Holdings/crypto-api-ng",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Defense-Exploration-Holdings/crypto-api-ng.git",
+    "directory": "packages/crypto-api"
+  },
+  "bugs": {
+    "url": "https://github.com/Defense-Exploration-Holdings/crypto-api-ng/issues"
+  },
+  "main": "index.js",
+  "module": "src/index.mjs",
+  "unpkg": "crypto-api.min.js",
+  "jsdelivr": "crypto-api.min.js",
+  "files": [
+    "example",
+    "legacy",
+    "src",
+    "wasm",
+    "CHANGELOG.md",
+    "LICENSE",
+    "README.md",
+    "crypto-api.js",
+    "crypto-api.min.js",
+    "crypto-api.min.js.map",
+    "index.js"
+  ],
+  "sideEffects": false,
+  "dependencies": {},
+  "keywords": [
+    "hash", "hashes", "md2", "md4", "md5", "ripemd128", "ripemd160", "ripemd256", "ripemd320",
+    "has160", "has-160", "sha0", "sha1", "sha224", "sha256", "sha384", "sha512", "sha512/t",
+    "sha512/224", "sha512/256", "whirlpool", "whirlpool-0", "whirlpool-t", "sm3", "snefru",
+    "hmac", "wasm", "webassembly", "zig"
+  ]
+}

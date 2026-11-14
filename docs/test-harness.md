@@ -74,8 +74,9 @@ scenario as JSON and the first differing observation, for example
   RIPEMD-128/256/320, SHA-0, Snefru, Whirlpool(-0/-T) have only the original suite's published
   vectors plus the differential fuzzer. Adding CAVP `.rsp` conversion would be a good follow-up.
 - **Inputs of 2 GiB or more** are exercised through `state.length` only.
-- **`src/index.mjs`** of the original assigns `module.exports` and cannot load as native ESM, so no test
-  imports it. WP-F covers the CJS entry and the global build.
+- **`src/index.mjs`** of the original assigns `module.exports` and cannot load as native ESM. In the package it is a
+  facade file (default export), so the harness does not compare it with the original. `test/package/` (`npm run
+  test:package`) covers the CJS entry, the global build, the tarball and the examples.
 - **Environments** (browsers, Bun, Deno, CSP, Workers) belong to WP-I. The harness is plain ESM and
   has no Node-only dependency except `node:test` and `node:crypto` in the test files themselves.
 - **Speed** is WP-J.
