@@ -3,7 +3,7 @@
 Goal: prove that the port is the same library as `crypto-api` 0.8.5 for every input
 the original accepts: same digests, same thrown errors, same `getState()` JSON,
 same object shape. The oracle is the **untouched original** (the `crypto-api/`
-git submodule, `git submodule update --init crypto-api`). The implementation under
+git checkout of upstream, `scripts/fetch-upstream.sh`). The implementation under
 test (the **target**) is `packages/crypto-api`, or any other package root named by
 `CRYPTO_API_TARGET`. Zero npm dependencies: only Node 22 (`node:test`, `node:crypto`).
 
@@ -11,7 +11,7 @@ test (the **target**) is `packages/crypto-api`, or any other package root named 
 npm run test:parity          # everything below, ~20 s (run `zig build js --release=small` first: the facades import the embedded wasm)
 npm run test:legacy-suite    # the original 286 mocha tests against the target
 npm run test:compat          # differential fuzzing and the other compat tests
-npm run vendor               # regenerate packages/crypto-api/{legacy,src} from the submodule
+npm run vendor               # regenerate packages/crypto-api/{legacy,src} from that checkout
 npm run vectors              # regenerate test/vectors from the original test files
 ```
 

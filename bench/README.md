@@ -1,9 +1,9 @@
 # bench/
 
-Reproducible benchmarks of v1 (`packages/crypto-api`) against the original crypto-api 0.8.5 (the `crypto-api/` submodule). Results and how to read them: [`docs/benchmarks.md`](../docs/benchmarks.md). Zero npm dependencies; Node 22 or Bun.
+Reproducible benchmarks of v1 (`packages/crypto-api`) against the original crypto-api 0.8.5 (the `crypto-api/` checkout). Results and how to read them: [`docs/benchmarks.md`](../docs/benchmarks.md). Zero npm dependencies; Node 22 or Bun.
 
 ```sh
-git submodule update --init crypto-api
+scripts/fetch-upstream.sh
 scripts/install-zig.sh && export PATH="$HOME/.local/bin:$PATH"
 zig build js --release=small                    # the wasm the facades import (gitignored)
 
@@ -33,6 +33,6 @@ Contenders per cell: `orig` (0.8.5), `v1`, `raw` (v1's wasm called directly with
 ## Files
 
 - `lib/stats.mjs`: calibrated, interleaved sampling; median and p95.
-- `lib/trees.mjs`: loads both implementations without any loader hook. 0.8.5 is the submodule copied to `bench/.cache` with only `.mjs` appended to relative imports (same rewrite as `scripts/vendor-legacy.mjs`), because Node's hook would add a per-import cost the original does not pay in a bundled app.
+- `lib/trees.mjs`: loads both implementations without any loader hook. 0.8.5 is the upstream checkout copied to `bench/.cache` with only `.mjs` appended to relative imports (same rewrite as `scripts/vendor-legacy.mjs`), because Node's hook would add a per-import cost the original does not pay in a bundled app.
 - `lib/contenders.mjs`, `lib/suites.mjs`: what is timed. `startup*.mjs`, `sizes.mjs`, `parity.mjs`: the other suites.
 - `results/`: raw JSON per run (`<date>-<label>.json`). `chart.mjs`, `report.mjs`: output.

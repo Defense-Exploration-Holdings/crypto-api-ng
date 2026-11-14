@@ -5,7 +5,7 @@ How to run the gates, what the last run showed, and what is still open. Spec: `d
 ## Running them
 
 ```sh
-scripts/install-zig.sh && npm ci && git submodule update --init crypto-api
+scripts/install-zig.sh && npm ci && scripts/fetch-upstream.sh
 scripts/release-gates.sh                      # debug, safe, fast, small: check + parity + package
 FUZZ_ITERS=100000 FUZZ_ONLY=sha512 node --test test/compat/diff-hashers.test.js   # release-volume fuzz, one family
 node test/runtimes/smoke.mjs                  # every published vector on this runtime (NO_WASM=1: legacy fallback)

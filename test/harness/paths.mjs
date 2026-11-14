@@ -1,6 +1,6 @@
 // Shared locations for the parity harness.
 //
-// ORACLE  = the untouched original crypto-api 0.8.5 (git submodule `crypto-api/`).
+// ORACLE  = the untouched original crypto-api 0.8.5 (the upstream checkout `crypto-api/`).
 // TARGET  = the implementation under test: a package root that contains `src/`
 //           with the same layout as the original. Defaults to
 //           `packages/crypto-api`; override with CRYPTO_API_TARGET.
@@ -23,7 +23,7 @@ export function targetRoot() {
 export function assertOracleCheckedOut() {
   if (!existsSync(join(ORACLE_SRC, 'hasher', 'md5.mjs'))) {
     throw new Error(
-      'The crypto-api submodule is not checked out. Run: git submodule update --init crypto-api'
+      'The upstream crypto-api checkout is missing. Run: scripts/fetch-upstream.sh'
     );
   }
 }
