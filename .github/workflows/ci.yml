@@ -19,4 +19,5 @@ jobs:
           scripts/install-zig.sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: zig build check
+      - run: zig build check --release=small
       - run: zig build wasm --release=small

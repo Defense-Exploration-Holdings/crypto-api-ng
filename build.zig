@@ -2,7 +2,8 @@
 //!
 //!   zig build              install the wasm module to zig-out/wasm/ (debug mode by default)
 //!   zig build wasm         same as above, explicit
-//!   zig build js           generate js/generated/wasm-bytes.js (embedded wasm for sync loading)
+//!   zig build families     build zig-out/wasm/<family>.wasm (one module per algorithm family)
+//!   zig build js           generate embedded wasm byte modules (js/generated/, packages/crypto-api/wasm/)
 //!   zig build test         run Zig unit tests on the native target
 //!   zig build test-js      build the wasm, then run the Node test suite against it
 //!   zig build check        run every test suite (Zig + JS)
@@ -49,6 +50,54 @@ pub fn build(b: *std.Build) void {
     wasm_step.dependOn(&install_wasm.step);
     b.getInstallStep().dependOn(&install_wasm.step);
 
+    // ---- per-family wasm modules -------------------------------------------
+    // One module per algorithm family (src/wasm/<family>.zig), so a user who
+    // imports one algorithm only pays for that family. To add a family, append
+    // its name to `families`; the root file must exist at src/wasm/<name>.zig.
+    // Each is also embedded as packages/crypto-api/wasm/<name>.mjs (see `js`).
+    const families = [_][]const u8{"md"};
+    // Fixed linear memory: 2 pages = 128 KiB (scratch 64 KiB + 256 B, a 16 KiB
+    // stack, data). max == initial so memory can never grow and JS may cache
+    // views of it.
+    const family_memory_bytes = 2 * 64 * 1024;
+
+    const js_step = b.step("js", "Generate embedded wasm byte modules (js/generated, packages/crypto-api/wasm)");
+    const family_step = b.step("families", "Build zig-out/wasm/<family>.wasm for every family");
+    var family_embeds: [families.len]*std.Build.Step = undefined;
+    // The algorithm library as a module, so family roots in src/wasm/ can reach
+    // it with @import("core") (Zig forbids relative imports above a module root).
+    const core_mod = b.createModule(.{
+        .root_source_file = b.path("src/root.zig"),
+        .target = wasm_target,
+        .optimize = optimize,
+        .single_threaded = true,
+    });
+    inline for (families, 0..) |family, i| {
+        const fam_mod = b.createModule(.{
+            .root_source_file = b.path("src/wasm/" ++ family ++ ".zig"),
+            .target = wasm_target,
+            .optimize = optimize,
+            .single_threaded = true,
+            .imports = &.{.{ .name = "core", .module = core_mod }},
+        });
+        const fam = b.addExecutable(.{ .name = family, .root_module = fam_mod });
+        fam.entry = .disabled;
+        fam.rdynamic = true;
+        fam.stack_size = 16 * 1024;
+        fam.initial_memory = family_memory_bytes;
+        fam.max_memory = family_memory_bytes;
+        const install_fam = b.addInstallArtifact(fam, .{ .dest_dir = .{ .override = .{ .custom = "wasm" } } });
+        family_step.dependOn(&install_fam.step);
+        b.getInstallStep().dependOn(&install_fam.step);
+
+        const embed_fam = b.addSystemCommand(&.{ "node", "scripts/embed-wasm.mjs" });
+        embed_fam.addFileArg(fam.getEmittedBin());
+        embed_fam.addArg("packages/crypto-api/wasm/" ++ family ++ ".mjs");
+        embed_fam.setCwd(b.path("."));
+        js_step.dependOn(&embed_fam.step);
+        family_embeds[i] = &embed_fam.step;
+    }
+
     // ---- embedded-bytes JS module (synchronous loading) -------------------
     // Writes js/generated/wasm-bytes.js (base64) so js/sync.js can instantiate
     // the module synchronously with no fetch or fs access.
@@ -56,7 +105,6 @@ pub fn build(b: *std.Build) void {
     embed.addFileArg(wasm.getEmittedBin());
     embed.addArg("js/generated/wasm-bytes.js");
     embed.setCwd(b.path("."));
-    const js_step = b.step("js", "Generate js/generated/wasm-bytes.js from the built wasm");
     js_step.dependOn(&embed.step);
 
     // ---- zig unit tests (native) -----------------------------------------
@@ -77,6 +125,8 @@ pub fn build(b: *std.Build) void {
     const node_tests = b.addSystemCommand(&.{ "node", "--test", "test/*.test.js" });
     node_tests.step.dependOn(&install_wasm.step);
     node_tests.step.dependOn(&embed.step);
+    node_tests.step.dependOn(family_step);
+    node_tests.step.dependOn(js_step);
     node_tests.setCwd(b.path("."));
 
     const test_js_step = b.step("test-js", "Build the wasm and run the Node test suite");
