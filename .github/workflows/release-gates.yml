@@ -1,0 +1,110 @@
+name: Release gates
+# docs/release-gates.md. Manual (and on version tags): too slow for every pull request.
+on:
+  workflow_dispatch:
+    inputs:
+      fuzz_iters:
+        description: Differential fuzz iterations per cell (release: 100000)
+        default: "100000"
+  push:
+    tags: ["v*"]
+
+env:
+  FUZZ_ITERS: ${{ inputs.fuzz_iters || '100000' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: true }
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc }
+      - run: npm ci
+      - run: |
+          scripts/install-zig.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: zig build js --release=small
+      - uses: actions/upload-artifact@v4
+        with:
+          name: embedded-wasm
+          path: |
+            packages/crypto-api/wasm
+            js/generated
+
+  # Every optimize mode: Zig tests, Node tests against that wasm, parity harness.
+  # The package size budget in test:package only holds for the shipped modes (fast, small).
+  modes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      FUZZ_ITERS: "200"
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [debug, safe, fast, small]
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: true }
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc }
+      - run: npm ci
+      - run: |
+          scripts/install-zig.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - run: scripts/release-gates.sh --modes "${{ matrix.mode }}" --out "$RUNNER_TEMP/gates"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gates-${{ matrix.mode }}
+          path: ${{ runner.temp }}/gates
+
+  # Differential fuzz at release volume, one job per family so they run in parallel.
+  fuzz:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        family: [has160, md2, md4, md5, ripemd, sha0, sha1, sha256, sha512, sm3, snefru, whirlpool]
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: true }
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc }
+      - uses: actions/download-artifact@v4
+        with: { name: embedded-wasm }
+      - run: FUZZ_ONLY=${{ matrix.family }} node --test test/compat/diff-hashers.test.js
+
+  # The same smoke test (all published vectors, hash and HMAC) on every runtime, with and without wasm.
+  runtimes:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [node18, node20, node22, node24, bun, deno]
+        no_wasm: ["", "1"]
+    env:
+      NO_WASM: ${{ matrix.no_wasm }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { submodules: true }
+      - uses: actions/download-artifact@v4
+        with: { name: embedded-wasm }
+      - if: startsWith(matrix.runtime, 'node')
+        uses: actions/setup-node@v4
+        with: { node-version: "${{ matrix.runtime == 'node18' && '18' || matrix.runtime == 'node20' && '20' || matrix.runtime == 'node22' && '22' || '24' }}" }
+      - if: matrix.runtime == 'bun'
+        uses: oven-sh/setup-bun@v2
+      - if: matrix.runtime == 'deno'
+        uses: denoland/setup-deno@v2
+      - if: startsWith(matrix.runtime, 'node')
+        run: node test/runtimes/smoke.mjs
+      - if: matrix.runtime == 'bun'
+        run: bun test/runtimes/smoke.mjs
+      - if: matrix.runtime == 'deno'
+        run: deno run -A test/runtimes/smoke.mjs
