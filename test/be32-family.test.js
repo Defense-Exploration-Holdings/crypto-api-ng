@@ -1,5 +1,5 @@
 // Facade tests for the 32-bit big-endian family (SHA-0, SHA-1, SHA-224/256, SM3,
-// and SHA-384/512 with 128-byte blocks, which use the same glue):
+// SHA-384/512 with 128-byte blocks, and Whirlpool, which use the same glue):
 // wasm-accelerated classes vs the untouched crypto-api 0.8.5 classes.
 //
 // The oracle is packages/crypto-api/legacy/hasher/<algo>.mjs, a verbatim copy of
@@ -16,11 +16,13 @@ import Sha1, { _internal as sha1Internal } from '../packages/crypto-api/src/hash
 import Sha256, { _internal as sha256Internal } from '../packages/crypto-api/src/hasher/sha256.mjs';
 import Sha512, { _internal as sha512Internal } from '../packages/crypto-api/src/hasher/sha512.mjs';
 import Sm3, { _internal as sm3Internal } from '../packages/crypto-api/src/hasher/sm3.mjs';
+import Whirlpool, { _internal as whirlpoolInternal } from '../packages/crypto-api/src/hasher/whirlpool.mjs';
 import LegacySha0 from '../packages/crypto-api/legacy/hasher/sha0.mjs';
 import LegacySha1 from '../packages/crypto-api/legacy/hasher/sha1.mjs';
 import LegacySha256 from '../packages/crypto-api/legacy/hasher/sha256.mjs';
 import LegacySha512 from '../packages/crypto-api/legacy/hasher/sha512.mjs';
 import LegacySm3 from '../packages/crypto-api/legacy/hasher/sm3.mjs';
+import LegacyWhirlpool from '../packages/crypto-api/legacy/hasher/whirlpool.mjs';
 import Hasher from '../packages/crypto-api/src/hasher/hasher.mjs';
 import Hasher32be from '../packages/crypto-api/src/hasher/hasher32be.mjs';
 import Hmac from '../packages/crypto-api/src/mac/hmac.mjs';
@@ -115,6 +117,23 @@ const ALGOS = [
     inside: [{}, { length: 256 }, { rounds: 1 }, { rounds: 16 }, { rounds: 17 }, { rounds: 63 }, { rounds: 64 }],
     processOnly: [{ length: 128 }, { length: 224 }, { length: '256' }],
     outside: [{ rounds: 65 }, { rounds: 100 }, { rounds: 2.5 }, { rounds: '40' }, { rounds: -1 }]
+  },
+  {
+    // Three tables sets, picked by the constructor from `options.type` ('0', 't', anything else);
+    // wasm takes the variant from the tables the instance holds (see the whirlpool describe below).
+    id: 'whirlpool', Facade: Whirlpool, Legacy: LegacyWhirlpool, internal: whirlpoolInternal, words: 16, maxRounds: 10,
+    padAt: 32,
+    variants: [
+      { file: 'whirlpool', options: {} },
+      { file: 'whirlpool-0', options: { type: '0' } },
+      { file: 'whirlpool-t', options: { type: 't' } }
+    ],
+    hmac: [],
+    inside: [{}, { type: '0' }, { type: 't' }, { type: 0 }, { type: 'T' }, { type: true }, { type: 'x' }, { type: null },
+      { rounds: 1 }, { rounds: 2 }, { rounds: 5 }, { rounds: 9 }, { rounds: 10 }, { rounds: 0 }, { rounds: NaN },
+      { type: '0', rounds: 3 }, { type: 't', rounds: 7 }, { type: '0', rounds: 10 }, { type: 't', rounds: 1 }],
+    outside: [{ rounds: 11 }, { rounds: 12 }, { rounds: 22 }, { rounds: 2.5 }, { rounds: '5' }, { rounds: -1 }, { rounds: true },
+      { type: '0', rounds: 11 }, { type: 't', rounds: 2.5 }]
   }
 ];
 
@@ -844,4 +863,126 @@ test('SHA-512 rounds are half-steps: 159 = 160 and 1 = 2, 3 differs from 2', () 
   assert.equal(run(1), run(2));
   assert.notEqual(run(2), run(3));
   assert.equal(run(160), 'ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f');
+});
+
+describe('whirlpool: the variant is the pair of tables the instance holds', () => {
+  const run = (H, options, msg = 'abc'.repeat(30)) => {
+    const h = new H(structuredClone(options));
+    h.update(msg);
+    return hex(h);
+  };
+  const wasmCalls = (fn) => {
+    const before = whirlpoolInternal.wasmCalls();
+    fn();
+    return whirlpoolInternal.wasmCalls() - before;
+  };
+
+  test('Whirlpool, Whirlpool-T and Whirlpool-0 differ and each matches the original', () => {
+    const out = [{}, { type: 't' }, { type: '0' }].map((o) => run(Whirlpool, o));
+    assert.equal(new Set(out).size, 3);
+    out.forEach((x, i) => assert.equal(x, run(LegacyWhirlpool, [{}, { type: 't' }, { type: '0' }][i])));
+  });
+
+  test('odd `type` values select what the original selects', () => {
+    // `0` (a number) becomes '' in the constructor and selects plain Whirlpool; '0' selects Whirlpool-0.
+    const types = [0, '0', 't', 'T', 'x', '', true, false, null, undefined, 1, '1', ' t'];
+    for (const type of types) {
+      const options = { type };
+      assert.equal(wasmCalls(() => assert.equal(run(Whirlpool, options), run(LegacyWhirlpool, options), String(type))), 2, String(type));
+    }
+    assert.equal(run(Whirlpool, { type: 0 }), run(Whirlpool, {}));
+    assert.notEqual(run(Whirlpool, { type: '0' }), run(Whirlpool, {}));
+  });
+
+  test('changing options.type after construction changes nothing (the tables were chosen in the constructor)', () => {
+    for (const type of ['0', 't', '']) {
+      const a = new Whirlpool();
+      const b = new LegacyWhirlpool();
+      a.options.type = type;
+      b.options.type = type;
+      a.update('x'.repeat(100));
+      b.update('x'.repeat(100));
+      assert.equal(hex(a), hex(b));
+      assert.equal(hex(new Whirlpool()), hex(new LegacyWhirlpool()));
+    }
+  });
+
+  test('the three variants share one wasm instance', () => {
+    const rt = whirlpoolInternal.runtime();
+    assert.ok(rt);
+    for (const name of ['whirlpool', 'whirlpool0', 'whirlpoolt']) {
+      assert.equal(typeof rt.ex[`${name}_blocks`], 'function', name);
+      assert.equal(rt.ex[`${name}_state_size`](), 152, name);
+    }
+  });
+
+  test('tables replaced on an instance: other known tables stay in wasm, unknown ones run the original', () => {
+    const tOf = new LegacyWhirlpool({ type: 't' });
+    const zOf = new LegacyWhirlpool({ type: '0' });
+    for (const [label, C, RC, inWasm] of [
+      ['T tables on a plain hasher', tOf.C, tOf.RC, true],
+      ['0 tables on a plain hasher', zOf.C, zOf.RC, true],
+      // The pair must match: C of one variant with RC of another is a table set the wasm code does not know.
+      ['mixed C and RC', tOf.C, zOf.RC, false],
+      ['a copy of the plain tables', new LegacyWhirlpool().C.map((row) => row.slice()), new LegacyWhirlpool().RC.slice(), false]
+    ]) {
+      const a = new Whirlpool();
+      const b = new LegacyWhirlpool();
+      for (const h of [a, b]) {
+        h.C = C;
+        h.RC = RC;
+      }
+      const msg = 'q'.repeat(2 * 64 + 5);
+      assert.equal(wasmCalls(() => {
+        a.update(msg);
+        b.update(msg);
+        assert.equal(hex(a), hex(b), label);
+      }), inWasm ? 2 : 0, label);
+    }
+  });
+
+  test('a modified table entry is honored when the tables are copies, never read from wasm', () => {
+    const C = new LegacyWhirlpool().C.map((row) => row.slice());
+    C[0][2 * 7] ^= 0x1234;
+    const a = new Whirlpool();
+    const b = new LegacyWhirlpool();
+    a.C = C;
+    b.C = C;
+    a.update('hello world'.repeat(20));
+    b.update('hello world'.repeat(20));
+    assert.equal(hex(a), hex(b));
+    assert.notEqual(run(Whirlpool, {}, 'hello world'.repeat(20)), (() => {
+      const h = new LegacyWhirlpool();
+      h.C = C;
+      h.update('hello world'.repeat(20));
+      return hex(h);
+    })());
+  });
+
+  test('every round count 1..10 and a mid-stream rounds change', () => {
+    for (const type of ['', '0', 't']) {
+      for (let rounds = 1; rounds <= 10; rounds++) {
+        assert.equal(run(Whirlpool, { type, rounds }, 'The quick brown fox'.repeat(8)), run(LegacyWhirlpool, { type, rounds }, 'The quick brown fox'.repeat(8)), `${type} ${rounds}`);
+      }
+    }
+    const a = new Whirlpool();
+    const b = new LegacyWhirlpool();
+    for (const h of [a, b]) {
+      h.update('a'.repeat(100));
+      h.options.rounds = 3;
+      h.update('b'.repeat(100));
+      h.options.rounds = 10;
+      h.update('c'.repeat(100));
+    }
+    assert.equal(json(a), json(b));
+    assert.equal(hex(a), hex(b));
+  });
+
+  test('padding: tails of 31, 32 and 55..63 bytes (one block vs two) match the original', () => {
+    for (const len of [0, 1, 30, 31, 32, 33, 55, 56, 57, 62, 63, 64, 65, 95, 96, 97, 127, 128]) {
+      for (const type of ['', '0', 't']) {
+        assert.equal(run(Whirlpool, { type }, 'k'.repeat(len)), run(LegacyWhirlpool, { type }, 'k'.repeat(len)), `${type} len ${len}`);
+      }
+    }
+  });
 });
