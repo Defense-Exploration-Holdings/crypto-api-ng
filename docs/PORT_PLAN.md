@@ -307,7 +307,7 @@ Zig's `std.crypto` already implements most of these, which makes them cheap to e
 2. **Version number of the faithful release**: 1.0.0 (recommended; deliberate opt-in) versus 0.8.6 (would reach every `^0.8.5` user automatically and silently, which is risky for a rewrite).
 3. **2 GiB length bug in v1**: keep it (recommended, per the "identical in v1" rule) or fix it in v1 as a documented exception.
 4. **Browser global build**: keep ES5 syntax for the CDN file (recommended, it is what the README's "ES5" section promises) or move to ES2015.
-5. **License** for the new code and the copyright line, keeping the original MIT notice. *Decided 2026-11-14: MIT for everything.* the maintainer left the choice between Apache-2.0 and MIT open; MIT because the vendored original is MIT, so the package stays under one license, which is what users of a drop-in expect. `packages/crypto-api/LICENSE` has the original notice plus `Copyright (c) 2026 Defense Exploration Holdings` (confirm the entity's exact legal name before release), and the `license` field is `MIT`.
+5. **License** for the new code and the copyright line, keeping the original MIT notice. *Decided 2026-11-14: MIT for everything.* the maintainer left the choice between Apache-2.0 and MIT open; MIT because the vendored original is MIT, so the package stays under one license, which is what users of a drop-in expect. `packages/crypto-api/LICENSE` has the original notice plus `Copyright (c) 2026 Defense Exploration Holdings LLC` (the LLC suffix confirmed by the maintainer), and the `license` field is `MIT`.
 
 ### Decided after the first six ports
 

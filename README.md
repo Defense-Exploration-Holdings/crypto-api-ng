@@ -83,4 +83,4 @@ To add an algorithm, follow [docs/porting-guide.md](docs/porting-guide.md): core
 
 ## License
 
-MIT, see [LICENSE](LICENSE): Copyright (c) 2026 Defense Exploration Holdings for the Zig/WebAssembly port, and Copyright (c) 2015 nf404 for the original `crypto-api` it derives from. Both notices must be kept. Background in [LICENSE-NOTES.md](LICENSE-NOTES.md).
+MIT, see [LICENSE](LICENSE): Copyright (c) 2026 Defense Exploration Holdings LLC for the Zig/WebAssembly port, and Copyright (c) 2015 nf404 for the original `crypto-api` it derives from. Both notices must be kept. Background in [LICENSE-NOTES.md](LICENSE-NOTES.md).

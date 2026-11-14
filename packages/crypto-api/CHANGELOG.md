@@ -10,7 +10,7 @@ Maintained Zig/WebAssembly port of `crypto-api` 0.8.5. Drop-in replacement: same
 * All `src/**/*.mjs` imports carry explicit `.mjs` extensions, so native Node ESM loads them
 * Snefru throws `RangeError` instead of looping forever when `length` is 512 or more
 * Hashers run compression in WebAssembly where ported (see the repository README for the list)
-* License: MIT for the whole package; `LICENSE` carries the original's notice (nf404, 2015) and one for the port (Defense Exploration Holdings, 2026)
+* License: MIT for the whole package; `LICENSE` carries the original's notice (nf404, 2015) and one for the port (Defense Exploration Holdings LLC, 2026)
 
 ## History of crypto-api (nf404)
 
