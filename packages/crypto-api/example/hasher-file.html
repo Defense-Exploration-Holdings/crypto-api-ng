@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hashing files</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; margin: 2em auto; max-width: 40em; }
+        .progress { background: #eee; height: 1.5em; margin: 1em 0; }
+        .progress-bar { background: #337ab7; color: #fff; height: 100%; text-align: center; }
+        #hash { font-family: monospace; word-break: break-all; }
+    </style>
+</head>
+<body>
+<h2>Hashing file SHA256</h2>
+<form>
+    <label for="file">File:</label>
+    <input type="file" id="file">
+    <div class="progress">
+        <div class="progress-bar" role="progressbar"
+             aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0"
+             id="hash-progress"></div>
+    </div>
+    <div id="hash"></div>
+</form>
+<script src="../crypto-api.js"></script>
+<script src="hasher-file.js"></script>
+</body>
+</html>

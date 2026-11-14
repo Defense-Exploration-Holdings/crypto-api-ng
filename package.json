@@ -18,6 +18,16 @@
     "test:compat": "node --test \"test/compat/*.test.js\"",
     "test:legacy-suite": "node test/legacy-suite/run.mjs target",
     "test:legacy-suite:oracle": "node test/legacy-suite/run.mjs oracle",
-    "test:parity": "npm run test:legacy-suite && npm run test:compat"
+    "test:parity": "npm run test:legacy-suite && npm run test:compat",
+    "build:package": "node scripts/build-package.mjs",
+    "pack": "node scripts/build-package.mjs --pack",
+    "test:package": "node --test \"test/package/*.test.js\""
+  },
+  "devDependencies": {
+    "@babel/core": "8.1.2",
+    "@babel/preset-env": "8.0.7",
+    "acorn": "8.19.0",
+    "esbuild": "0.28.2",
+    "terser": "5.51.2"
   }
 }

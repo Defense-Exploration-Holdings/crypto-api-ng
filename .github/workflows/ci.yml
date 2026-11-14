@@ -15,6 +15,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
+      - name: Install build tools (esbuild, Babel, Terser for the package bundles)
+        run: npm ci
       - name: Install Zig
         run: |
           scripts/install-zig.sh
@@ -23,6 +25,11 @@ jobs:
         run: zig build js --release=small
       - name: Parity harness (original suite + differential fuzz)
         run: npm run test:parity
+      - name: Package (bundles, npm pack, smoke imports, Chromium global build)
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          npm run test:package
       - run: zig build check
       - run: zig build check --release=small
       - run: zig build wasm --release=small
