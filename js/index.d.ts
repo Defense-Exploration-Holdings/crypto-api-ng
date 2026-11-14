@@ -15,3 +15,5 @@ export class Runtime {
 export function load(
   source?: ArrayBuffer | ArrayBufferView | Response | URL | string,
 ): Promise<Runtime>;
+
+export function loadSync(bytes: ArrayBuffer | ArrayBufferView): Runtime;

@@ -34,6 +34,7 @@ The script installs Zig from the official `ziglang` PyPI wheel, because `ziglang
 ```sh
 zig build                         # build zig-out/wasm/crypto-api.wasm (debug)
 zig build wasm --release=small    # size-optimized wasm   (also: --release=fast | --release=safe)
+zig build js                      # generate js/generated/wasm-bytes.js (embedded wasm for sync loading)
 zig build test                    # Zig unit tests, native target
 zig build test-js                 # build wasm, then run Node tests (test/*.test.js)
 zig build check                   # everything above; run this before every commit
@@ -48,10 +49,12 @@ build.zig, build.zig.zon   build graph and package manifest
 src/root.zig               target-agnostic library root; native tests start here
 src/runtime.zig            ABI version, status codes, shared conventions
 src/wasm.zig               the wasm export surface (only file with `export fn`)
-js/index.js, index.d.ts    loader: instantiate wasm, ABI check, byte in/out helpers
+js/index.js, index.d.ts    loader: async `load()` and sync `loadSync()`, ABI check, byte in/out helpers
+js/sync.js                 sync entry: instantiates embedded bytes on import (needs `zig build js`)
 test/*.test.js             Node tests run against the built wasm
 docs/abi.md                JS <-> wasm calling conventions (read before adding exports)
 scripts/install-zig.sh     pinned Zig installer
+scripts/embed-wasm.mjs     wasm -> base64 JS module generator (used by `zig build js`)
 crypto-api/                upstream crypto-api as a git submodule (the behavioral oracle)
 ```
 

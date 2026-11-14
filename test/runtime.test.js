@@ -52,3 +52,9 @@ test('large allocation survives memory growth', () => {
   });
   assert.equal(out, 0); // even count of 7s xors to 0
 });
+
+test('sync entry point instantiates from embedded bytes', async () => {
+  const { runtime } = await import('../js/sync.js');
+  assert.equal(runtime.exports.abi_version(), EXPECTED_ABI_VERSION);
+  assert.equal(runtime.withBytes(Uint8Array.of(1, 2, 3), (p, n) => runtime.exports.smoke_xor(p, n)), 0);
+});

@@ -99,6 +99,18 @@ export class Runtime {
 }
 
 /**
+ * Synchronously instantiate the wasm module from bytes already in memory.
+ * Needed for APIs that must stay synchronous (the original crypto-api is).
+ * Browsers cap synchronous compilation on the main thread, so keep the module small.
+ * @param {ArrayBuffer | ArrayBufferView} bytes
+ * @returns {Runtime}
+ */
+export function loadSync(bytes) {
+  const instance = new WebAssembly.Instance(new WebAssembly.Module(bytes), {});
+  return new Runtime(instance);
+}
+
+/**
  * Instantiate the wasm module.
  * @param {ArrayBuffer | ArrayBufferView | Response | URL | string} [source]
  *   Defaults to the wasm built by `zig build wasm`.

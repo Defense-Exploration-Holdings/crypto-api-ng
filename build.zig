@@ -2,6 +2,7 @@
 //!
 //!   zig build              install the wasm module to zig-out/wasm/ (debug mode by default)
 //!   zig build wasm         same as above, explicit
+//!   zig build js           generate js/generated/wasm-bytes.js (embedded wasm for sync loading)
 //!   zig build test         run Zig unit tests on the native target
 //!   zig build test-js      build the wasm, then run the Node test suite against it
 //!   zig build check        run every test suite (Zig + JS)
@@ -48,6 +49,16 @@ pub fn build(b: *std.Build) void {
     wasm_step.dependOn(&install_wasm.step);
     b.getInstallStep().dependOn(&install_wasm.step);
 
+    // ---- embedded-bytes JS module (synchronous loading) -------------------
+    // Writes js/generated/wasm-bytes.js (base64) so js/sync.js can instantiate
+    // the module synchronously with no fetch or fs access.
+    const embed = b.addSystemCommand(&.{ "node", "scripts/embed-wasm.mjs" });
+    embed.addFileArg(wasm.getEmittedBin());
+    embed.addArg("js/generated/wasm-bytes.js");
+    embed.setCwd(b.path("."));
+    const js_step = b.step("js", "Generate js/generated/wasm-bytes.js from the built wasm");
+    js_step.dependOn(&embed.step);
+
     // ---- zig unit tests (native) -----------------------------------------
     // Algorithms are written target-agnostic in src/, so their unit tests run
     // natively (fast, debuggable). wasm.zig itself is exercised by the JS tests.
@@ -65,6 +76,7 @@ pub fn build(b: *std.Build) void {
     // ---- JS tests against the built wasm ---------------------------------
     const node_tests = b.addSystemCommand(&.{ "node", "--test", "test/*.test.js" });
     node_tests.step.dependOn(&install_wasm.step);
+    node_tests.step.dependOn(&embed.step);
     node_tests.setCwd(b.path("."));
 
     const test_js_step = b.step("test-js", "Build the wasm and run the Node test suite");

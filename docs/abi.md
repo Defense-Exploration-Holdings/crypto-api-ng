@@ -30,3 +30,7 @@ Streaming primitives (hashes, MACs, ciphers) expose an opaque state held in wasm
 ```
 
 One-shot helpers (`<algo>_hash(data_ptr, data_len, out_ptr)`) may be added on top. The first real port should confirm or amend this shape here.
+
+## Loading: async and sync
+
+The original crypto-api is fully synchronous, so v1 needs a sync path. `js/index.js` exports `load()` (async: fetch or fs) and `loadSync(bytes)`. `js/sync.js` embeds the wasm as base64 (`zig build js` writes `js/generated/wasm-bytes.js`, which is gitignored) and instantiates on import. Browsers limit synchronous compilation on the main thread, so keep the module small (target under 64 KB).
