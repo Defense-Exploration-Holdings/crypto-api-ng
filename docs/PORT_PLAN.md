@@ -303,7 +303,7 @@ Zig's `std.crypto` already implements most of these, which makes them cheap to e
 
 ## 9. Decisions needed from the maintainers
 
-1. **npm name for v1.** The `crypto-api` name belongs to the original author. Options: ask to be added as maintainer or have it transferred (then existing users get 1.0.0 by a normal major upgrade); or publish under a new name with the identical layout, so existing users switch with zero code changes via an alias, `"crypto-api": "npm:<new-name>@^1"`. Recommendation: ask for the transfer now, and prepare the new name in parallel so v1 is not blocked.
+1. **npm name for v1.** *Decided 2026-11-14: ask the original author for the `crypto-api` name, and prepare a new name in parallel so v1 is not blocked.* The `crypto-api` name belongs to the original author. Options: ask to be added as maintainer or have it transferred (then existing users get 1.0.0 by a normal major upgrade); or publish under a new name with the identical layout, so existing users switch with zero code changes via an alias, `"crypto-api": "npm:<new-name>@^1"`. Recommendation: ask for the transfer now, and prepare the new name in parallel so v1 is not blocked.
 2. **Version number of the faithful release**: 1.0.0 (recommended; deliberate opt-in) versus 0.8.6 (would reach every `^0.8.5` user automatically and silently, which is risky for a rewrite).
 3. **2 GiB length bug in v1**: keep it (recommended, per the "identical in v1" rule) or fix it in v1 as a documented exception.
 4. **Browser global build**: keep ES5 syntax for the CDN file (recommended, it is what the README's "ES5" section promises) or move to ES2015.
