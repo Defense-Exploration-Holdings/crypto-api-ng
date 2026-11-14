@@ -75,6 +75,15 @@ class Sha1 extends LegacySha1 {
 
 The guards are the ones of the MD5 facade (state shape, `processBlock` and the other internals not overridden, `blockSizeInBytes` 64, wide characters, a missing runtime) plus option checks done **at call time**, because the original reads `this.options.rounds` and `this.options.length` on every block: `rounds` must be an integer in 1..max, and `finalize()` needs a `length` the wasm output size supports (SHA-224/256: 224 or 256, SM3: 256). `process()` does not look at `length`, which only picks the IV in the original's `reset()` and the output size in `finalize()`. A little-endian family (MD4, HAS-160, RIPEMD) would add a sibling `le32.mjs`; do not bend `be32.mjs` for it.
 
+### 128-byte blocks: SHA-384, SHA-512, SHA-512/224, SHA-512/256
+
+`Sha512` in 0.8.5 is still a `Hasher32be` (32-bit units, `blockSize` 32 units = 128 bytes, sixteen int32 hash words as hi/lo pairs), so it uses the same glue with two extra parameters of `createAccelerator`: `block: 128`, and `outOff: 256`. Its Zig `State` is 216 bytes (the 128-byte buffered tail alone fills the slot), more than the 128-byte state slot of the scratch region, so the digest is written to the input offset instead of `OUT_OFF`; `sha512_final` does not read the input region. What is specific to this family:
+
+- One compression serves all four algorithms. The IV is whatever is in `state.hash` (the original's `reset()` makes it), and `length` only decides how many digest words `finalize()` returns, `(length / 32) | 0` of them. Wasm therefore serves any integer `length` from 32 to 512 for `finalize()`, including the SHA-512/t IVs the original derives for other t. This is wider than the envelope in PORT_PLAN §3.1 and costs nothing: there is no length-dependent code in wasm.
+- `rounds` counts 32-bit half-steps: the original loops `i = 0, 2, ... < rounds`, so `ceil(rounds / 2)` steps (159 equals 160, 1 equals 2). Wasm serves integers 1..160.
+- The length field is 16 bytes, eight zero bytes then the same 32-bit-bug field as the other hashers (`be32.lengthField`); padding goes to offset 112, or 240 when the tail is 112 bytes or more.
+- `reset()` is overridden for `length` 224 and 256 only: the original derives their IV with a full SHA-512 of `"SHA-512/224"` (resp. 256) on every construction, which cost more than hashing a short message. The facade writes the FIPS 180-4 constants instead (a Zig test derives them with the same procedure and compares). Every other length, and any subclass that patched the original `reset`, still runs the original code. The state it leaves is identical, key order included.
+
 Things the pattern taught that apply to every family:
 
 - Give the facade an explicit `constructor(options) { super(options); }`. An implicit derived constructor has `length` 0 and the harness's shape test checks `Class.length`.
