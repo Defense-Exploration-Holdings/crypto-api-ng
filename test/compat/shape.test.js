@@ -10,7 +10,7 @@ let oracle;
 let target;
 before(async () => ({ oracle, target } = await loadBoth()));
 
-// A facade (docs/porting-guide.md) is a class with the same name as the verbatim
+// A facade is a class with the same name as the verbatim
 // original it extends, so `Sha1 -> Sha1 -> Hasher32be`. That one extra link is the
 // design, not a divergence: collapse a class into its parent when the names match.
 const chain = (Cls) => {

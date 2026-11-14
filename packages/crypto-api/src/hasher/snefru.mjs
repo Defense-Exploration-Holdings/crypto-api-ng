@@ -7,8 +7,7 @@ import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
 
 /*
  * Snefru with the compression and padding done in wasm, and everything else
- * left to the original JavaScript. Same design as md5.mjs (recipe in
- * docs/porting-guide.md): the facade extends the verbatim 0.8.5 class and
+ * left to the original JavaScript. Same design as md5.mjs: the facade extends the verbatim 0.8.5 class and
  * overrides only `process()` and `finalize()`; `this.state` stays the original
  * plain object, and any case the wasm code does not model exactly goes to the
  * original.

@@ -1,6 +1,6 @@
 //! wasm root for the "sha1" family: SHA-0 and SHA-1. Compiled to
 //! zig-out/wasm/sha1.wasm by build.zig. Export shape: see src/wasm/md.zig and
-//! docs/porting-guide.md. `rounds` lives in the State; `*_blocks` and `*_final`
+//! docs/abi.md. `rounds` lives in the State; `*_blocks` and `*_final`
 //! return a `runtime.Status` (non-zero when `rounds` is outside 1..80, which
 //! the JS facade never sends), so a bad state cannot write out of bounds.
 

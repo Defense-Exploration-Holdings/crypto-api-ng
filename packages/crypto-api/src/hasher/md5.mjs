@@ -8,7 +8,7 @@ import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
 /*
  * MD5 with the compression and padding done in wasm, and everything else left
  * to the original JavaScript. This file is the template for every other
- * algorithm; the recipe is in docs/porting-guide.md.
+ * algorithm.
  *
  * The facade extends the verbatim crypto-api 0.8.5 class and overrides only
  * `process()` and `finalize()`. `this.state` stays the original plain object

@@ -20,7 +20,7 @@ Target: `wasm32-freestanding`, single-threaded, no imports. Everything the modul
 
 ## Algorithm export shape
 
-Settled by the MD5 port (see [porting-guide.md](porting-guide.md)). Streaming primitives export:
+Settled by the MD5 port. Streaming primitives export:
 
 ```
 <algo>_state_size() -> u32                  // sizeof the Zig State; JS checks it at load

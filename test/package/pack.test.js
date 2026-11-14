@@ -111,7 +111,9 @@ describe('package name is configurable', () => {
       assert.equal(pkg.exports, undefined, 'no exports map in v1: deep paths must stay reachable');
       assert.equal(pkg.type, undefined);
       for (const f of walk(dir).filter((p) => /\.(md|html|mjs|cjs|json)$/.test(p) && !p.includes('/wasm/') && !p.includes('/legacy/'))) {
-        assert.doesNotMatch(readFileSync(f, 'utf8'), /\{\{name\}\}/, f);
+        if (/\/(README\.md|example\/)/.test(f) && name !== 'crypto-api-ng') {
+          assert.doesNotMatch(readFileSync(f, 'utf8'), /crypto-api-ng(?![\w-])/, f);
+        }
       }
       assert.match(readFileSync(join(dir, 'README.md'), 'utf8'), new RegExp(`npm install ${name}\\n`));
       assert.match(readFileSync(join(dir, 'README.md'), 'utf8'), new RegExp(`from "${name}/src/hasher/sha256\\.mjs"`));

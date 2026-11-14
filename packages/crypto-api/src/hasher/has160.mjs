@@ -7,8 +7,7 @@ import {Engine, BLOCK, accelProcess, accelFinalize} from "../wasm/le32.mjs";
 
 /*
  * HAS-160 with the compression and padding done in wasm, and everything else
- * left to the original JavaScript. Same design as md5.mjs (recipe in
- * docs/porting-guide.md).
+ * left to the original JavaScript. Same design as md5.mjs.
  *
  * HAS-160 specifics: the `rounds` option is read from `this.options` at every
  * call, like the original reads it in `processBlock`, and is passed to wasm in

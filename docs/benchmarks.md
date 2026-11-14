@@ -276,7 +276,7 @@ Fresh process per measurement (alternating 0.8.5 and v1). *Import* is the dynami
 | snefru | 20328 | 18462 | 44798 | 28362 | Snefru |
 | whirlpool | 9920 | 6383 | 45272 | 19112 | Whirlpool, -0, -T |
 
-All families together: 60.8 KiB (small), 331.2 KiB (fast). v1 ships `small`; `fast` is not faster end to end (see `docs/porting-guide.md`). Each family is its own module and is only instantiated when a hasher of that family first processes data.
+All families together: 60.8 KiB (small), 331.2 KiB (fast). v1 ships `small`; `fast` is not faster end to end. Each family is its own module and is only instantiated when a hasher of that family first processes data.
 
 ### JavaScript per import (unminified module closure, bytes)
 

@@ -9,7 +9,7 @@
 //
 // The package name is configurable because it is not final yet: the committed
 // package.json says `crypto-api-ng`, and `--name` (or the CRYPTO_API_PACKAGE_NAME environment variable)
-// replaces it in the staged package.json and in the `{{name}}` placeholders of README.md and example/*.
+// replaces it in the staged package.json and wherever README.md and example/* use the committed name.
 // Staging copies exactly what package.json `files` lists, so the tarball can never pick up stray files.
 //
 // `--pack` never publishes anything. `private: true` stays in the staged package.json unless `--public`
@@ -88,10 +88,16 @@ export function stage({ out, name, publicPackage = false }) {
   mkdirSync(out, { recursive: true });
   for (const entry of pkg.files) cpSync(join(pkgRoot, entry), join(out, entry), { recursive: true });
 
-  for (const file of listFiles(out)) {
-    if (!TEXT_EXT.test(file) || file.endsWith('.min.js') || file.includes('/wasm/') || file.includes('/legacy/')) continue;
-    const text = readFileSync(file, 'utf8');
-    if (text.includes('{{name}}')) writeFileSync(file, text.split('{{name}}').join(name));
+  // The committed README and examples use the committed package name; swap it for the requested one.
+  if (name !== pkg.name) {
+    const committed = new RegExp(`(?<!Holdings/)${pkg.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`, 'g');
+    for (const file of listFiles(out)) {
+      const rel = file.slice(out.length + 1);
+      if (!TEXT_EXT.test(file) || file.endsWith('.min.js') || !(rel === 'README.md' || rel.startsWith('example/'))) continue;
+      const text = readFileSync(file, 'utf8');
+      const next = text.replace(committed, name);
+      if (next !== text) writeFileSync(file, next);
+    }
   }
 
   const staged = { ...pkg, name };

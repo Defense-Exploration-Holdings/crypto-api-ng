@@ -2,7 +2,7 @@
 //! SHA-512/256 (one State and one compression; the IV is chosen by
 //! `sha512_init` or written by the JS facade, which takes a prefix of the 64
 //! output bytes). Compiled to zig-out/wasm/sha512.wasm by build.zig. Export
-//! shape: see src/wasm/md.zig and docs/porting-guide.md. `*_blocks` and
+//! shape: see src/wasm/md.zig and docs/abi.md. `*_blocks` and
 //! `*_final` return a `runtime.Status` (non-zero when `rounds` is outside
 //! 1..160, which the JS facade never sends).
 //!

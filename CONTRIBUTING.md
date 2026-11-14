@@ -31,7 +31,12 @@ Version 1 behaves exactly like `crypto-api` 0.8.5, bugs included. Do not improve
 
 ## Adding or changing an algorithm
 
-- [docs/porting-guide.md](docs/porting-guide.md): the file layout, Zig core, wasm exports and facade, using MD5 as the template.
+MD5 is the template; copy its files (`src/hash/md5.zig`, `src/wasm/md.zig`, `packages/crypto-api/src/hasher/md5.mjs`, `test/md5.test.js`) and change what the algorithm needs.
+
+- `src/hash/<algo>.zig`: the core. Target-agnostic, no wasm or OS code, with `test` blocks. Re-export it from `src/root.zig`.
+- `src/wasm/<family>.zig`: the wasm exports for the algorithm family (the only files with `export fn`, besides `src/wasm.zig`). Add new families to `families` in `build.zig`.
+- `packages/crypto-api/src/hasher/<algo>.mjs`: the facade. It extends the verbatim 0.8.5 class and overrides only `process()` and `finalize()`; everything else, including `this.state`, stays the original's. It falls back to the original code for any input or option the wasm code does not model exactly.
+- `test/<algo>.test.js` and `test/vectors/`: differential tests against the original class.
 - [docs/abi.md](docs/abi.md): calling conventions between JavaScript and WebAssembly.
 - [docs/test-harness.md](docs/test-harness.md): the parity tests; new algorithms and options are registered in `test/harness/catalog.mjs`.
 

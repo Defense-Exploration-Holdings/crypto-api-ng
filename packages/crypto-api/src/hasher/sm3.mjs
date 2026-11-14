@@ -9,8 +9,7 @@ import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
  * SM3 with the compression and padding done in wasm, and everything else
  * left to the original JavaScript. Same API, output and `getState()` JSON as
  * crypto-api 0.8.5; see legacy/hasher/sm3.mjs for the original documentation and
- * examples. How this works, and the checks that make it safe: src/wasm/be32.mjs
- * and docs/porting-guide.md.
+ * examples. How this works, and the checks that make it safe: src/wasm/be32.mjs.
  *
  * Wasm is used for options.length 256 and options.rounds 1 to 64. Any other option value
  * or state runs the original code. `this.W`, the original's scratch array,

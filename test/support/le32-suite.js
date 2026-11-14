@@ -1,6 +1,6 @@
 // Differential test suite for the wasm-accelerated Hasher32le facades that
 // share packages/crypto-api/src/wasm/le32.mjs (MD4, HAS-160, RIPEMD). It is the
-// checklist of docs/porting-guide.md, run for one "case" (an algorithm with one
+// checklist of test/md5.test.js, run for one "case" (an algorithm with one
 // option set) at a time:
 //
 //   defineSuite({name, Facade, Legacy, internal, options, vectors, ...})

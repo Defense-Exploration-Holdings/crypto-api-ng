@@ -7,8 +7,7 @@ import {Engine, BLOCK, accelProcess, accelFinalize} from "../wasm/le32.mjs";
 
 /*
  * MD4 with the compression and padding done in wasm, and everything else left
- * to the original JavaScript. Same design as md5.mjs (recipe in
- * docs/porting-guide.md): extend the verbatim 0.8.5 class, override only
+ * to the original JavaScript. Same design as md5.mjs: extend the verbatim 0.8.5 class, override only
  * `process()` and `finalize()`, keep `this.state` the original plain object,
  * and delegate to `super` whenever the state or the class is not exactly what
  * the wasm code models.

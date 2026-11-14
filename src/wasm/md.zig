@@ -1,6 +1,6 @@
 //! wasm root for the "md" family (MD4 and MD5; MD2 has its own root). Compiled to zig-out/wasm/md.wasm by build.zig.
 //!
-//! Export shape (see docs/abi.md and docs/porting-guide.md):
+//! Export shape (see docs/abi.md):
 //!
 //!     <algo>_state_size() -> u32
 //!     <algo>_init(state_ptr)

@@ -8,7 +8,7 @@ import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
  * and SM3 with 64-byte blocks; SHA-384/512 with `spec.block` 128). They differ
  * only in numbers (hash words, State offsets, option rules), so the two methods every facade overrides,
  * `process()` and `finalize()`, are written once here. The recipe and the
- * guarantees are the ones of the MD5 template (docs/porting-guide.md); read
+ * guarantees are the ones of the MD5 template; read
  * `src/hasher/md5.mjs` first.
  *
  * Each facade is

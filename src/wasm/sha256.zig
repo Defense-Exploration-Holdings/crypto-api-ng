@@ -2,7 +2,7 @@
 //! code; `length` only picks the IV in `sha256_init`, and the JS facade takes a
 //! 28-byte prefix of the 32-byte output for SHA-224). Compiled to
 //! zig-out/wasm/sha256.wasm by build.zig. Export shape: see src/wasm/md.zig and
-//! docs/porting-guide.md. `*_blocks` and `*_final` return a `runtime.Status`
+//! docs/abi.md. `*_blocks` and `*_final` return a `runtime.Status`
 //! (non-zero when `rounds` is outside 1..64, which the JS facade never sends).
 
 comptime {

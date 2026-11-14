@@ -266,7 +266,7 @@ if (sizes) {
   p(table(['Family', ...modes.flatMap((m) => [`${m}`, `${m} gzip`]), 'Algorithms'], fams.map((f) => [f, ...modes.flatMap((m) => [sizes.wasm[m][f]?.raw ?? '–', sizes.wasm[m][f]?.gzip ?? '–']), FAMILY_ALGOS[f] ?? '']), ['l']));
   const tot = (m) => fams.reduce((a, f) => a + (sizes.wasm[m]?.[f]?.raw ?? 0), 0);
   p();
-  p(`All families together: ${modes.map((m) => `${(tot(m) / 1024).toFixed(1)} KiB (${m})`).join(', ')}. v1 ships \`small\`; \`fast\` is not faster end to end (see \`docs/porting-guide.md\`). Each family is its own module and is only instantiated when a hasher of that family first processes data.`);
+  p(`All families together: ${modes.map((m) => `${(tot(m) / 1024).toFixed(1)} KiB (${m})`).join(', ')}. v1 ships \`small\`; \`fast\` is not faster end to end. Each family is its own module and is only instantiated when a hasher of that family first processes data.`);
   p();
   p('### JavaScript per import (unminified module closure, bytes)');
   p();

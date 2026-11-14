@@ -7,8 +7,7 @@ import {Engine, BLOCK, accelProcess, accelFinalize} from "../wasm/le32.mjs";
 
 /*
  * RIPEMD-128/160/256/320 with the compression and padding done in wasm, and
- * everything else left to the original JavaScript. Same design as md5.mjs
- * (recipe in docs/porting-guide.md).
+ * everything else left to the original JavaScript. Same design as md5.mjs.
  *
  * RIPEMD specifics: the original chooses the variant in `reset()` from
  * `options.length` (128, 256, 320, anything else is 160) and stores the
