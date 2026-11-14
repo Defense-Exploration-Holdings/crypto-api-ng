@@ -1,198 +1,57 @@
+// crypto-api-ng:facade
 'use strict';
 
-import Hasher32le from "./hasher32le.mjs";
-import {rotateLeft} from "../tools/tools.mjs";
+import LegacyMd4 from "../../legacy/hasher/md4.mjs";
+import {wasmBytes} from "../../wasm/md.mjs";
+import {Engine, BLOCK, accelProcess, accelFinalize} from "../wasm/le32.mjs";
 
-// Transform constants
-/** @type {number[]} */
-const S = [
-  [3, 7, 11, 19],
-  [3, 5, 9, 13],
-  [3, 9, 11, 15]
-];
-/** @type {number} */
-const F = 0x00000000;
-/** @type {number} */
-const G = 0x5a827999;
-/** @type {number} */
-const H = 0x6ed9eba1;
+/*
+ * MD4 with the compression and padding done in wasm, and everything else left
+ * to the original JavaScript. Same design as md5.mjs (recipe in
+ * docs/porting-guide.md): extend the verbatim 0.8.5 class, override only
+ * `process()` and `finalize()`, keep `this.state` the original plain object,
+ * and delegate to `super` whenever the state or the class is not exactly what
+ * the wasm code models.
+ *
+ * MD4 specifics: the original assigns a fresh `state.hash` array after every
+ * block (it does not write into the old one), so the facade does too.
+ */
+
+const engine = new Engine(wasmBytes);
+const V = engine.variant('md4', 4);
+
+/** The internals the wasm code replaces. An override of any of them must be honored. */
+const P = LegacyMd4.prototype;
+const ORIGINAL_BLOCK = P.processBlock;
+const ORIGINAL_BITS = P.addLengthBits;
+const ORIGINAL_PAD = P.addPaddingISO7816;
+const ORIGINAL_HASH = P.getStateHash;
 
 /**
- * Calculates [MD4](https://tools.ietf.org/html/rfc1320) hash
- *
- * @example <caption>Calculates MD4 hash from string "message" - ES6 style</caption>
- * import Md4 from "crypto-api/src/hasher/md4";
- * import {toHex} from "crypto-api/src/encoder/hex";
- *
- * let hasher = new Md4();
- * hasher.update('message');
- * console.log(toHex(hasher.finalize()));
- *
- * @example <caption>Calculates MD4 hash from UTF string "message" - ES6 style</caption>
- * import Md4 from "crypto-api/src/hasher/md4";
- * import {toHex} from "crypto-api/src/encoder/hex";
- * import {fromUtf} from "crypto-api/src/encoder/utf";
- *
- * let hasher = new Md4();
- * hasher.update(fromUtf('message'));
- * console.log(toHex(hasher.finalize()));
- *
- * @example <caption>Calculates MD4 hash from string "message" - ES5 style</caption>
- * <script src="https://nf404.github.io/crypto-api/crypto-api.min.js"></script>
- * <script>
- *   var hasher = CryptoApi.getHasher('md4');
- *   hasher.update('message');
- *   console.log(CryptoApi.encoder.toHex(hasher.finalize()));
- * </script>
- *
- * @example <caption>Calculates MD4 hash from UTF string "message" - ES5 style</caption>
- * <script src="https://nf404.github.io/crypto-api/crypto-api.min.js"></script>
- * <script>
- *   console.log(CryptoApi.hash('md4', 'message'));
- * </script>
+ * Test-only hooks; not public API and not kept in later releases.
  */
-class Md4 extends Hasher32le {
-  /**
-   * Reset hasher to initial state
-   */
-  reset() {
-    super.reset();
-    this.state.hash = [
-      0x67452301 | 0,
-      0xefcdab89 | 0,
-      0x98badcfe | 0,
-      0x10325476 | 0
-    ];
-  }
+export const _internal = engine.hooks();
 
-  /**
-   * @private
-   * @ignore
-   * @param {number} x
-   * @param {number} y
-   * @param {number} z
-   * @returns {number}
-   */
-  static FF(x, y, z) {
-    return (x & y) | ((~x) & z);
-  }
-
-  /**
-   * @private
-   * @ignore
-   * @param {number} x
-   * @param {number} y
-   * @param {number} z
-   * @returns {number}
-   */
-  static GG(x, y, z) {
-    return (x & y) | (x & z) | (y & z);
-  }
-
-  /**
-   * @private
-   * @ignore
-   * @param {number} x
-   * @param {number} y
-   * @param {number} z
-   * @returns {number}
-   */
-  static HH(x, y, z) {
-    return x ^ y ^ z;
-  }
-
-  /**
-   * @private
-   * @ignore
-   * @param {function} f
-   * @param {number} k
-   * @param {number} a
-   * @param {number} x
-   * @param {number} y
-   * @param {number} z
-   * @param {number} m
-   * @param {number} s
-   * @returns {number}
-   * @constructor
-   */
-  static CC(f, k, a, x, y, z, m, s) {
-    return rotateLeft((a + f(x, y, z) + m + k), s) | 0;
-  }
-
+/**
+ * Calculates [MD4](https://tools.ietf.org/html/rfc1320) hash. Same API,
+ * output and `getState()` JSON as crypto-api 0.8.5; see legacy/hasher/md4.mjs
+ * for the original documentation and examples.
+ */
+class Md4 extends LegacyMd4 {
   /**
    * Process ready blocks
    *
    * @protected
    * @ignore
-   * @param {number[]} block - Block
    */
-  processBlock(block) {
-    // Working variables
-    let a = this.state.hash[0] | 0;
-    let b = this.state.hash[1] | 0;
-    let c = this.state.hash[2] | 0;
-    let d = this.state.hash[3] | 0;
-
-    // Round 1
-    a = Md4.CC(Md4.FF, F, a, b, c, d, block[0], S[0][0]);
-    d = Md4.CC(Md4.FF, F, d, a, b, c, block[1], S[0][1]);
-    c = Md4.CC(Md4.FF, F, c, d, a, b, block[2], S[0][2]);
-    b = Md4.CC(Md4.FF, F, b, c, d, a, block[3], S[0][3]);
-    a = Md4.CC(Md4.FF, F, a, b, c, d, block[4], S[0][0]);
-    d = Md4.CC(Md4.FF, F, d, a, b, c, block[5], S[0][1]);
-    c = Md4.CC(Md4.FF, F, c, d, a, b, block[6], S[0][2]);
-    b = Md4.CC(Md4.FF, F, b, c, d, a, block[7], S[0][3]);
-    a = Md4.CC(Md4.FF, F, a, b, c, d, block[8], S[0][0]);
-    d = Md4.CC(Md4.FF, F, d, a, b, c, block[9], S[0][1]);
-    c = Md4.CC(Md4.FF, F, c, d, a, b, block[10], S[0][2]);
-    b = Md4.CC(Md4.FF, F, b, c, d, a, block[11], S[0][3]);
-    a = Md4.CC(Md4.FF, F, a, b, c, d, block[12], S[0][0]);
-    d = Md4.CC(Md4.FF, F, d, a, b, c, block[13], S[0][1]);
-    c = Md4.CC(Md4.FF, F, c, d, a, b, block[14], S[0][2]);
-    b = Md4.CC(Md4.FF, F, b, c, d, a, block[15], S[0][3]);
-
-    // Round 2
-    a = Md4.CC(Md4.GG, G, a, b, c, d, block[0], S[1][0]);
-    d = Md4.CC(Md4.GG, G, d, a, b, c, block[4], S[1][1]);
-    c = Md4.CC(Md4.GG, G, c, d, a, b, block[8], S[1][2]);
-    b = Md4.CC(Md4.GG, G, b, c, d, a, block[12], S[1][3]);
-    a = Md4.CC(Md4.GG, G, a, b, c, d, block[1], S[1][0]);
-    d = Md4.CC(Md4.GG, G, d, a, b, c, block[5], S[1][1]);
-    c = Md4.CC(Md4.GG, G, c, d, a, b, block[9], S[1][2]);
-    b = Md4.CC(Md4.GG, G, b, c, d, a, block[13], S[1][3]);
-    a = Md4.CC(Md4.GG, G, a, b, c, d, block[2], S[1][0]);
-    d = Md4.CC(Md4.GG, G, d, a, b, c, block[6], S[1][1]);
-    c = Md4.CC(Md4.GG, G, c, d, a, b, block[10], S[1][2]);
-    b = Md4.CC(Md4.GG, G, b, c, d, a, block[14], S[1][3]);
-    a = Md4.CC(Md4.GG, G, a, b, c, d, block[3], S[1][0]);
-    d = Md4.CC(Md4.GG, G, d, a, b, c, block[7], S[1][1]);
-    c = Md4.CC(Md4.GG, G, c, d, a, b, block[11], S[1][2]);
-    b = Md4.CC(Md4.GG, G, b, c, d, a, block[15], S[1][3]);
-
-    // Round 3
-    a = Md4.CC(Md4.HH, H, a, b, c, d, block[0], S[2][0]);
-    d = Md4.CC(Md4.HH, H, d, a, b, c, block[8], S[2][1]);
-    c = Md4.CC(Md4.HH, H, c, d, a, b, block[4], S[2][2]);
-    b = Md4.CC(Md4.HH, H, b, c, d, a, block[12], S[2][3]);
-    a = Md4.CC(Md4.HH, H, a, b, c, d, block[2], S[2][0]);
-    d = Md4.CC(Md4.HH, H, d, a, b, c, block[10], S[2][1]);
-    c = Md4.CC(Md4.HH, H, c, d, a, b, block[6], S[2][2]);
-    b = Md4.CC(Md4.HH, H, b, c, d, a, block[14], S[2][3]);
-    a = Md4.CC(Md4.HH, H, a, b, c, d, block[1], S[2][0]);
-    d = Md4.CC(Md4.HH, H, d, a, b, c, block[9], S[2][1]);
-    c = Md4.CC(Md4.HH, H, c, d, a, b, block[5], S[2][2]);
-    b = Md4.CC(Md4.HH, H, b, c, d, a, block[13], S[2][3]);
-    a = Md4.CC(Md4.HH, H, a, b, c, d, block[3], S[2][0]);
-    d = Md4.CC(Md4.HH, H, d, a, b, c, block[11], S[2][1]);
-    c = Md4.CC(Md4.HH, H, c, d, a, b, block[7], S[2][2]);
-    b = Md4.CC(Md4.HH, H, b, c, d, a, block[15], S[2][3]);
-
-    this.state.hash = [
-      (this.state.hash[0] + a) | 0,
-      (this.state.hash[1] + b) | 0,
-      (this.state.hash[2] + c) | 0,
-      (this.state.hash[3] + d) | 0
-    ];
+  process() {
+    const state = this.state;
+    if (state === null || typeof state !== 'object' || typeof state.message !== 'string' ||
+      this.blockSizeInBytes !== BLOCK) {
+      return super.process();
+    }
+    if (state.message.length < BLOCK) return;
+    if (this.processBlock !== ORIGINAL_BLOCK || !accelProcess(V, state, 0, true)) return super.process();
   }
 
   /**
@@ -201,13 +60,15 @@ class Md4 extends Hasher32le {
    * @returns {string}
    */
   finalize() {
-    this.addPaddingISO7816(
-      this.state.message.length < 56 ?
-        56 - this.state.message.length | 0 :
-        120 - this.state.message.length | 0);
-    this.addLengthBits();
-    this.process();
-    return this.getStateHash();
+    const state = this.state;
+    if (state !== null && typeof state === 'object' && this.blockSizeInBytes === BLOCK &&
+      this.process === Md4.prototype.process && this.processBlock === ORIGINAL_BLOCK &&
+      this.addLengthBits === ORIGINAL_BITS && this.addPaddingISO7816 === ORIGINAL_PAD &&
+      this.getStateHash === ORIGINAL_HASH) {
+      const digest = accelFinalize(V, state, 0, true);
+      if (digest !== null) return digest;
+    }
+    return super.finalize();
   }
 }
 

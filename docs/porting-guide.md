@@ -58,6 +58,37 @@ Copy `md5.mjs` and change the algorithm-specific parts. The parts that carry the
 
 Known, deliberate non-parity of the MD5 facade: `blockUnits` (an `@private` scratch array in `Hasher32le`) is not filled on the wasm path. Nothing else differs; `Object.keys(hasher)`, `JSON.stringify(hasher)`, `hasher.state` and the live-reference behavior of `setState()` are identical.
 
+## Sharing the plumbing: `le32` (MD4, HAS-160, RIPEMD)
+
+Every `Hasher32le` algorithm pads and counts the same way, so MD4, HAS-160 and RIPEMD do not copy `md5.mjs` and `md5.zig`. They use two shared files and keep only what is algorithm-specific:
+
+- Zig: `src/hash/le32.zig` provides `Hasher(words, iv, compress)`, which gives an algorithm its `State`, `init`, `update`, `blocks` and `final` (padding, the 32-bit length-field quirk, the state left after `finalize()`). The algorithm file (`md4.zig`, `has160.zig`, `ripemd.zig`) is the compression function, its constants and tests. `src/wasm/le32_exports.zig` generates the five exports from that type, so a family root is a few lines.
+- JS: `packages/crypto-api/src/wasm/le32.mjs` does the scratch-region copying for `process()` and `finalize()` (`accelProcess`, `accelFinalize`) and the lazy, failure-remembering `Engine`. The facade file (`md4.mjs`, `has160.mjs`, `ripemd.mjs`) is ~80 lines: extend the original class, decide when wasm is allowed, call the helper, else `super`.
+- Tests: `test/support/le32-suite.js` is the "Tests every port needs" checklist below as a function of (facade, original class, options). Each algorithm's test file calls it once per option set and adds its own cases.
+
+Use these for any other 32-bit little-endian, 64-byte-block hasher. SHA families (big-endian words) and the 128-byte-block ones will want their own equivalent.
+
+Things the three ports turned up that the MD5 text above does not say:
+
+- **Guard hash words to |w| <= 2^52, not "safe integer".** The original computes `(word + x) | 0` in doubles. Up to 2^52 the sum is exact, so it equals wasm's int32 add; near 2^53 the sum rounds and the two disagree. (`md5.mjs`'s `hashOk` accepts all safe integers and has this bug; see the PR notes.)
+- **Mirror how the original stores the result.** MD4 assigns a fresh `state.hash` array after every block (the facade does too, `replace`), the others write into the existing array. Only touch `state.hash` when at least one block really was processed: HAS-160's initial words are unsigned until then, and `getState()` shows it.
+- **Per-instance function choice.** RIPEMD's `reset()` stores `processBlock128/160/256/320` on the instance. The facade picks the wasm variant from which function the instance holds, never from `options.length`, so `length: 100`, `'256'` or a hand-assigned `processBlock` do exactly what 0.8.5 does. A subclass `processBlock` is shadowed by that instance property in the original too.
+- **Options read at call time.** HAS-160 reads `options.rounds` in `processBlock`, so the facade reads it on every `process()`/`finalize()` and sends integers 0..80 to wasm in `State.param`; everything else (strings, fractions, > 80) is original code. `rounds: Infinity` makes the original loop forever, so tests never probe it.
+- **Constructor arity.** A derived class without a constructor has `length` 0. The original `Has160` and `Ripemd` take `(options)`, so their facades spell out `constructor(options) { super(options); }` (the harness checks `T.length`).
+- **Guard `blockSizeInBytes`.** `process()` reads the instance property, so the facade checks it is 64. (A value of 0 makes the original loop forever; not probed.)
+- Not filled on the wasm path: `blockUnits` (all of them) and HAS-160's `W`, both private scratch arrays. Static helpers patched on the exported class (`Md4.FF`, `Ripemd.F`, ...) are not seen by the legacy engine, which calls its own class.
+
+Measured (Node 22, cloud sandbox, `--release=small`, one `new X(); update(s); finalize()`; ratios only, the machine is noisy):
+
+| Algorithm | 0 B | 1 KiB | 64 KiB | 1 MiB | wasm compress alone | module |
+|---|---|---|---|---|---|---|
+| MD4 | 3.4x | 4.1x | 4.3x | 3.2x | ~660 MB/s | `md.wasm` 5.1 KB (with MD5) |
+| HAS-160 | 1.9x | 2.4x | 2.5x | 2.3x | ~300 MB/s | `has160.wasm` 2.2 KB |
+| RIPEMD-160 | 1.8x | 1.8x | 1.5x | 1.6x | ~240 MB/s | `ripemd.wasm` 8.9 KB (all four) |
+| RIPEMD-320 | 2.2x | 1.5x | 1.5x | 1.4x | ~165 MB/s | same module |
+
+RIPEMD and HAS-160 gain less than MD4/MD5 because their original JS is already close to what a plain loop does and the wasm compression is only 2 to 3x faster; the string-to-bytes copy (~440 MB/s) is the shared ceiling. The compression loops use a comptime round index (`inline for` over rounds, plain `for` inside) because that gave +15 to +40 percent over a runtime `i / 16` switch at about +2 KB; full unrolling (`--release=fast`) costs 5x the size (ripemd 52 KB) for little end-to-end gain.
+
 ## Tests every port needs
 
 - Zig: official vectors, `std.crypto` cross-check at every length 0..300 with random update splits, quirk functions against values captured from 0.8.5.

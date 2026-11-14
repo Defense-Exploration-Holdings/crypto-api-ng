@@ -32,6 +32,8 @@ Settled by the MD5 port (see [porting-guide.md](porting-guide.md)). Streaming pr
 
 `state`, `data` and `out` are absolute addresses into linear memory. There is no per-hasher allocation: the facade writes the hasher's state into one shared scratch `State`, calls, and reads the result back, so wasm memory never grows and nothing needs freeing.
 
+The 32-bit little-endian hashers other than MD5 (MD4, HAS-160, RIPEMD) share one generic implementation, `src/hash/le32.zig`, and export through `src/wasm/le32_exports.zig`. Differences from the MD5 shape: `<algo>_init(state, param)` takes one extra argument, and `State` has a `param` field (HAS-160 `rounds`; 0 elsewhere) that `<algo>_blocks` and `<algo>_final` read. `State` layout, with `n` hash words: `hash` at 0, `length` (u64) at `align8(4n)`, `buffered` (u32) at `length + 8`, `param` (u32) at `length + 12`, `buf` (64 bytes) at `length + 16`. Sizes: 96 (n=4), 104 (n=5), 112 (n=8), 120 (n=10). The JS side computes the same offsets in `packages/crypto-api/src/wasm/le32.mjs` and checks `<algo>_state_size()` at load.
+
 ## Family modules and the scratch region
 
 Algorithms ship in one wasm module per family (`src/wasm/<family>.zig`, names in `families` in `build.zig`), each carrying only its own code. A family root begins with `comptime { _ = @import("common.zig"); }`, which adds:
