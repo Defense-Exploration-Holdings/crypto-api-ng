@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 (unreleased)
+## 1.0.0
 
 Maintained Zig/WebAssembly port of `crypto-api` 0.8.5. Drop-in replacement: same API, same import paths, same results and `getState()` JSON. See "Differences from crypto-api 0.8.5" in the README for the complete list of deliberate differences.
 
@@ -9,7 +9,7 @@ Maintained Zig/WebAssembly port of `crypto-api` 0.8.5. Drop-in replacement: same
 * Global build `crypto-api.min.js` (and `crypto-api.js`) in ES5 syntax with WebAssembly embedded and automatic fallback to the original JavaScript
 * All `src/**/*.mjs` imports carry explicit `.mjs` extensions, so native Node ESM loads them
 * Snefru throws `RangeError` instead of looping forever when `length` is 512 or more
-* Hashers run compression in WebAssembly where ported (see the repository README for the list)
+* All hashers run their compression function in WebAssembly
 * License: MIT for the whole package; `LICENSE` carries the original's notice (nf404, 2015) and one for the port (Defense Exploration Holdings LLC, 2026)
 
 ## History of crypto-api (nf404)

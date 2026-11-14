@@ -1,5 +1,5 @@
 name: Release gates
-# docs/release-gates.md. Manual (and on version tags): too slow for every pull request.
+# See CONTRIBUTING.md and scripts/release-gates.sh. Manual (and on version tags): too slow for every pull request.
 on:
   workflow_dispatch:
     inputs:

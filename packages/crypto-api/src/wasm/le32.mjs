@@ -10,7 +10,6 @@ import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
  * (src/hasher/<algo>.mjs) extends the verbatim 0.8.5 class and decides *when*
  * the wasm path may be taken (class and option guards); this file does the
  * copying and writes the results back exactly the way the original does.
- * See docs/porting-guide.md.
  *
  * The Zig side is src/hash/le32.zig. `State` layout, with `n` hash words:
  *

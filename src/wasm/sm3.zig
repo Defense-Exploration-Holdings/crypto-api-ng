@@ -1,5 +1,5 @@
 //! wasm root for the "sm3" family. Compiled to zig-out/wasm/sm3.wasm by
-//! build.zig. Export shape: see src/wasm/md.zig and docs/porting-guide.md.
+//! build.zig. Export shape: see src/wasm/md.zig and docs/abi.md.
 //! `*_blocks` and `*_final` return a `runtime.Status` (non-zero when `rounds`
 //! is outside 1..64, which the JS facade never sends).
 

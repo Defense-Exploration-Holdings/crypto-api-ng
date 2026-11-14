@@ -1,5 +1,5 @@
 //! wasm root for the "snefru" family. Compiled to zig-out/wasm/snefru.wasm by
-//! build.zig. Export shape (see docs/abi.md and docs/porting-guide.md):
+//! build.zig. Export shape (see docs/abi.md):
 //!
 //!     snefru_state_size() -> u32
 //!     snefru_init(state, words, rounds) -> Status

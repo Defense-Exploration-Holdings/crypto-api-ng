@@ -10,8 +10,7 @@ import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
  * padding done in wasm, and everything else left to the original JavaScript.
  * Same API, output and `getState()` JSON as crypto-api 0.8.5; see
  * legacy/hasher/sha512.mjs for the original documentation and examples. How
- * this works, and the checks that make it safe: src/wasm/be32.mjs and
- * docs/porting-guide.md.
+ * this works, and the checks that make it safe: src/wasm/be32.mjs.
  *
  * Wasm is used for options.rounds 1 to 160 (half-steps, as in the original) and
  * for finalize() when options.length is an integer from 32 to 512. The hash

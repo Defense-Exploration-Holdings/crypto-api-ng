@@ -2,7 +2,7 @@
 //! Whirlpool-0 in one module (they share the compression code and differ only
 //! in tables, so one module is smaller than three). Compiled to
 //! zig-out/wasm/whirlpool.wasm by build.zig. Export shape: see src/wasm/md.zig
-//! and docs/porting-guide.md; each variant has its own export prefix,
+//! and docs/abi.md; each variant has its own export prefix,
 //! `whirlpool_*`, `whirlpool0_*` and `whirlpoolt_*`, and the same State.
 //! `*_blocks` and `*_final` return a `runtime.Status` (non-zero when `rounds`
 //! is outside 1..10, which the JS facade never sends).

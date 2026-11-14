@@ -10,8 +10,7 @@ import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
  * compression and padding done in wasm, and everything else left to the original
  * JavaScript. Same API, output and `getState()` JSON as crypto-api 0.8.5; see
  * legacy/hasher/whirlpool.mjs for the original documentation and examples. How
- * this works, and the checks that make it safe: src/wasm/be32.mjs and
- * docs/porting-guide.md.
+ * this works, and the checks that make it safe: src/wasm/be32.mjs.
  *
  * Wasm is used for options.rounds 1 to 10. The three variants are three sets of
  * exports of one module (`whirlpool_*`, `whirlpool0_*`, `whirlpoolt_*`); which one

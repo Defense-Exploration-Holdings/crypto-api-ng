@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Release gates for the v1 port (docs/PORT_PLAN.md, WP-I).
+# Release checks: the full test matrix over every Zig optimize mode.
 #
 # For every Zig optimize mode this embeds the wasm built in that mode and runs
 #   1. zig build check        (native Zig tests + Node tests against the wasm)

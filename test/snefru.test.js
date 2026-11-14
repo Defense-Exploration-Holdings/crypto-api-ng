@@ -1,6 +1,6 @@
 // Snefru facade tests: wasm-accelerated Snefru vs the untouched crypto-api 0.8.5
 // class (packages/crypto-api/legacy/hasher/snefru.mjs). The checklist of
-// docs/porting-guide.md, adapted to a hasher whose block size depends on the
+// test/md5.test.js, adapted to a hasher whose block size depends on the
 // `length` option (block = 16 - length/32 words) and whose `rounds` option is
 // read at every block.
 import { test } from 'node:test';

@@ -266,11 +266,11 @@ if (sizes) {
   p(table(['Family', ...modes.flatMap((m) => [`${m}`, `${m} gzip`]), 'Algorithms'], fams.map((f) => [f, ...modes.flatMap((m) => [sizes.wasm[m][f]?.raw ?? '–', sizes.wasm[m][f]?.gzip ?? '–']), FAMILY_ALGOS[f] ?? '']), ['l']));
   const tot = (m) => fams.reduce((a, f) => a + (sizes.wasm[m]?.[f]?.raw ?? 0), 0);
   p();
-  p(`All families together: ${modes.map((m) => `${(tot(m) / 1024).toFixed(1)} KiB (${m})`).join(', ')}. v1 ships \`small\`; \`fast\` is not faster end to end (see \`docs/porting-guide.md\`). Each family is its own module and is only instantiated when a hasher of that family first processes data.`);
+  p(`All families together: ${modes.map((m) => `${(tot(m) / 1024).toFixed(1)} KiB (${m})`).join(', ')}. v1 ships \`small\`; \`fast\` is not faster end to end. Each family is its own module and is only instantiated when a hasher of that family first processes data.`);
   p();
   p('### JavaScript per import (unminified module closure, bytes)');
   p();
-  p('Everything reachable from the deep import `crypto-api/src/hasher/<name>.mjs`, concatenated. v1 includes the verbatim original engine (the fallback), the facade, the shared glue and the wasm module embedded as base64. No minifier was run; minified sizes are WP-I.');
+  p('Everything reachable from the deep import `crypto-api/src/hasher/<name>.mjs`, concatenated. v1 includes the verbatim original engine (the fallback), the facade, the shared glue and the wasm module embedded as base64. No minifier was run; `node scripts/size-report.mjs` reports minified sizes.');
   p();
   p(table(['Import', 'files 0.8.5', 'files v1', '0.8.5', '0.8.5 gzip', 'v1', 'v1 gzip', 'v1 ÷ 0.8.5 (gzip)'], sizes.js.map((r) => [r.id, r.orig.files, r.v1.files, r.orig.raw, r.orig.gzip, r.v1.raw, r.v1.gzip, x(r.v1.gzip / r.orig.gzip)]), ['l']));
   p();
@@ -308,7 +308,7 @@ function STATIC_TAIL(runs) {
     '',
     '- **Operation:** `new Hasher(options)`, `update(input)`, `finalize()`; the result is the binary digest string. Inputs are deterministic pseudo-random binary strings (one character per byte, the 0.8.5 API), so the wasm path is used in full. Inputs with characters above 0xFF, other option values and odd states run the original JavaScript in v1 and cost the same as 0.8.5.',
     '- **Timing:** `bench/lib/stats.mjs`. Each contender is warmed up, its iteration count is calibrated so a sample takes about 25 ms, and samples are taken round-robin between contenders so drift hits all of them equally. Reported: median per operation, plus p95 in the JSON.',
-    '- **Not measured here:** browsers and other runtimes (the harness runs under Bun too, results labeled separately), third-party libraries (`hash-wasm`, `@noble/hashes`, `crypto-js`), a quiet dedicated machine. Plan §6 asks for those; they are follow-ups.',
+    '- **Not measured here:** browsers and other runtimes (the harness runs under Bun too, results labeled separately), third-party libraries (`hash-wasm`, `@noble/hashes`, `crypto-js`), a quiet dedicated machine. These are follow-ups.',
     '',
     '## Reading the results honestly',
     '',

@@ -9,7 +9,7 @@
         "build.zig.zon",
         "src",
         "js",
-        "LICENSE-NOTES.md",
+        "LICENSE",
         "README.md",
     },
 }

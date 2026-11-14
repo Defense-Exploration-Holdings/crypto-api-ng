@@ -9,8 +9,7 @@ import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
  * MD2 with the compression and padding done in wasm, and everything else left
  * to the original JavaScript. Same API, output and `getState()` JSON as
  * crypto-api 0.8.5; see legacy/hasher/md2.mjs for the original documentation
- * and examples. The recipe is the one of the MD5 template (src/hasher/md5.mjs,
- * docs/porting-guide.md); what is specific to MD2 is that it is a `Hasher8`
+ * and examples. The recipe is the one of the MD5 template (src/hasher/md5.mjs); what is specific to MD2 is that it is a `Hasher8`
  * (16-byte blocks, no length field) and that its state is two arrays,
  * `state.hash` (48 numbers) and `state.checksum` (16 numbers).
  *

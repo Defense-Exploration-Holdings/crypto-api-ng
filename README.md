@@ -1,86 +1,48 @@
 # crypto-api-ng
 
-A maintained port of [`crypto-api`](https://github.com/nf404/crypto-api) to Zig, compiled to WebAssembly (`wasm32-freestanding`) behind a thin JavaScript loader.
+A hashing library for JavaScript with no dependencies: [`crypto-api`](https://github.com/nf404/crypto-api) 0.8.5 ported to Zig, with the compression functions compiled to WebAssembly.
 
-Goals: keep the original list of crypto APIs, add current and relevant ones, and be much faster. Release plan: **v1** = behavior-identical port (a drop-in for existing users), **v2** = bug fixes and API cleanup.
+Version 1 is a drop-in replacement for `crypto-api@0.8.5`: same classes, import paths, options, digests and `getState()` output, bugs included. Where an input or option falls outside what the WebAssembly code models exactly, or WebAssembly is unavailable, the original JavaScript runs instead, so results are identical either way. Bug fixes and new APIs are planned for version 2.
 
-> **Status: MD2, MD5, MD4, HAS-160, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512 (with SHA-512/224 and /256), SM3, Snefru and Whirlpool (with -0 and -T) ported.** MD5 is the template (Zig core, wasm family module, JS facade with fallback to the original 0.8.5 code, differential tests). Everything else is still to come, see `docs/PORT_PLAN.md` once merged. `src/wasm.zig` is the general runtime module (metadata, `alloc`/`free`, a `smoke_xor` plumbing check).
+The package is not on npm yet and its name is not final. Install and usage instructions are in [packages/crypto-api/README.md](packages/crypto-api/README.md).
 
-## Required toolchain
+## Algorithms
 
-| Tool | Version | Pinned in |
-|------|---------|-----------|
-| Zig  | **0.17.1** | `.zig-version`, `build.zig.zon` (`minimum_zig_version`) |
-| Node.js | **22** (LTS or newer) | `.nvmrc`, `package.json` `engines` |
-| Python 3 + pip | any recent 3.x, only to bootstrap Zig | `scripts/install-zig.sh` |
+HAS-160, MD2, MD4, MD5, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512, SHA-512/224, SHA-512/256, SM3, Snefru v2.0 and v2.5, Whirlpool, Whirlpool-0 and Whirlpool-T, plus HMAC and the hex, base64 and UTF-8 encoders of the original.
 
-No other dependencies: no npm packages, no Zig packages, no libc, no WASI, no Emscripten, no binaryen/wasm-opt (yet).
+## Compatibility
 
-Zig 0.17 differs from the 0.13-0.15 docs most tutorials still show. The optimize modes are renamed to `debug|safe|fast|small`, `standardOptimizeOption` is driven by `--release=…`, and `std.Io` / `std.process.Init` replace the old main/IO APIs. When unsure, read the toolchain's own `lib/std` sources.
+Compatibility with 0.8.5 is tested, not assumed. The original's own 286 tests run unmodified against this package, and a differential fuzzer compares both implementations across every documented option, including state round trips and the `getState()` JSON. See [docs/test-harness.md](docs/test-harness.md). The few deliberate differences are listed under "Differences from crypto-api 0.8.5" in the package README.
 
-### Setting up an environment
+## Performance
 
-```sh
-scripts/install-zig.sh            # installs the pinned Zig to ~/.local/bin (pass a prefix to change)
-export PATH="$HOME/.local/bin:$PATH"
-zig version                       # 0.17.1
-node --version                    # v22.x
-```
+Measured on Node 22 against the same public API, v1 is 3.7x to 4.1x faster than 0.8.5 on average (geometric mean over 24 algorithm variants), and no measured throughput case is slower. The SHA-384/512 family gains the most (about 15x on larger inputs), followed by Whirlpool (about 8x) and MD5 (about 6x). MD2 gains the least (about 1.2x) because its cost is a chain of dependent table lookups.
 
-The script installs Zig from the official `ziglang` PyPI wheel, because `ziglang.org` is blocked in some sandboxes while PyPI is reachable. If pip fails it falls back to the official tarball. Environment builders only need outbound access to PyPI (`pypi.org`, `files.pythonhosted.org`) and, for the fallback, `ziglang.org`.
+The trade-offs are size and start-up: the original JavaScript is kept as the fallback, so an import is about 1.8x to 4.3x larger after gzip, and loading a hasher costs roughly 1.5 to 3 milliseconds more at start-up. Full results, methodology and caveats are in [docs/benchmarks.md](docs/benchmarks.md).
 
-## Commands
+## Building from source
+
+You need Zig 0.17.1 (pinned in `.zig-version`; `scripts/install-zig.sh` installs it) and Node.js 22 or newer.
 
 ```sh
-zig build                         # build zig-out/wasm/crypto-api.wasm (debug)
-zig build wasm --release=small    # size-optimized wasm   (also: --release=fast | --release=safe)
-zig build families                # build zig-out/wasm/<family>.wasm, one module per algorithm family
-zig build js                      # generate embedded wasm byte modules (js/generated/, packages/crypto-api/wasm/)
-zig build test                    # Zig unit tests, native target
-zig build test-js                 # build wasm, then run Node tests (test/*.test.js)
-zig build check                   # everything above; run this before every commit
+zig build check                   # Zig tests, then Node tests against the built WebAssembly
+zig build wasm --release=small    # the shipped, size-optimized module
 ```
 
-`npm run build`, `npm test` are thin aliases for the same commands.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the other commands, the parity tests and how to add an algorithm.
 
-## Layout
+## Repository layout
 
 ```
-build.zig, build.zig.zon   build graph and package manifest
-src/root.zig               target-agnostic library root; native tests start here
-src/runtime.zig            ABI version, status codes, shared conventions
 src/hash/<algo>.zig        algorithm cores (target-agnostic, with tests)
-src/wasm.zig               general runtime wasm module (metadata, alloc/free, smoke test)
-src/wasm/<family>.zig      one wasm root per algorithm family (the only other files with `export fn`)
-packages/crypto-api/       the package under construction: facades in src/, verbatim original code in legacy/
-js/index.js, index.d.ts    loader: async `load()` and sync `loadSync()`, ABI check, byte in/out helpers
-js/sync.js                 sync entry: instantiates embedded bytes on import (needs `zig build js`)
-test/*.test.js             Node tests run against the built wasm
-docs/abi.md                JS <-> wasm calling conventions (read before adding exports)
-docs/porting-guide.md      how to port an algorithm, using MD5 as the template
-scripts/install-zig.sh     pinned Zig installer
-scripts/embed-wasm.mjs     wasm -> base64 JS module generator (used by `zig build js`)
-crypto-api/                upstream crypto-api at the pinned commit (the behavioral oracle), fetched by scripts/fetch-upstream.sh
+src/wasm/<family>.zig      WebAssembly exports, one module per algorithm family
+js/                        loader for the WebAssembly modules
+packages/crypto-api/       the npm package: JavaScript facades and the original 0.8.5 code
+test/                      Node tests, parity harness against the original
+bench/                     benchmark suite
+docs/                      ABI, porting guide, test harness, benchmark results
 ```
-
-## Package
-
-`packages/crypto-api` is the npm package (`crypto-api-ng` for now; the name is configurable, see `scripts/build-package.mjs`). `npm ci`, `zig build js --release=small`, then:
-
-```sh
-npm run build:package             # ES5 UMD bundles crypto-api.js / crypto-api.min.js + example vectors
-npm run pack                      # stage + npm pack into dist/   (npm run pack -- --name crypto-api)
-npm run test:package              # bundle vs original, tarball contents, smoke imports, Chromium (needs playwright)
-```
-
-`private: true` stays set; nothing is published by these commands. The package README documents usage, the differences from 0.8.5 and the kept bugs.
-
-To add an algorithm, follow [docs/porting-guide.md](docs/porting-guide.md): core in `src/hash/`, exports in a family root under `src/wasm/`, facade in `packages/crypto-api/src/hasher/`, differential tests in `test/`.
-
-## Upstream checkout
-
-`crypto-api/` is a checkout of upstream pinned at d39f6ce ("Release 0.8.5"). It is not stored in this repository: run `scripts/fetch-upstream.sh` to fetch it (CI does the same). Treat it as read-only: it is the reference implementation that ports are compared against.
 
 ## License
 
-MIT, see [LICENSE](LICENSE): Copyright (c) 2026 Defense Exploration Holdings LLC for the Zig/WebAssembly port, and Copyright (c) 2015 nf404 for the original `crypto-api` it derives from. Both notices must be kept. Background in [LICENSE-NOTES.md](LICENSE-NOTES.md).
+MIT, see [LICENSE](LICENSE). Copyright (c) 2015 nf404 (the original `crypto-api`) and (c) 2026 Defense Exploration Holdings LLC (the Zig/WebAssembly port). The WebAssembly modules are built with Zig's standard library, which is MIT-licensed.

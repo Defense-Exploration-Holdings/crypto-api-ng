@@ -1,5 +1,5 @@
 // Deep imports under native Node ESM. Run from an installed package:
-//   node node_modules/{{name}}/example/node.mjs
+//   node node_modules/crypto-api-ng/example/node.mjs
 import Sha256 from '../src/hasher/sha256.mjs';
 import Md5 from '../src/hasher/md5.mjs';
 import Hmac from '../src/mac/hmac.mjs';

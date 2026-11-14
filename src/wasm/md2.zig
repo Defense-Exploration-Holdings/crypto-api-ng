@@ -1,7 +1,7 @@
 //! wasm root for the "md2" family (MD2 alone: a byte-oriented 16-byte-block
 //! hasher with its own `State`, so it does not share a module with the 32-bit
 //! families). Compiled to zig-out/wasm/md2.wasm by build.zig. Export shape: see
-//! src/wasm/md.zig and docs/porting-guide.md. `*_blocks` and `*_final` return a
+//! src/wasm/md.zig and docs/abi.md. `*_blocks` and `*_final` return a
 //! `runtime.Status` (non-zero when `rounds` is 0 or the buffer length is out of
 //! range, which the JS facade never sends).
 

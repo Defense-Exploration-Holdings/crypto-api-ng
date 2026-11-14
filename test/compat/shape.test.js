@@ -1,6 +1,6 @@
 // Structural parity: same class names, inheritance chains, methods, instance
 // properties, and the same behavior when users subclass a hasher and override its
-// internals (the extension API the plan promises to keep).
+// internals (the extension API v1 keeps).
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadBoth } from '../harness/load.mjs';
@@ -10,7 +10,7 @@ let oracle;
 let target;
 before(async () => ({ oracle, target } = await loadBoth()));
 
-// A facade (docs/porting-guide.md) is a class with the same name as the verbatim
+// A facade is a class with the same name as the verbatim
 // original it extends, so `Sha1 -> Sha1 -> Hasher32be`. That one extra link is the
 // design, not a divergence: collapse a class into its parent when the names match.
 const chain = (Cls) => {

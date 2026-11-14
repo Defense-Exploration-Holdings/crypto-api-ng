@@ -1,25 +1,25 @@
-# {{name}}
+# crypto-api-ng
 
 Hashing library for JavaScript with no dependencies: a maintained port of [`crypto-api`](https://github.com/nf404/crypto-api) 0.8.5 (Aleksandr Mogilnikov, "nf404") whose compression functions run as Zig-compiled WebAssembly.
 
 **Version 1 is a drop-in replacement for `crypto-api@0.8.5`**: same classes, same import paths, same options, same digests and the same `getState()` JSON for every input the original accepts, bugs included. Where a hasher is used outside what the WebAssembly code models exactly (unusual options, non-string input, characters above `\xFF`, subclasses overriding internals, no WebAssembly in the environment), the original JavaScript code runs instead, so the result is the same either way. Fixes and new algorithms are planned for version 2.
 
-> Status: pre-release (`1.0.0-dev`). The package is `private` until the maintainers release it.
+> Status: pre-release. Not yet published to npm; the package name is not final.
 
 ## Install
 
 ```sh
-npm install {{name}}
+npm install crypto-api-ng
 ```
 
 ## Use
 
 ### Node.js (CommonJS)
 
-`require('{{name}}')` returns the `CryptoApi` object, the same one as the browser global. (In the original 0.8.x tarballs `main` pointed at a file that was never published, so this always failed.)
+`require('crypto-api-ng')` returns the `CryptoApi` object, the same one as the browser global. (In the original 0.8.x tarballs `main` pointed at a file that was never published, so this always failed.)
 
 ```javascript
-const CryptoApi = require('{{name}}');
+const CryptoApi = require('crypto-api-ng');
 
 console.log(CryptoApi.hash('sha256', 'message'));                        // hex digest of a UTF string
 console.log(CryptoApi.hmac('key', 'message', CryptoApi.getHasher('md5')));
@@ -30,9 +30,9 @@ console.log(CryptoApi.hmac('key', 'message', CryptoApi.getHasher('md5')));
 The classes are importable one by one, exactly as with 0.8.5. Importing only the hashers you use keeps a bundle small: each algorithm family has its own WebAssembly module.
 
 ```javascript
-import Sha256 from "{{name}}/src/hasher/sha256.mjs";
-import {toHex} from "{{name}}/src/encoder/hex.mjs";
-import {fromUtf} from "{{name}}/src/encoder/utf.mjs";
+import Sha256 from "crypto-api-ng/src/hasher/sha256.mjs";
+import {toHex} from "crypto-api-ng/src/encoder/hex.mjs";
+import {fromUtf} from "crypto-api-ng/src/encoder/utf.mjs";
 
 let hasher = new Sha256();
 hasher.update(fromUtf('message'));
@@ -40,10 +40,10 @@ console.log(toHex(hasher.finalize()));
 ```
 
 ```javascript
-import Md5 from "{{name}}/src/hasher/md5.mjs";
-import Hmac from "{{name}}/src/mac/hmac.mjs";
-import {toHex} from "{{name}}/src/encoder/hex.mjs";
-import {fromUtf} from "{{name}}/src/encoder/utf.mjs";
+import Md5 from "crypto-api-ng/src/hasher/md5.mjs";
+import Hmac from "crypto-api-ng/src/mac/hmac.mjs";
+import {toHex} from "crypto-api-ng/src/encoder/hex.mjs";
+import {fromUtf} from "crypto-api-ng/src/encoder/utf.mjs";
 
 let hasher = new Md5();
 let hmac = new Hmac(fromUtf('key'), hasher);
@@ -51,14 +51,14 @@ hmac.update(fromUtf('message'));
 console.log(toHex(hmac.finalize()));
 ```
 
-The extensionless paths of 0.8.5 (`{{name}}/src/hasher/sha256`) still resolve in bundlers that try `.mjs` (webpack's default), because the files keep their names and locations. Native Node ESM and bundlers configured without `.mjs` need the explicit `.mjs`, as in the examples above. There is no `exports` map in v1, so every deep path stays reachable. `{{name}}/src/index.mjs` default-exports the `CryptoApi` object. `require('{{name}}')` and the global build are a separate bundle with its own copy of the classes, so a hasher created by one is not `instanceof` the classes of the other: pick one style per program.
+The extensionless paths of 0.8.5 (`crypto-api-ng/src/hasher/sha256`) still resolve in bundlers that try `.mjs` (webpack's default), because the files keep their names and locations. Native Node ESM and bundlers configured without `.mjs` need the explicit `.mjs`, as in the examples above. There is no `exports` map in v1, so every deep path stays reachable. `crypto-api-ng/src/index.mjs` default-exports the `CryptoApi` object. `require('crypto-api-ng')` and the global build are a separate bundle with its own copy of the classes, so a hasher created by one is not `instanceof` the classes of the other: pick one style per program.
 
 ### Browser (ES5 global build)
 
 `crypto-api.min.js` (and the unminified `crypto-api.js`) is a UMD build in ES5 syntax that defines the global `CryptoApi`. The WebAssembly modules are embedded, so it is a single file. Load it from your own server or a CDN that mirrors npm:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/{{name}}/crypto-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng/crypto-api.min.js"></script>
 <script>
   var hasher = CryptoApi.getHasher('sha256');
   hasher.update('message');                       // update() takes a binary string
@@ -85,7 +85,7 @@ Where WebAssembly is missing or blocked (a page whose Content-Security-Policy la
 * Encodings: `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64`
 * The `CryptoApi` object: `getHasher`, `hash`, `getHmac`, `hmac`, `encoder`
 
-The API documentation of 0.8.5 applies unchanged. Which algorithms already run in WebAssembly is tracked in the repository README; the others are served by the original code until they are ported.
+The API documentation of 0.8.5 applies unchanged. All of them run their compression function in WebAssembly, with the original JavaScript as the fallback.
 
 ## Package layout
 
@@ -103,7 +103,7 @@ example/                  runnable examples
 Everything observable is kept, with these deliberate exceptions:
 
 1. **No endless loop in Snefru.** `length` of 512 or more gives a block size of 0 or less, and the original `process()` never returns. v1 throws `RangeError`.
-2. **`main` works.** `require('{{name}}')` loads `index.js` (the original's `main` pointed at a file that was never published).
+2. **`main` works.** `require('crypto-api-ng')` loads `index.js` (the original's `main` pointed at a file that was never published).
 3. **`src/index.mjs` is loadable.** The original assigned `module.exports` inside an ES module, which only the original's own babel setup accepted. v1 default-exports the same object.
 4. **Private scratch arrays.** The `@private` working arrays of some hashers (`W`, `blockUnits`) are not filled when WebAssembly did the work, so `JSON.stringify(hasher)` can differ from the original in those fields. `getState()`, `setState()` and `state` are unaffected.
 
