@@ -1,0 +1,44 @@
+[
+ {
+  "name": "md2('')",
+  "input": "",
+  "inputHex": "",
+  "hex": "8350e5a3e24c153df2275c9f80692773"
+ },
+ {
+  "name": "md2('a')",
+  "input": "a",
+  "inputHex": "61",
+  "hex": "32ec01ec4a6dac72c0ab96fb34c0b5d1"
+ },
+ {
+  "name": "md2('abc')",
+  "input": "abc",
+  "inputHex": "616263",
+  "hex": "da853b0d3f88d99b30283a69e6ded6bb"
+ },
+ {
+  "name": "md2('message digest')",
+  "input": "message digest",
+  "inputHex": "6d65737361676520646967657374",
+  "hex": "ab4f496bfb2a530b219ff33031fe06b0"
+ },
+ {
+  "name": "md2('a..z')",
+  "input": "abcdefghijklmnopqrstuvwxyz",
+  "inputHex": "6162636465666768696a6b6c6d6e6f707172737475767778797a",
+  "hex": "4e8ddff3650292ab5a4108c3aa47940b"
+ },
+ {
+  "name": "md2('A..Za..z0..9')",
+  "input": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+  "inputHex": "4142434445464748494a4b4c4d4e4f505152535455565758595a6162636465666768696a6b6c6d6e6f707172737475767778797a30313233343536373839",
+  "hex": "da33def2a42df13975352846c30338cd"
+ },
+ {
+  "name": "md2('1234567890' x 8)",
+  "input": "12345678901234567890123456789012345678901234567890123456789012345678901234567890",
+  "inputHex": "3132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930313233343536373839303132333435363738393031323334353637383930",
+  "hex": "d5976f79d83d3a0dc9806c3c66f3efd8"
+ }
+]
