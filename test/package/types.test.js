@@ -24,6 +24,9 @@ import Blake2b from "crypto-api-ng/src/hasher/blake2b.mjs";
 import Blake2s from "crypto-api-ng/src/hasher/blake2s.mjs";
 import Blake3 from "crypto-api-ng/src/hasher/blake3.mjs";
 import Hmac from "crypto-api-ng/src/mac/hmac.mjs";
+import Sha3 from "crypto-api-ng/src/hasher/sha3.mjs";
+import Shake from "crypto-api-ng/src/hasher/shake.mjs";
+import Keccak from "crypto-api-ng/src/hasher/keccak.mjs";
 import { toHex } from "crypto-api-ng/src/encoder/hex.mjs";
 import { toBase64 } from "crypto-api-ng/src/encoder/base64.mjs";
 import { fromUtf } from "crypto-api-ng/src/encoder/utf.mjs";
@@ -46,6 +49,10 @@ new Blake2s({ key: new Uint8Array(32) });
 new Blake3({ key: new Uint8Array(32), length: 512 });
 new Blake3({ context: 'app 2026 keys' });
 CryptoApi.hash('blake2b-256', 'abc', { key: 'k' });
+new Sha3({ length: 256 }).update('abc');
+new Keccak({ length: 256 });
+new Shake({ strength: 256, length: 1024 });
+const xof: string = CryptoApi.hash('shake128', 'abc', { length: 512, strength: 128 });
 const mac = new Hmac('key', new Md5());
 mac.update(fromUtf('message'));
 const macHex: string = toHex(mac.finalize());
@@ -62,6 +69,10 @@ const encoded: string = CryptoApi.encoder.toHex(CryptoApi.encoder.fromUtf('x'));
 new Sha256({ length: 123 });
 // @ts-expect-error key and context exclude each other
 new Blake3({ key: 'k', context: 'c' });
+// @ts-expect-error SHA-3 has no 160-bit variant
+new Sha3({ length: 160 });
+// @ts-expect-error SHAKE strength is 128 or 256
+new Shake({ strength: 512 });
 // @ts-expect-error update() takes a string or bytes
 hasher.update(42);
 // @ts-expect-error getHasher() of an unknown name may return undefined

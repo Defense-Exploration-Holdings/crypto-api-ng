@@ -69,6 +69,14 @@ export interface Sha1Options { rounds?: number }
 export interface Sha256Options { rounds?: number; length?: 224 | 256 }
 export interface Sha512Options { rounds?: number; length?: number }
 export interface Sm3Options { rounds?: number; length?: 256 }
+export interface Sha3Options { length?: 224 | 256 | 384 | 512 }
+export interface KeccakOptions { length?: 224 | 256 | 384 | 512 }
+export interface ShakeOptions {
+  /** Security strength in bits: 128 is SHAKE128, 256 is SHAKE256. Default 128. */
+  strength?: 128 | 256;
+  /** Output length in bits, a multiple of 8 from 8 to 2^30. Default 256 for SHAKE128, 512 for SHAKE256. */
+  length?: number;
+}
 export interface SnefruOptions { rounds?: number; length?: number }
 export interface WhirlpoolOptions { rounds?: number; type?: '0' | 't' | (string & {}) }
 
@@ -89,6 +97,8 @@ export interface HasherOptions {
   personalization?: BinaryInput;
   /** BLAKE3: context string of the key derivation mode. */
   context?: BinaryInput;
+  /** SHAKE security strength: 128 or 256. */
+  strength?: 128 | 256;
 }
 
 /** Algorithm names understood by `getHasher()` and `hash()`. */
@@ -100,6 +110,9 @@ export type HasherName =
   | 'ripemd' | 'ripemd128' | 'ripemd160' | 'ripemd256' | 'ripemd320'
   | 'sha0' | 'sha1' | 'sha224' | 'sha256' | 'sha384' | 'sha512' | 'sha512/224' | 'sha512/256'
   | 'sm3'
+  | 'sha3-224' | 'sha3-256' | 'sha3-384' | 'sha3-512'
+  | 'keccak224' | 'keccak256' | 'keccak384' | 'keccak512'
+  | 'shake128' | 'shake256'
   | 'snefru' | 'snefru128' | 'snefru128/8' | 'snefru128/2' | 'snefru256' | 'snefru256/8' | 'snefru256/4'
   | 'whirlpool' | 'whirlpool-0' | 'whirlpool-t';
 

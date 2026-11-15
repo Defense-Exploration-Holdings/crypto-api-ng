@@ -92,7 +92,7 @@ Where WebAssembly is missing or blocked (a page whose Content-Security-Policy la
 ## What is included
 
 * Hashing: HAS-160, MD2, MD4, MD5, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512, SHA-512/224, SHA-512/256, SM3, Snefru v2.0 and v2.5, WHIRLPOOL, WHIRLPOOL-0, WHIRLPOOL-T
-* Hashing, not in the original: BLAKE2b, BLAKE2s, BLAKE3
+* Added in this package: SHA3-224/256/384/512, SHAKE128/256, Keccak-224/256/384/512, BLAKE2b, BLAKE2s, BLAKE3
 * MAC: HMAC (`src/mac/hmac.mjs`, works with any hasher object, including your own)
 * Encodings: `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64`
 * The `CryptoApi` object: `getHasher`, `hash`, `getHmac`, `hmac`, `encoder`

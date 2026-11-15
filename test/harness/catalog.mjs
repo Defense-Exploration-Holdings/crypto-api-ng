@@ -74,7 +74,7 @@ export const GET_HASHER_NAMES = [
 export const ADDED_HASHER_NAMES = [{ name: 'sm3', family: 'sm3', variant: 'sm3' }];
 
 /** Names that look valid but return undefined from getHasher() (in 0.8.5 and 1.1, except `sm3`). The algorithms 0.8.5 lacks (BLAKE) are tested in test/*.test.js, not here. */
-export const UNKNOWN_HASHER_NAMES = ['sm3', 'SHA256', 'MD5', 'sha-256', 'nope', '', 'sha3-256', 'blake2s-512'];
+export const UNKNOWN_HASHER_NAMES = ['sm3', 'SHA256', 'MD5', 'sha-256', 'nope', '', 'blake2s-512'];
 
 // ---------------------------------------------------------------------------
 // 1.1 option rules
