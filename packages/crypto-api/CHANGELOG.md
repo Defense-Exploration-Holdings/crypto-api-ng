@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+* `fromUtf()`, and with it `CryptoApi.hash()` and `CryptoApi.hmac()` for string input, encodes an unpaired surrogate (a code unit in `U+D800` to `U+DFFF` that is not a high surrogate followed by a low one) as U+FFFD, as `TextEncoder` does. Previously it took the next code unit as the second half of a pair, so different strings such as `'\uDC00A'` and `'\u{10041}'` produced the same bytes and the same digest. Well-formed text is unchanged.
 * Hashers only use `rounds`, `length` and `type` values that are own properties of the options object. A value inherited through the prototype chain, for example one added to `Object.prototype` by other code on the page, is ignored and the default is used. Previously such a value silently replaced the default (a one-round SHA-256, for instance). Own values are validated as before, and the options object you pass in still receives the defaults.
 * TypeScript declarations ship with the package (`index.d.ts`, `types.d.ts` and a `.d.mts` file for every module under `src/`). No runtime change.
 * New [API reference](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/api.md).
