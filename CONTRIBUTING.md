@@ -51,3 +51,6 @@ MD5 is the template; copy its files (`src/hash/md5.zig`, `src/wasm/md.zig`, `pac
 ## Licensing
 
 Contributions are accepted under the MIT license of the project (see [LICENSE](LICENSE)). Test vectors from standards (NIST, RFCs) can be reused freely; vectors copied from the original's tests fall under the original's license, which the repository already carries.
+
+## Publishing
+ go to npm from GitHub Actions (`.github/workflows/publish.yml`) with npm trusted publishing, so no npm token exists. Set `version` in `packages/crypto-api/package.json`, add a `CHANGELOG.md` entry, merge, and push the matching tag (`1.2.3` -> `v1.2.3`). The workflow runs the shipped-mode checks, parity and package tests, then publishes; a version with a pre-release part goes to the `next` dist-tag. Published versions cannot be changed, so a fix is always a new version.

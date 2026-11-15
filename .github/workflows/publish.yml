@@ -1,0 +1,85 @@
+name: Publish to npm
+# Publishes packages/crypto-api to npm when a v* tag reaches the public repository.
+#
+# Uses npm trusted publishing (OIDC): no npm token is stored anywhere. On npmjs.com,
+# crypto-api-ng -> Settings -> Trusted Publisher -> GitHub Actions with
+#   organization: Defense-Exploration-Holdings, repository: crypto-api-ng,
+#   workflow filename: publish.yml, environment: npm
+# and a GitHub environment named `npm` on that repository (add required reviewers there
+# if a release should wait for a person).
+#
+# Release: set "version" in packages/crypto-api/package.json and add a CHANGELOG entry,
+# merge, then push the matching tag (version 1.2.3 -> tag v1.2.3). The job refuses a tag
+# that does not match the package version. Versions with a pre-release part (1.2.3-rc.1)
+# are published under the `next` dist-tag instead of `latest`.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Only the public repository is a trusted publisher; elsewhere the job is skipped.
+    if: github.repository == 'Defense-Exploration-Holdings/crypto-api-ng'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write # OIDC token for npm trusted publishing (and provenance)
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check the tag matches the package version
+        id: version
+        run: |
+          version="$(node -p "require('./packages/crypto-api/package.json').version")"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match packages/crypto-api/package.json version $version"
+            exit 1
+          fi
+          case "$version" in *-*) tag=next ;; *) tag=latest ;; esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch the upstream crypto-api checkout (the parity oracle)
+        run: scripts/fetch-upstream.sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - name: npm with trusted publishing support (11.5.1 or later)
+        run: npm install -g npm@11
+      - name: Install build tools
+        run: npm ci
+      - name: Install Zig
+        run: |
+          scripts/install-zig.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build and test the shipped mode
+        run: |
+          zig build js --release=small
+          zig build check --release=small
+          npm run test:parity
+      - name: Package tests (bundles, npm pack, smoke imports, Chromium global build)
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          npm run test:package
+
+      - name: Pack the public package
+        run: node scripts/build-package.mjs --pack --name crypto-api-ng --public
+      - name: Publish
+        run: |
+          tarball="dist/crypto-api-ng-${{ steps.version.outputs.version }}.tgz"
+          tar -tzf "$tarball" | sort
+          npm publish "$tarball" --access public --tag "${{ steps.version.outputs.dist_tag }}"
