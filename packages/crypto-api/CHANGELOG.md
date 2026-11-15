@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 (unreleased)
+## 1.1.0 (2026-11-15)
 
 Fixes the 0.8.5 bugs that 1.0 kept for compatibility.
 
