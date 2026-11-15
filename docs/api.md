@@ -32,6 +32,9 @@ CryptoApi.hash('sha256', 'abc');
 | `sha224`, `sha256` | `Sha256` (`sha256.mjs`) | 224, 256 bits |
 | `sha384`, `sha512`, `sha512/224`, `sha512/256` | `Sha512` (`sha512.mjs`) | 384, 512, 224, 256 bits |
 | `sm3` | `Sm3` (`sm3.mjs`) | 256 bits |
+| `sha3-224`, `sha3-256`, `sha3-384`, `sha3-512` | `Sha3` (`sha3.mjs`) | 224, 256, 384, 512 bits |
+| `shake128`, `shake256` | `Shake` (`shake.mjs`) | any length, 256 and 512 bits by default |
+| `keccak224`, `keccak256`, `keccak384`, `keccak512` | `Keccak` (`keccak.mjs`) | 224, 256, 384, 512 bits |
 | `snefru` (also `snefru128`, `snefru128/8`), `snefru128/2`, `snefru256` (also `snefru256/8`), `snefru256/4` | `Snefru` (`snefru.mjs`) | 128 or 256 bits |
 | `whirlpool`, `whirlpool-0`, `whirlpool-t` | `Whirlpool` (`whirlpool.mjs`) | 512 bits |
 
@@ -74,8 +77,17 @@ An option that is left out (or `undefined`) takes its default. Since 1.1 a value
 | `Sha256` | 1 to 64 (64) | 224 or 256 (256) | |
 | `Sha512` | 1 to 160 (160) | 32 to 512 in steps of 32 (512) | 384 is SHA-384, 512 is SHA-512, any other value is SHA-512/t (224 and 256 are the standard SHA-512/224 and SHA-512/256). |
 | `Sm3` | 1 to 64 (64) | 256 | |
+| `Sha3`, `Keccak` | | 224, 256, 384 or 512 (512) | |
+| `Shake` | | 8 to 2^30 in steps of 8 (256 for strength 128, 512 for strength 256) | `strength`: 128 (SHAKE128, the default) or 256 (SHAKE256) |
 | `Snefru` | 1 to 8 (8) | 32 to 448 in steps of 32 (128) | |
 | `Whirlpool` | 1 to 10 (10) | | `type`: `'0'` (Whirlpool-0), `'t'` (Whirlpool-T), anything else is Whirlpool |
+
+The SHA-3 hashers `Sha3`, `Shake` and `Keccak` are additions of this package (the original has no SHA-3). They use the same interface with these differences:
+
+- `length` is the digest size in bits. For `Shake` it is the output length, a multiple of 8, and `strength` selects SHAKE128 or SHAKE256; the digest can be up to 128 MiB, returned as a string of `length / 8` characters. `Shake` has no `rounds` option.
+- `Keccak` is the hash with the padding of the original Keccak submission, which differs from SHA-3 in one byte of domain separation. Keccak-256 is the hash Ethereum calls "keccak256". Use `Sha3` for the standard.
+- `finalize()` does not end the message: it can be called again with the same result, and `update()` continues the message. `reset()` still starts over.
+- `blockSizeInBytes` is the sponge rate (144, 136, 104 and 72 for the four SHA-3 sizes, 168 and 136 for SHAKE128 and SHAKE256), which is the block size HMAC uses. HMAC-SHA3-256 and the like match the usual definition. NIST does not define HMAC over SHAKE (use KMAC for that); the combination works but has no standard to compare with.
 
 `rounds` can lower the standard number of rounds, never raise it (MD2 allows up to 255). It exists for compatibility with the original and for research on reduced-round variants; leave it alone for normal hashing.
 

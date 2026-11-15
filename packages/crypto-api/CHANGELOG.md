@@ -3,6 +3,7 @@
 ## Unreleased
 
 * TypeScript declarations ship with the package (`index.d.ts`, `types.d.ts` and a `.d.mts` file for every module under `src/`). No runtime change.
+* New hashers, not in crypto-api 0.8.5: `Sha3` (SHA3-224, SHA3-256, SHA3-384, SHA3-512), `Shake` (SHAKE128, SHAKE256 with any output length) and `Keccak` (Keccak-224/256/384/512 with the original padding, as used by Ethereum). `getHasher()` and `hash()` know `sha3-224`, `sha3-256`, `sha3-384`, `sha3-512`, `shake128`, `shake256`, `keccak224`, `keccak256`, `keccak384` and `keccak512`, and `Hmac` works with them. The permutation runs in WebAssembly with a JavaScript fallback; `finalize()` of these hashers does not change the state, so it can be repeated and `update()` continues the message.
 * New [API reference](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/api.md).
 
 ## 1.1.0 (2026-11-15)

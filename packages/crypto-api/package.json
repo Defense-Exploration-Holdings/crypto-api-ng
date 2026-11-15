@@ -39,7 +39,7 @@
   "keywords": [
     "hash", "hashes", "md2", "md4", "md5", "ripemd128", "ripemd160", "ripemd256", "ripemd320",
     "has160", "has-160", "sha0", "sha1", "sha224", "sha256", "sha384", "sha512", "sha512/t",
-    "sha512/224", "sha512/256", "whirlpool", "whirlpool-0", "whirlpool-t", "sm3", "snefru",
+    "sha512/224", "sha512/256", "sha3", "sha3-256", "shake128", "shake256", "keccak", "keccak256", "whirlpool", "whirlpool-0", "whirlpool-t", "sm3", "snefru",
     "hmac", "wasm", "webassembly", "zig"
   ]
 }
