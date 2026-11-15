@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+* README: remove the outdated pre-release notice. No code changes.
+
 ## 1.0.0
 
 Maintained Zig/WebAssembly port of `crypto-api` 0.8.5. Drop-in replacement: same API, same import paths, same results and `getState()` JSON. See "Differences from crypto-api 0.8.5" in the README for the complete list of deliberate differences.
