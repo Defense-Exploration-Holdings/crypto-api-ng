@@ -41,6 +41,7 @@
     "blake2", "blake2b", "blake2s", "blake3",
     "has160", "has-160", "sha0", "sha1", "sha224", "sha256", "sha384", "sha512", "sha512/t",
     "sha512/224", "sha512/256", "sha3", "sha3-256", "shake128", "shake256", "keccak", "keccak256", "whirlpool", "whirlpool-0", "whirlpool-t", "sm3", "snefru",
+    "tiger", "tiger2", "streebog", "gost", "crc32", "crc32c", "xxhash", "xxhash32", "xxhash64",
     "hmac", "wasm", "webassembly", "zig"
   ]
 }

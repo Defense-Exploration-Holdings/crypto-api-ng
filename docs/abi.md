@@ -84,6 +84,26 @@ blake3_xof(params, seek, out, out_len)             // output bytes from output b
 
 `State` is `key` (8 words) at 0, `flags` (u32) at 32 and `chunks` (u64, chunks added so far) at 40. The `stack` argument is the chaining values of the finished subtrees, 32 bytes each, `popcount(chunks)` entries, up to 54 (1728 bytes); it does not fit the 128-byte state slot, so the JS side places it at the start of the input region (+256) and the data at +2304 (leaving 62 chunks per call). `params` (the cv, the last block, its length and flags) is written to the output slot at +128. The JS hasher holds back the last chunk, so a chunk only enters the tree when more input follows.
 
+## Tiger, Streebog, CRC-32 and xxHash
+
+These have no 0.8.5 original and use the same shape as BLAKE2: the JS hashers (`src/blocks/base.mjs`) keep the buffer and hold back the last 1 to 64 (16, 32) bytes, and wasm only compresses and finishes. Their exports are produced by the same wrapper (`exportHasherScrub` in `src/wasm/blake2_exports.zig`, which also takes the size of the stack area to clear), and all return a `Status`:
+
+```
+<p>_state_size() -> u32
+<p>_blocks(state, data, len)                       // len % block == 0
+<p>_final(state, tail, tail_len, out)              // tail_len <= block; writes the whole digest to out
+```
+
+| Family module | `<p>` | block | digest | `State` (little-endian words) |
+|---|---|---|---|---|
+| `tiger` | `tiger`, `tiger2` | 64 | 24 | `t` u64 at 0, `h` 3 x u64 at 8 (32 bytes) |
+| `streebog` | `streebog256`, `streebog512` | 64 | 32, 64 | `t` u64 at 0, `h` 8 x u64 at 8, `sigma` 8 x u64 at 72 (136 bytes) |
+| `crc32` | `crc32`, `crc32c` | 64 | 4 | `t` u64 at 0, `crc` u32 at 8 (16 bytes) |
+| `xxhash` | `xxhash32` | 16 | 4 | `t` u64 at 0, `v` 4 x u32 at 8, `seed` u32 at 24 (32 bytes) |
+| `xxhash` | `xxhash64` | 32 | 8 | `t` u64 at 0, `v` 4 x u64 at 8, `seed` u64 at 40 (48 bytes) |
+
+`t` is the number of bytes compressed so far; `blocks` adds to it and `final` works on a copy, so `state` is never modified by `final`. The JS side writes `t` and the hash words of `state.hash` (int32, the 64-bit words low half first) and reads the words back after `blocks`. Streebog's 136-byte `State` does not fit the 128-byte state slot, so its digest is written behind the input region's last block (at +320) instead of the output slot at +128. Tiger derives its S-boxes at compile time; Streebog derives its 16 KiB of combined tables from the typed-in S-box and matrix. The Streebog digest is the last 32 bytes of the final value for `streebog256`, all 64 for `streebog512`; CRC-32 and xxHash write the checksum most significant byte first.
+
 ## Loading: async and sync
 
 The original crypto-api is fully synchronous, so v1 needs a sync path. `js/index.js` exports `load()` (async: fetch or fs) and `loadSync(bytes)`. `js/sync.js` embeds the wasm as base64 (`zig build js` writes `js/generated/wasm-bytes.js`, which is gitignored) and instantiates on import. Browsers limit synchronous compilation on the main thread, so keep the module small (target under 64 KB).

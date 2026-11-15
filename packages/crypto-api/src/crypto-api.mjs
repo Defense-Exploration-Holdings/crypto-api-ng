@@ -14,8 +14,15 @@ import Sha1 from "./hasher/sha1.mjs";
 import Sha256 from "./hasher/sha256.mjs";
 import Sha512 from "./hasher/sha512.mjs";
 import Sm3 from "./hasher/sm3.mjs";
+import Streebog from "./hasher/streebog.mjs";
 import Snefru from "./hasher/snefru.mjs";
+import Tiger from "./hasher/tiger.mjs";
+import Tiger2 from "./hasher/tiger2.mjs";
 import Whirlpool from "./hasher/whirlpool.mjs";
+import XxHash32 from "./hasher/xxhash32.mjs";
+import XxHash64 from "./hasher/xxhash64.mjs";
+import Crc32 from "./hasher/crc32.mjs";
+import Crc32c from "./hasher/crc32c.mjs";
 import Keccak from "./hasher/keccak.mjs";
 import Sha3 from "./hasher/sha3.mjs";
 import Shake from "./hasher/shake.mjs";
@@ -191,6 +198,34 @@ class CryptoApi {
       case 'blake3':
         options = Object.assign({}, {length: 256}, options);
         return new Blake3(options);
+      case 'tiger':
+      case 'tiger192':
+        options = Object.assign({}, {length: 192}, options);
+        return new Tiger(options);
+      case 'tiger160':
+        options = Object.assign({}, {length: 160}, options);
+        return new Tiger(options);
+      case 'tiger128':
+        options = Object.assign({}, {length: 128}, options);
+        return new Tiger(options);
+      case 'tiger2':
+        options = Object.assign({}, {length: 192}, options);
+        return new Tiger2(options);
+      case 'streebog':
+      case 'streebog512':
+        options = Object.assign({}, {length: 512}, options);
+        return new Streebog(options);
+      case 'streebog256':
+        options = Object.assign({}, {length: 256}, options);
+        return new Streebog(options);
+      case 'crc32':
+        return new Crc32(options);
+      case 'crc32c':
+        return new Crc32c(options);
+      case 'xxhash32':
+        return new XxHash32(options);
+      case 'xxhash64':
+        return new XxHash64(options);
       case 'whirlpool':
         return new Whirlpool(options);
       case 'whirlpool-0':

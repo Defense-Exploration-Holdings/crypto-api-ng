@@ -1,4 +1,6 @@
-//! Export wrappers shared by BLAKE2b and BLAKE2s (see `src/hash/blake2.zig`):
+//! Export wrappers shared by BLAKE2b and BLAKE2s (see `src/hash/blake2.zig`), and by every
+//! other hasher whose core has the same shape (Tiger, Streebog, CRC-32, xxHash): a `State`,
+//! `block_len`, `digest_len`, `blocks(*State, data)` and `final(*const State, tail, *[digest_len]u8)`.
 //!
 //!     <prefix>_state_size() -> u32
 //!     <prefix>_blocks(state, data, len) -> status    len % block == 0, none final
@@ -8,10 +10,16 @@
 
 const Status = @import("core").runtime.Status;
 const scrubStack = @import("common.zig").scrubStack;
-/// Twice the stack the deepest frame leaves (about 576 bytes), measured with test/memory-wipe.test.js.
-const scrub_len = 1280;
+/// Twice the stack the deepest BLAKE2 frame leaves (about 576 bytes), measured with test/memory-wipe.test.js.
+const default_scrub_len = 1280;
 
 pub fn exportHasher(comptime prefix: []const u8, comptime Core: type) void {
+    exportHasherScrub(prefix, Core, default_scrub_len);
+}
+
+/// Like `exportHasher`, for a core whose frames are bigger: `scrub_len` is how many bytes of
+/// stack `scrubStack` clears after each call in release builds.
+pub fn exportHasherScrub(comptime prefix: []const u8, comptime Core: type, comptime scrub_len: usize) void {
     const invalid: i32 = @backingInt(Status.invalid_argument);
     const W = struct {
         fn stateSize() callconv(.c) u32 {
