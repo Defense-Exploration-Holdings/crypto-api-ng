@@ -12,9 +12,19 @@ name: Publish to npm
 # merge, then push the matching tag (version 1.2.3 -> tag v1.2.3). The job refuses a tag
 # that does not match the package version. Versions with a pre-release part (1.2.3-rc.1)
 # are published under the `next` dist-tag instead of `latest`.
+#
+# If a publish fails after the tag exists (a tag is never moved), fix the workflow on main
+# and run it from main with Actions -> Publish to npm -> Run workflow, giving the existing
+# tag. It builds and publishes the tagged commit, not main.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to publish, for example v1.2.3"
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -33,17 +43,26 @@ jobs:
     permissions:
       contents: read
       id-token: write # OIDC token for npm trusted publishing (and provenance)
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
+      - name: Check the release tag format
+        run: |
+          case "$RELEASE_TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::'$RELEASE_TAG' is not a release tag such as v1.2.3"; exit 1 ;;
+          esac
       - uses: actions/checkout@v4
         with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
           persist-credentials: false
 
       - name: Check the tag matches the package version
         id: version
         run: |
           version="$(node -p "require('./packages/crypto-api/package.json').version")"
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::tag $GITHUB_REF_NAME does not match packages/crypto-api/package.json version $version"
+          if [ "v$version" != "$RELEASE_TAG" ]; then
+            echo "::error::tag $RELEASE_TAG does not match packages/crypto-api/package.json version $version"
             exit 1
           fi
           case "$version" in *-*) tag=next ;; *) tag=latest ;; esac
@@ -80,6 +99,7 @@ jobs:
         run: node scripts/build-package.mjs --pack --name crypto-api-ng --public
       - name: Publish
         run: |
-          tarball="dist/crypto-api-ng-${{ steps.version.outputs.version }}.tgz"
+          # The leading ./ matters: without it npm reads dist/x.tgz as a GitHub user/repo shorthand.
+          tarball="./dist/crypto-api-ng-${{ steps.version.outputs.version }}.tgz"
           tar -tzf "$tarball" | sort
           npm publish "$tarball" --access public --tag "${{ steps.version.outputs.dist_tag }}"
