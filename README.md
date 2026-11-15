@@ -4,7 +4,13 @@ A hashing library for JavaScript with no dependencies: [`crypto-api`](https://gi
 
 Version 1 is a drop-in replacement for `crypto-api@0.8.5`: same classes, import paths, options, digests and `getState()` output, bugs included. Where an input or option falls outside what the WebAssembly code models exactly, or WebAssembly is unavailable, the original JavaScript runs instead, so results are identical either way. Version 1.1 fixes the 0.8.5 bugs that 1.0 keeps (see "Changes in 1.1" in the package README); new APIs follow in version 2.
 
-The package is not on npm yet and its name is not final. Install and usage instructions are in [packages/crypto-api/README.md](packages/crypto-api/README.md).
+## Install
+
+```sh
+npm install crypto-api-ng
+```
+
+Usage for Node.js, bundlers and browsers is in [packages/crypto-api/README.md](packages/crypto-api/README.md).
 
 ## Algorithms
 
