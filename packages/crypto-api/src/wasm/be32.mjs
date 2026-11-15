@@ -149,15 +149,20 @@ export function createAccelerator(spec) {
           bits |= c;
           u8[o] = c;
         }
-        if (bits > 0xff) {
-          // A code unit the wasm code cannot represent: hand over what has been
-          // consumed so far (always whole blocks) and let the original do the rest.
-          for (let k = 0; k < words; k++) hash[k] = i32[w + k];
-          state.message = message.substr(pos);
+        // A refused call (non-zero status) leaves the scratch State as it was.
+        const status = bits > 0xff ? -1 : rt.ex[blocks](st, input, end - pos);
+        if (status !== 0) {
+          // A code unit the wasm code cannot represent, or a call it refused: hand
+          // over what has been consumed so far (always whole blocks) and let the
+          // original do the rest. Nothing is applied if the first chunk is the one
+          // that was refused.
+          if (bits > 0xff || pos > 0) {
+            for (let k = 0; k < words; k++) hash[k] = i32[w + k];
+            state.message = message.substr(pos);
+          }
           done = false;
           break;
         }
-        rt.ex[blocks](st, input, end - pos);
         pos = end;
       }
       if (done) {
@@ -217,13 +222,15 @@ export function createAccelerator(spec) {
         u32[(st + lengthOff + 4) >> 2] = Math.floor(length / 4294967296) >>> 0;
         u32[(st + bufferedOff) >> 2] = n;
 
-        rt.ex[final](st, out);
-        wasmCalls++;
+        // A refused call leaves `self` untouched and the original does the work.
+        if (rt.ex[final](st, out) === 0) {
+          wasmCalls++;
 
-        // What the original leaves behind: advanced hash words, drained buffer.
-        for (let k = 0; k < words; k++) hash[k] = i32[w + k];
-        state.message = '';
-        digest = String.fromCharCode.apply(null, u8.subarray(out, out + outBytes));
+          // What the original leaves behind: advanced hash words, drained buffer.
+          for (let k = 0; k < words; k++) hash[k] = i32[w + k];
+          state.message = '';
+          digest = String.fromCharCode.apply(null, u8.subarray(out, out + outBytes));
+        }
       }
     } finally {
       // A digest written to the input region (SHA-512, Whirlpool) is wiped too.

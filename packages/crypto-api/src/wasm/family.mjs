@@ -11,7 +11,7 @@
  *
  * Must stay equal to `runtime.abi_version` in src/runtime.zig (a test checks).
  */
-export const ABI_VERSION = 1;
+export const ABI_VERSION = 2;
 
 /** Scratch layout, identical for every family (src/wasm/common.zig). */
 export const STATE_OFF = 0;

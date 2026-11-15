@@ -17,6 +17,7 @@ Target: `wasm32-freestanding`, single-threaded, no imports. Everything the modul
 ## Versioning
 
 - `abi_version()` returns `runtime.abi_version`. The JS loader rejects a mismatch. Bump it on any incompatible change to exports or conventions.
+- Version 2: `<algo>_update`, `<algo>_blocks` and `<algo>_final` of MD4, MD5, HAS-160 and RIPEMD return an `i32` Status instead of nothing (the other families already did). Version 1 modules returned nothing and trusted `State.buffered`.
 
 ## Algorithm export shape
 
@@ -25,14 +26,14 @@ Settled by the MD5 port. Streaming primitives export:
 ```
 <algo>_state_size() -> u32                  // sizeof the Zig State; JS checks it at load
 <algo>_init(state)
-<algo>_update(state, data, len)             // buffering + counting, like the Zig reference
-<algo>_blocks(state, data, len)             // whole blocks only, hash words only; what the v1 facade calls
-<algo>_final(state, out)                    // pads, compresses, writes the digest, mutates state like the original finalize()
+<algo>_update(state, data, len) -> Status   // buffering + counting, like the Zig reference
+<algo>_blocks(state, data, len) -> Status   // whole blocks only, hash words only; what the v1 facade calls
+<algo>_final(state, out) -> Status          // pads, compresses, writes the digest, mutates state like the original finalize()
 ```
 
 `state`, `data` and `out` are absolute addresses into linear memory. There is no per-hasher allocation: the facade writes the hasher's state into one shared scratch `State`, calls, and reads the result back, so wasm memory never grows and nothing needs freeing.
 
-The 32-bit little-endian hashers other than MD5 (MD4, HAS-160, RIPEMD) share one generic implementation, `src/hash/le32.zig`, and export through `src/wasm/le32_exports.zig`. Differences from the MD5 shape: `<algo>_init(state, param)` takes one extra argument, and `State` has a `param` field (HAS-160 `rounds`; 0 elsewhere) that `<algo>_blocks` and `<algo>_final` read. `State` layout, with `n` hash words: `hash` at 0, `length` (u64) at `align8(4n)`, `buffered` (u32) at `length + 8`, `param` (u32) at `length + 12`, `buf` (64 bytes) at `length + 16`. Sizes: 96 (n=4), 104 (n=5), 112 (n=8), 120 (n=10). The JS side computes the same offsets in `packages/crypto-api/src/wasm/le32.mjs` and checks `<algo>_state_size()` at load.
+The 32-bit little-endian hashers other than MD5 (MD4, HAS-160, RIPEMD) share one generic implementation, `src/hash/le32.zig`, and export through `src/wasm/le32_exports.zig`. Differences from the MD5 shape: `<algo>_init(state, param)` takes one extra argument, and `State` has a `param` field (HAS-160 `rounds`; 0 elsewhere) that `<algo>_blocks` and `<algo>_final` read. Their `update`, `blocks` and `final` (and MD5's) refuse, with `Status.invalid_state` and without touching anything, a State whose `buffered` is not below 64 (it indexes the State's buffer, and `small` builds have no bounds checks), and `blocks` refuses a `len` that is not a multiple of 64 with `Status.invalid_argument`. The families with a `rounds` field (MD2, SHA-0, SHA-1, SHA-224/256, SM3, SHA-384/512, Whirlpool) refuse a `rounds` outside what the compression function supports in the same way. `State` layout, with `n` hash words: `hash` at 0, `length` (u64) at `align8(4n)`, `buffered` (u32) at `length + 8`, `param` (u32) at `length + 12`, `buf` (64 bytes) at `length + 16`. Sizes: 96 (n=4), 104 (n=5), 112 (n=8), 120 (n=10). The JS side computes the same offsets in `packages/crypto-api/src/wasm/le32.mjs` and checks `<algo>_state_size()` at load.
 
 Snefru is the one family whose block size depends on an option (`16 - words` words, with `words` = `length / 32`), so it has its own shape in `src/hash/snefru.zig` and `src/wasm/snefru.zig`: `snefru_init(state, words, rounds)`, `snefru_update`, `snefru_blocks`, `snefru_final`, all returning a `Status` (0 ok, 1 `invalid_argument`, 3 `invalid_state`) because the State's `words`, `rounds` and `buffered` bytes are used as indices and are validated on every call. `State` is exactly 128 bytes: `hash` (15 x u32) at 0, `words` (u8) at 60, `rounds` (u8) at 61, `buffered` (u8) at 62, `length` (u32, only `ToInt32(length)` matters) at 64, `buf` (60 bytes) at 68. `snefru_final` writes `4 * words` digest bytes at the output offset and refuses `words` = 15, which the original cannot finalize either. The S-boxes (16 KiB) are computed at compile time from `src/hash/snefru_rand.zig`, which `scripts/gen-snefru-rand.mjs` generates from the vendored original.
 
@@ -47,6 +48,8 @@ scratch_len() -> u32     // 256 + input capacity (64 KiB)
 ```
 
 Scratch layout, identical in every family (offsets from `scratch_ptr()`): algorithm `State` at +0 (up to 128 bytes), output at +128 (up to 128 bytes), input chunk at +256. A `State` larger than 128 bytes (SHA-384/512: 216, Whirlpool: 152) overlaps the output slot, so such a family tells the facade to take the digest at +256 instead (`outOff` in `createAccelerator`); `*_final` does not read the input region, and `*_blocks` only reads the head of the State. Family modules are linked with a fixed 2-page memory (`initial_memory == max_memory`), 16 KiB stack and no imports; they export no `alloc`/`free`. Only `src/wasm.zig` (the general runtime used by `js/index.js`) keeps those. Zig forbids relative imports above a module root, so family roots reach the library through `@import("core")` (`src/root.zig`).
+
+The facades treat any non-zero status as a refusal: they have not modified `this` yet (or have applied only the whole blocks an earlier chunk of the same call completed) and give the work to the original JavaScript code, so a refused call costs speed, never a wrong or stale digest. `test/wasm-status.test.js` calls the raw exports with bad values and forces refusals in every facade.
 
 Nothing a call was given stays in the module. The facade zeroes the scratch region on every way out of a call, including the fallbacks that hand the rest of the work back to the original JavaScript: the state and output slots and the input bytes it wrote (`wipe()` in `family.mjs`), after the digest string has been built. On the wasm side, the exports clear the `tail` and padding buffers of the `final` functions and, after the call, the stack area the compression frames used (`scrubStack` in `src/wasm/common.zig`, called through `@call(.never_inline, ...)` so the callee's frames lie below the export's own). `test/memory-wipe.test.js` scans the whole linear memory of every family for message bytes, HMAC pad blocks, keys and digests. Copies on the JavaScript side (the `Hmac` pads and saved states, the digest string) are ordinary values and cannot be wiped.
 

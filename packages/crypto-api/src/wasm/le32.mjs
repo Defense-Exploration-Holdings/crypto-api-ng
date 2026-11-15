@@ -187,10 +187,12 @@ export function accelProcess(v, state, param, replace) {
         bits |= c;
         u8[o] = c;
       }
-      if (bits > 0xff) {
-        // A code unit the wasm code cannot represent: apply what has been
-        // consumed so far (always whole blocks) and let the original do the rest.
-        // Nothing is touched if the very first chunk is the one that failed.
+      // A refused call (non-zero status) leaves the scratch State as it was.
+      if (bits > 0xff || v.blocks(st, input, end - pos) !== 0) {
+        // A code unit the wasm code cannot represent, or a call it refused: apply
+        // what has been consumed so far (always whole blocks) and let the original
+        // do the rest. Nothing is touched if the very first chunk is the one that
+        // failed.
         if (pos > 0) {
           store(state, hash, i32, w, n, replace);
           state.message = message.substr(pos);
@@ -198,7 +200,6 @@ export function accelProcess(v, state, param, replace) {
         done = false;
         break;
       }
-      v.blocks(st, input, end - pos);
       pos = end;
     }
     if (done) {
@@ -263,13 +264,15 @@ export function accelFinalize(v, state, param, replace) {
       u32[(st + v.bufferedOff) >> 2] = m;
       u32[(st + v.paramOff) >> 2] = param;
 
-      v.final(st, out);
-      eng.calls++;
+      // A refused call leaves `state` untouched and the original does the work.
+      if (v.final(st, out) === 0) {
+        eng.calls++;
 
-      // What the original leaves behind: advanced hash words, drained buffer.
-      store(state, hash, i32, w, n, replace);
-      state.message = '';
-      digest = String.fromCharCode.apply(null, u8.subarray(out, out + 4 * n));
+        // What the original leaves behind: advanced hash words, drained buffer.
+        store(state, hash, i32, w, n, replace);
+        state.message = '';
+        digest = String.fromCharCode.apply(null, u8.subarray(out, out + 4 * n));
+      }
     }
   } finally {
     wipe(u8, base, 0);

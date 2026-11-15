@@ -6,7 +6,7 @@ const std = @import("std");
 
 /// Bump this whenever the exported wasm ABI changes incompatibly. The JS loader
 /// refuses to run against a module whose ABI version differs from its own.
-pub const abi_version: u32 = 1;
+pub const abi_version: u32 = 2;
 
 /// Library version, kept in sync with package.json by hand until a release
 /// script exists.

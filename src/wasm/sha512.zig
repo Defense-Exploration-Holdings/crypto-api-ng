@@ -40,7 +40,7 @@ export fn sha512_init(state: u32, length: u32, rounds: u32) i32 {
 
 export fn sha512_update(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
-    if (!okRounds(st)) return @backingInt(Status.invalid_argument);
+    if (!okRounds(st) or st.buffered >= sha512.block_len) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
     defer scrubStack(1024);
     @call(.never_inline, sha512.update, .{ st, p[0..len] });

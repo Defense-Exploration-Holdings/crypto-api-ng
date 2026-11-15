@@ -171,9 +171,11 @@ class Md2 extends LegacyMd2 {
             bits |= c;
             u8[o] = c;
           }
-          if (bits > 0xff) {
-            // A code unit the wasm code cannot represent: hand over what has been
-            // consumed so far (always whole blocks) and let the original do the rest.
+          // A refused call (non-zero status) leaves the scratch State as it was.
+          if (bits > 0xff || rt.ex.md2_blocks(st, input, end - pos) !== 0) {
+            // A code unit the wasm code cannot represent, or a call it refused: hand
+            // over what has been consumed so far (always whole blocks) and let the
+            // original do the rest.
             if (pos > 0) {
               store(state.hash, 48, st + O_HASH);
               store(state.checksum, 16, st + O_CHECKSUM);
@@ -182,7 +184,6 @@ class Md2 extends LegacyMd2 {
             fallback = true;
             break;
           }
-          rt.ex.md2_blocks(st, input, end - pos);
           pos = end;
         }
         if (!fallback) {
@@ -237,14 +238,16 @@ class Md2 extends LegacyMd2 {
         u32[(st + O_ROUNDS) >> 2] = rounds;
         u32[(st + O_BUFFERED) >> 2] = n;
 
-        rt.ex.md2_final(st, out);
-        wasmCalls++;
+        // A refused call leaves `this` untouched and the original does the work.
+        if (rt.ex.md2_final(st, out) === 0) {
+          wasmCalls++;
 
-        // What the original leaves behind: advanced hash and checksum, drained buffer.
-        store(state.hash, 48, st + O_HASH);
-        store(state.checksum, 16, st + O_CHECKSUM);
-        state.message = '';
-        digest = String.fromCharCode.apply(null, u8.subarray(out, out + 16));
+          // What the original leaves behind: advanced hash and checksum, drained buffer.
+          store(state.hash, 48, st + O_HASH);
+          store(state.checksum, 16, st + O_CHECKSUM);
+          state.message = '';
+          digest = String.fromCharCode.apply(null, u8.subarray(out, out + 16));
+        }
       }
     } finally {
       wipe(u8, base, 0);

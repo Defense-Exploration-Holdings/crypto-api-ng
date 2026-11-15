@@ -33,7 +33,7 @@ fn Exports(comptime variant: sha1.Variant) type {
         }
         fn update(state: u32, data: u32, len: u32) i32 {
             const st = statePtr(state);
-            if (!okRounds(st)) return @backingInt(Status.invalid_argument);
+            if (!okRounds(st) or st.buffered >= sha1.block_len) return @backingInt(Status.invalid_argument);
             const p: [*]const u8 = @ptrFromInt(data);
             defer scrubStack(2048);
             @call(.never_inline, sha1.update, .{ variant, st, p[0..len] });
