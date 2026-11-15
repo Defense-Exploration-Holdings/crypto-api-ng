@@ -2,7 +2,7 @@
 'use strict';
 
 import {wasmBytes} from "../../wasm/keccak.mjs";
-import {instantiate, STATE_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, STATE_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * Keccak-f[1600] for the SHA-3, SHAKE and Keccak hashers (src/hasher/sponge.mjs).
@@ -191,49 +191,71 @@ function loadState(hash, rate) {
   u32[(rt.base + STATE_OFF + POS_OFF) >> 2] = 0;
 }
 
-/** Absorb in wasm; false when the module refused a call (then `hash` is as it was). */
+/**
+ * Absorb in wasm; false when the module refused a call (then `hash` is as it was). The scratch
+ * region is zeroed on every way out: it held the message bytes and the sponge.
+ */
 function wasmAbsorb(hash, message, total, rate) {
   const {u8, ex, base, cap} = rt;
   const st = base + STATE_OFF;
   const input = base + INPUT_OFF;
-  loadState(hash, rate);
-  const chunk = cap - cap % rate;
-  for (let pos = 0; pos < total;) {
-    const end = Math.min(pos + chunk, total);
-    for (let i = pos, o = input; i < end; i++, o++) u8[o] = message.charCodeAt(i);
-    if (ex.keccak_blocks(st, input, end - pos) !== 0) return false;
-    pos = end;
+  // Bytes of the input region this call wrote.
+  let used = 0;
+  try {
+    loadState(hash, rate);
+    const chunk = cap - cap % rate;
+    for (let pos = 0; pos < total;) {
+      const end = Math.min(pos + chunk, total);
+      for (let i = pos, o = input; i < end; i++, o++) u8[o] = message.charCodeAt(i);
+      if (end - pos > used) used = end - pos;
+      if (ex.keccak_blocks(st, input, end - pos) !== 0) return false;
+      pos = end;
+    }
+    wasmCalls++;
+    const w = st >> 2;
+    for (let k = 0; k < WORDS; k++) hash[k] = i32[w + k];
+    return true;
+  } finally {
+    wipe(u8, base, used);
   }
-  wasmCalls++;
-  const w = st >> 2;
-  for (let k = 0; k < WORDS; k++) hash[k] = i32[w + k];
-  return true;
 }
 
-/** Pad and squeeze in wasm; null when the module refused a call (nothing was read from its output). */
+/**
+ * Pad and squeeze in wasm; null when the module refused a call (nothing was read from its
+ * output). The result string is built before the scratch region (the sponge, the tail and the
+ * output, which is the digest) is zeroed, on every way out.
+ */
 function wasmFinish(hash, tail, rate, suffix, outBytes) {
   const {u8, ex, base, cap} = rt;
   const st = base + STATE_OFF;
   const tailPtr = base + TAIL_OFF;
   const out = base + OUT_OFF;
   const outCap = cap - 256;
-  loadState(hash, rate);
-  for (let i = 0; i < tail.length; i++) u8[tailPtr + i] = tail.charCodeAt(i);
-  let result = '';
-  for (let done = 0; done < outBytes || done === 0;) {
-    const n = Math.min(outCap, outBytes - done);
-    const status = done === 0 ?
-      ex.keccak_final(st, tailPtr, tail.length, suffix, out, n) :
-      ex.keccak_squeeze(st, out, n);
-    if (status !== 0) return null;
-    for (let i = 0; i < n; i += CHUNK) {
-      result += String.fromCharCode.apply(null, u8.subarray(out + i, out + Math.min(n, i + CHUNK)));
+  // Bytes of the input region this call wrote: the tail, then the output 256 bytes above it.
+  let used = 0;
+  try {
+    loadState(hash, rate);
+    for (let i = 0; i < tail.length; i++) u8[tailPtr + i] = tail.charCodeAt(i);
+    used = tail.length;
+    let result = '';
+    for (let done = 0; done < outBytes || done === 0;) {
+      const n = Math.min(outCap, outBytes - done);
+      used = Math.max(used, OUT_OFF - INPUT_OFF + n);
+      const status = done === 0 ?
+        ex.keccak_final(st, tailPtr, tail.length, suffix, out, n) :
+        ex.keccak_squeeze(st, out, n);
+      if (status !== 0) return null;
+      for (let i = 0; i < n; i += CHUNK) {
+        result += String.fromCharCode.apply(null, u8.subarray(out + i, out + Math.min(n, i + CHUNK)));
+      }
+      done += n;
+      if (n === 0) break;
     }
-    done += n;
-    if (n === 0) break;
+    wasmCalls++;
+    return result;
+  } finally {
+    wipe(u8, base, used);
   }
-  wasmCalls++;
-  return result;
 }
 
 // ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 // crypto-api-ng:facade
 'use strict';
 
-import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * The scratch-region plumbing of the BLAKE3 engine: the wasm `blake3_update`, `blake3_root`
@@ -95,6 +95,15 @@ export default function createEngine(getBytes, fallback) {
     }
   }
 
+  /**
+   * Zero what a call left in scratch memory: the State and root parameters, the first `stackBytes`
+   * of the stack region and the first `dataBytes` of the data region (the rest of the stack region is never written).
+   */
+  function wipeScratch(r, stackBytes, dataBytes) {
+    wipe(r.u8, r.base, stackBytes);
+    r.u8.fill(0, r.base + DATA_OFF, r.base + DATA_OFF + dataBytes);
+  }
+
   /** Copy the State and the stack into scratch memory. */
   function putState(r, state, init) {
     const w = (r.base + STATE_OFF) >> 2;
@@ -112,66 +121,90 @@ export default function createEngine(getBytes, fallback) {
     return w;
   }
 
-  /** Add the chunks in wasm; false when the module refused a call (`state` is as it was). */
+  /**
+   * Add the chunks in wasm; false when the module refused a call (`state` is as it was). The
+   * scratch region (key words, stack of chaining values, message bytes) is zeroed on every way out.
+   */
   function wasmUpdate(r, state, init, message, nchunks) {
     const u8 = r.u8;
-    const w = putState(r, state, init);
-    const dataAddr = r.base + DATA_OFF;
-    const perCall = Math.floor((r.cap - (DATA_OFF - INPUT_OFF)) / CHUNK);
-    const run = r.ex.blake3_update;
-    for (let done = 0; done < nchunks; done += perCall) {
-      const n = Math.min(perCall, nchunks - done);
-      const from = done * CHUNK;
-      for (let i = 0; i < n * CHUNK; i++) {
-        u8[dataAddr + i] = message.charCodeAt(from + i);
+    // Bytes of the stack and of the data region this call wrote.
+    let stackBytes = 0;
+    let dataBytes = 0;
+    try {
+      const w = putState(r, state, init);
+      stackBytes = 4 * state.stack.length;
+      const dataAddr = r.base + DATA_OFF;
+      const perCall = Math.floor((r.cap - (DATA_OFF - INPUT_OFF)) / CHUNK);
+      const run = r.ex.blake3_update;
+      for (let done = 0; done < nchunks; done += perCall) {
+        const n = Math.min(perCall, nchunks - done);
+        const from = done * CHUNK;
+        for (let i = 0; i < n * CHUNK; i++) {
+          u8[dataAddr + i] = message.charCodeAt(from + i);
+        }
+        dataBytes = Math.max(dataBytes, n * CHUNK);
+        if (run(r.base + STATE_OFF, r.base + STACK_OFF, dataAddr, n) !== 0) {
+          return false;
+        }
+        calls++;
       }
-      if (run(r.base + STATE_OFF, r.base + STACK_OFF, dataAddr, n) !== 0) {
-        return false;
+      const chunks = (i32[w + CHUNKS] >>> 0) + (i32[w + CHUNKS + 1] >>> 0) * TWO32;
+      const s = (r.base + STACK_OFF) >> 2;
+      const stack = [];
+      for (let i = 0; i < 8 * popcount(chunks); i++) {
+        stack.push(i32[s + i]);
       }
-      calls++;
+      stackBytes = Math.max(stackBytes, 4 * stack.length);
+      state.chunks = chunks;
+      state.stack = stack;
+      return true;
+    } finally {
+      wipeScratch(r, stackBytes, dataBytes);
     }
-    const chunks = (i32[w + CHUNKS] >>> 0) + (i32[w + CHUNKS + 1] >>> 0) * TWO32;
-    const s = (r.base + STACK_OFF) >> 2;
-    const stack = [];
-    for (let i = 0; i < 8 * popcount(chunks); i++) {
-      stack.push(i32[s + i]);
-    }
-    state.chunks = chunks;
-    state.stack = stack;
-    return true;
   }
 
   /**
    * The output in wasm, or null when the module refused a call: the root parameters are
    * only used after `blake3_root` succeeded in this call, and the output region of a
-   * refused call is not read.
+   * refused call is not read. The output string is built before the scratch region (key
+   * words, stack, root parameters, last chunk, output) is zeroed, on every way out.
    */
   function wasmFinalize(r, state, init, tail, bytes) {
     const u8 = r.u8;
-    putState(r, state, init);
-    const dataAddr = r.base + DATA_OFF;
-    const paramsAddr = r.base + OUT_OFF;
-    for (let i = 0; i < tail.length; i++) {
-      u8[dataAddr + i] = tail.charCodeAt(i);
-    }
-    if (r.ex.blake3_root(r.base + STATE_OFF, r.base + STACK_OFF, dataAddr, tail.length, paramsAddr) !== 0) {
-      return null;
-    }
-    calls++;
-    // The tail is no longer needed: the output overwrites it.
-    const perCall = Math.floor((r.cap - (DATA_OFF - INPUT_OFF)) / 64) * 64;
-    let out = '';
-    for (let pos = 0; pos < bytes; pos += perCall) {
-      const n = Math.min(perCall, bytes - pos);
-      if (r.ex.blake3_xof(paramsAddr, pos / 64, dataAddr, n) !== 0) {
+    // Bytes of the stack and of the data region (the tail, then the output) this call wrote.
+    let stackBytes = 0;
+    let dataBytes = 0;
+    try {
+      putState(r, state, init);
+      stackBytes = 4 * state.stack.length;
+      const dataAddr = r.base + DATA_OFF;
+      const paramsAddr = r.base + OUT_OFF;
+      for (let i = 0; i < tail.length; i++) {
+        u8[dataAddr + i] = tail.charCodeAt(i);
+      }
+      dataBytes = tail.length;
+      if (r.ex.blake3_root(r.base + STATE_OFF, r.base + STACK_OFF, dataAddr, tail.length, paramsAddr) !== 0) {
         return null;
       }
       calls++;
-      for (let i = 0; i < n; i += 8192) {
-        out += String.fromCharCode.apply(null, u8.subarray(dataAddr + i, dataAddr + Math.min(i + 8192, n)));
+      // The tail is no longer needed: the output overwrites it.
+      const perCall = Math.floor((r.cap - (DATA_OFF - INPUT_OFF)) / 64) * 64;
+      let out = '';
+      for (let pos = 0; pos < bytes; pos += perCall) {
+        const n = Math.min(perCall, bytes - pos);
+        dataBytes = Math.max(dataBytes, n);
+        if (r.ex.blake3_xof(paramsAddr, pos / 64, dataAddr, n) !== 0) {
+          return null;
+        }
+        calls++;
+        for (let i = 0; i < n; i += 8192) {
+          out += String.fromCharCode.apply(null, u8.subarray(dataAddr + i, dataAddr + Math.min(i + 8192, n)));
+        }
       }
+      return out;
+    } finally {
+      wipeScratch(r, stackBytes, dataBytes);
     }
-    return out;
   }
 
   return {

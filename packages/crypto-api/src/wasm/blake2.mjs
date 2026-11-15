@@ -1,7 +1,7 @@
 // crypto-api-ng:facade
 'use strict';
 
-import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * The scratch-region plumbing of the BLAKE2 engines: the wasm `blake2{b,s}_blocks` and
@@ -97,48 +97,67 @@ export default function createEngine(getBytes, prefix, wordBytes, fallback) {
     return w;
   }
 
-  /** Compress in wasm; false when the module refused a call (`state` is as it was). */
+  /**
+   * Compress in wasm; false when the module refused a call (`state` is as it was). The scratch
+   * region (message bytes, key block, chaining value) is zeroed on every way out.
+   */
   function wasmBlocks(r, state, message, start, end) {
     const u8 = r.u8;
-    const w = putState(r, state);
-    const stateAddr = r.base + STATE_OFF;
-    const inAddr = r.base + INPUT_OFF;
-    const step = Math.floor(r.cap / block) * block;
-    const run = r.ex[prefix + '_blocks'];
-    for (let pos = start; pos < end; pos += step) {
-      const n = Math.min(step, end - pos);
-      for (let i = 0; i < n; i++) {
-        u8[inAddr + i] = message.charCodeAt(pos + i);
+    // Bytes of the input region this call wrote.
+    let used = 0;
+    try {
+      const w = putState(r, state);
+      const stateAddr = r.base + STATE_OFF;
+      const inAddr = r.base + INPUT_OFF;
+      const step = Math.floor(r.cap / block) * block;
+      const run = r.ex[prefix + '_blocks'];
+      for (let pos = start; pos < end; pos += step) {
+        const n = Math.min(step, end - pos);
+        for (let i = 0; i < n; i++) {
+          u8[inAddr + i] = message.charCodeAt(pos + i);
+        }
+        if (n > used) {
+          used = n;
+        }
+        if (run(stateAddr, inAddr, n) !== 0) {
+          return false;
+        }
+        calls++;
       }
-      if (run(stateAddr, inAddr, n) !== 0) {
-        return false;
+      for (let i = 0; i < hashInts; i++) {
+        state.hash[i] = i32[w + i];
       }
-      calls++;
+      state.counter += end - start;
+      return true;
+    } finally {
+      wipe(u8, r.base, used);
     }
-    for (let i = 0; i < hashInts; i++) {
-      state.hash[i] = i32[w + i];
-    }
-    state.counter += end - start;
-    return true;
   }
 
-  /** The digest in wasm, or null when the module refused the call (its output is not read). */
+  /**
+   * The digest in wasm, or null when the module refused the call (its output is not read). The
+   * digest string is built before the scratch region (last block, chaining value, digest) is zeroed.
+   */
   function wasmFinal(r, state, tail) {
     const u8 = r.u8;
-    putState(r, state);
-    const inAddr = r.base + INPUT_OFF;
-    for (let i = 0; i < tail.length; i++) {
-      u8[inAddr + i] = tail.charCodeAt(i);
+    try {
+      putState(r, state);
+      const inAddr = r.base + INPUT_OFF;
+      for (let i = 0; i < tail.length; i++) {
+        u8[inAddr + i] = tail.charCodeAt(i);
+      }
+      if (r.ex[prefix + '_final'](r.base + STATE_OFF, inAddr, tail.length, r.base + OUT_OFF) !== 0) {
+        return null;
+      }
+      calls++;
+      let out = '';
+      for (let i = 0; i < 8 * wordBytes; i++) {
+        out += String.fromCharCode(u8[r.base + OUT_OFF + i]);
+      }
+      return out;
+    } finally {
+      wipe(u8, r.base, tail.length);
     }
-    if (r.ex[prefix + '_final'](r.base + STATE_OFF, inAddr, tail.length, r.base + OUT_OFF) !== 0) {
-      return null;
-    }
-    calls++;
-    let out = '';
-    for (let i = 0; i < 8 * wordBytes; i++) {
-      out += String.fromCharCode(u8[r.base + OUT_OFF + i]);
-    }
-    return out;
   }
 
   return {

@@ -3,7 +3,7 @@
 // the digest or the hash words derived from them. The scan covers the whole
 // linear memory of the module (scratch region, stack, data), not only the
 // scratch slots the facade writes to.
-import { test } from 'node:test';
+import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import Hmac from '../packages/crypto-api/src/mac/hmac.mjs';
@@ -19,6 +19,13 @@ import Sha512, { _internal as sha512 } from '../packages/crypto-api/src/hasher/s
 import Sm3, { _internal as sm3 } from '../packages/crypto-api/src/hasher/sm3.mjs';
 import Snefru, { _internal as snefru } from '../packages/crypto-api/src/hasher/snefru.mjs';
 import Whirlpool, { _internal as whirlpool } from '../packages/crypto-api/src/hasher/whirlpool.mjs';
+import Sha3 from '../packages/crypto-api/src/hasher/sha3.mjs';
+import Keccak from '../packages/crypto-api/src/hasher/keccak.mjs';
+import Shake from '../packages/crypto-api/src/hasher/shake.mjs';
+import { _internal as keccak } from '../packages/crypto-api/src/wasm/keccak.mjs';
+import Blake2b, { _internal as blake2b } from '../packages/crypto-api/src/hasher/blake2b.mjs';
+import Blake2s, { _internal as blake2s } from '../packages/crypto-api/src/hasher/blake2s.mjs';
+import Blake3, { _internal as blake3 } from '../packages/crypto-api/src/hasher/blake3.mjs';
 import { rng } from './support/le32-suite.js';
 
 const CASES = [
@@ -43,6 +50,19 @@ const CASES = [
   ['whirlpool', Whirlpool, whirlpool, undefined],
   ['whirlpool-t', Whirlpool, whirlpool, { type: 't' }],
   ['whirlpool-0', Whirlpool, whirlpool, { type: '0' }],
+  ['sha3-224', Sha3, keccak, { length: 224 }],
+  ['sha3-256', Sha3, keccak, { length: 256 }],
+  ['sha3-384', Sha3, keccak, { length: 384 }],
+  ['sha3-512', Sha3, keccak, undefined],
+  ['keccak256', Keccak, keccak, { length: 256 }],
+  ['keccak512', Keccak, keccak, undefined],
+  ['shake128', Shake, keccak, undefined],
+  ['shake256', Shake, keccak, { strength: 256 }],
+  ['blake2b', Blake2b, blake2b, undefined],
+  ['blake2b-256', Blake2b, blake2b, { length: 256 }],
+  ['blake2s', Blake2s, blake2s, undefined],
+  ['blake2s-128', Blake2s, blake2s, { length: 128 }],
+  ['blake3', Blake3, blake3, undefined],
 ];
 
 const WINDOW = 16;
@@ -149,3 +169,205 @@ for (const [name, Cls, internal, options] of CASES) {
     assert.deepEqual(scan(rt, [['message', message]]), []);
   });
 }
+
+// ---------------------------------------------------------------------------
+// SHA-3 / SHAKE / Keccak, BLAKE2 and BLAKE3: keys, key-derived words, long output and big messages
+// ---------------------------------------------------------------------------
+
+/** Like `leaks()`, for long inputs: about `count` windows spread over the whole of `bytes`, raw and word-swapped. */
+function sampledLeaks(memory, bytes, label, count = 300) {
+  const found = [];
+  const stride = Math.max(4, Math.floor(bytes.length / count / 4) * 4);
+  for (let at = 0; at + WINDOW <= bytes.length; at += stride) {
+    const w = Buffer.from(bytes.subarray(at, at + WINDOW));
+    for (const [form, needle] of [['bytes', w], ['swapped words', Buffer.from(w).swap32()]]) {
+      const i = memory.indexOf(needle);
+      if (i !== -1) found.push(`${label}[${at}..${at + WINDOW}] (${form}) at memory offset ${i}`);
+    }
+  }
+  return found;
+}
+
+function scanSampled(rt, secrets) {
+  const memory = Buffer.from(rt.u8.buffer, rt.u8.byteOffset, rt.u8.byteLength);
+  return secrets.flatMap(([label, bytes]) => (bytes.length > 2048 ? sampledLeaks(memory, bytes, label) : leaks(memory, bytes, label)));
+}
+
+/** The int32 words of a hasher (`state.hash`, key words) as the bytes they have in wasm memory. */
+const wordBytes = (words) => Buffer.from(Int32Array.from(words).buffer);
+
+const digestOf = (h, message) => {
+  for (let pos = 0; pos < message.length; pos += 1000) h.update(binary(message.subarray(pos, pos + 1000)));
+  return Buffer.from(h.finalize(), 'latin1');
+};
+
+describe('keys, key-derived words, long output and big messages leave nothing in the new families', () => {
+  const rand = rng(0x5eed);
+  const KEY32 = randomBytes(rand, 32);
+  const KEY64 = randomBytes(rand, 64);
+  const SMALL = randomBytes(rand, 3 * 128 + 101);
+  const BIG = randomBytes(rand, 5 * 1024 + 77);
+  const HUGE = randomBytes(rand, 70000 + 13);
+
+  /**
+   * Run `make()` hashers over the messages (one update, many updates, finalize twice) and scan after every digest.
+   * `fixed` are values that are also constants of the module (the IV words in the chaining value): they must
+   * be found exactly where they were found before the hashing started.
+   */
+  function check(label, rt, calls, make, secrets, messages = [SMALL, BIG, HUGE], fixed = []) {
+    const before = scanSampled(rt, fixed);
+    for (const message of messages) {
+      for (const pieces of ['one', 'many']) {
+        const h = make();
+        let digest;
+        if (pieces === 'one') {
+          h.update(binary(message));
+          digest = Buffer.from(h.finalize(), 'latin1');
+        } else {
+          digest = digestOf(h, message);
+        }
+        // finalize() twice: the second call runs the same stages again.
+        const again = Buffer.from(h.finalize(), 'latin1');
+        assert.deepEqual(again, digest);
+        const found = scanSampled(rt, secrets.concat([['message', message], ['digest', digest]]));
+        assert.deepEqual(found, [], `${label} (${pieces} update, ${message.length} bytes)`);
+        assert.deepEqual(scanSampled(rt, fixed), before, `${label}: parameter words (${pieces} update, ${message.length} bytes)`);
+      }
+    }
+    assert.ok(calls() > 0);
+  }
+
+  test('BLAKE3: the key words, the derived key of a context, the stack and the data region', () => {
+    const rt = blake3.runtime();
+    assert.ok(rt, 'run `zig build js` first');
+    const calls = blake3.wasmCalls;
+    check('keyed', rt, calls, () => new Blake3({ key: binary(KEY32) }), [['key', KEY32]]);
+    check('keyed, 512 bits', rt, calls, () => new Blake3({ key: binary(KEY32), length: 512 }), [['key', KEY32]]);
+    const contextHasher = new Blake3({ context: 'secret context string' });
+    check('derive key', rt, calls, () => new Blake3({ context: 'secret context string' }), [['derived key', wordBytes(contextHasher.init.key)]]);
+    // After a big message the stack of chaining values (up to 54 entries) was in the scratch region.
+    const plain = new Blake3();
+    plain.update(binary(HUGE));
+    const state = plain.getState();
+    assert.ok(state.stack.length >= 16);
+    plain.finalize();
+    assert.deepEqual(scanSampled(rt, [['stack', wordBytes(state.stack)]]), []);
+    // HMAC over BLAKE3: the pad blocks (key-derived) and the inner digest pass through the same regions.
+    const ipad = Buffer.alloc(64, 0x36);
+    const opad = Buffer.alloc(64, 0x5c);
+    for (let i = 0; i < 23; i++) {
+      ipad[i] ^= KEY32[i];
+      opad[i] ^= KEY32[i];
+    }
+    const mac = new Hmac(binary(KEY32.subarray(0, 23)), new Blake3());
+    mac.update(binary(SMALL));
+    const tag = Buffer.from(mac.finalize(), 'latin1');
+    assert.deepEqual(scanSampled(rt, [['key', KEY32.subarray(0, 23)], ['ipad', ipad], ['opad', opad], ['tag', tag]]), []);
+  });
+
+  for (const [name, C, internal, block, max] of [['BLAKE2b', Blake2b, blake2b, 128, 64], ['BLAKE2s', Blake2s, blake2s, 64, 32]]) {
+    test(`${name}: key and padded key block, salt and personalization, parameter-block words`, () => {
+      const rt = internal.runtime();
+      assert.ok(rt, 'run `zig build js` first');
+      const key = KEY64.subarray(0, max);
+      const shortKey = KEY64.subarray(0, 11);
+      for (const [label, options] of [
+        ['full key', { key: binary(key) }],
+        ['short key (zero padded block)', { key: binary(shortKey) }],
+        ['key, salt, personalization', { key: binary(shortKey), salt: 'salt-xyz', personalization: 'pers-xyz', length: 160 }],
+        ['salt and personalization only', { salt: 'S1'.repeat(4), personalization: 'P2'.repeat(4) }],
+        ['key as bytes', { key: new Uint8Array(key) }],
+      ]) {
+        const fresh = () => new C({ ...options });
+        const k = options.key === undefined ? Buffer.alloc(0) : Buffer.from(binary(options.key), 'latin1');
+        const secrets = [];
+        if (k.length >= WINDOW) secrets.push(['key', k]);
+        if (k.length) {
+          // The key block is the key and zeros; look at the windows that hold key bytes (at least 11 of 16).
+          const padded = Buffer.alloc(block);
+          k.copy(padded);
+          secrets.push(['key block', padded.subarray(0, Math.max(WINDOW, Math.min(block, k.length + 5)))]);
+        }
+        // Words 4 to 7 of the chaining value are the IV xor salt and personalization (the IV is a constant of the module).
+        const fixed = options.salt === undefined ? [] : [['salt and personalization words', wordBytes(fresh().getState().hash).subarray(4 * (max / 8), 8 * (max / 8))]];
+        check(`${name} ${label}`, rt, internal.wasmCalls, fresh, secrets, [SMALL, BIG, HUGE], fixed);
+      }
+    });
+  }
+
+  for (const [name, make] of [
+    ['SHAKE128', (length) => new Shake({ strength: 128, length })],
+    ['SHAKE256', (length) => new Shake({ strength: 256, length })],
+    ['BLAKE3', (length) => new Blake3({ length })],
+    ['keyed BLAKE3', (length) => new Blake3({ length, key: binary(KEY32) })],
+  ]) {
+    test(`${name}: output of several wasm calls, from short to 150 KB`, () => {
+      const internal = name.includes('BLAKE') ? blake3 : keccak;
+      const rt = internal.runtime();
+      assert.ok(rt, 'run `zig build js` first');
+      // Output calls are 63232 (BLAKE3) or 65024 (SHAKE) bytes at most: the last ones are short and overwrite the
+      // head of the output of the one before.
+      for (const bytes of [1, 64, 200, 4097, 65024, 65025, 63232 * 2 + 1000, 150000]) {
+        const h = make(8 * bytes);
+        h.update(binary(SMALL));
+        const digest = Buffer.from(h.finalize(), 'latin1');
+        assert.equal(digest.length, bytes);
+        assert.deepEqual(scanSampled(rt, [['message', SMALL], ['digest', digest]]), [], `${bytes} bytes of output`);
+      }
+    });
+  }
+
+  test('SHA-3, Keccak and SHAKE: the sponge state and the tail', () => {
+    const rt = keccak.runtime();
+    assert.ok(rt, 'run `zig build js` first');
+    for (const [label, make] of [
+      ['SHA3-256', () => new Sha3({ length: 256 })],
+      ['SHA3-512', () => new Sha3({ length: 512 })],
+      ['Keccak-256', () => new Keccak({ length: 256 })],
+      ['SHAKE128', () => new Shake({ length: 4096 })],
+    ]) {
+      // The sponge words after absorbing: `state.hash` is the secret-derived value.
+      const h = make();
+      h.update(binary(BIG));
+      const hash = h.getState().hash;
+      const digest = Buffer.from(h.finalize(), 'latin1');
+      assert.deepEqual(scanSampled(rt, [['message', BIG], ['digest', digest], ['sponge words', wordBytes(hash)]]), [], label);
+      check(label, rt, keccak.wasmCalls, make, [], [SMALL, BIG, HUGE]);
+    }
+  });
+
+  test('a refused call, and the JavaScript hand-over after it, leave nothing behind either', () => {
+    const RealInstance = WebAssembly.Instance;
+    const refuseAll = /^(keccak|blake)/;
+    WebAssembly.Instance = function Instance(module, imports) {
+      const real = new RealInstance(module, imports);
+      const exports = {};
+      for (const key of Object.keys(real.exports)) {
+        const value = real.exports[key];
+        exports[key] = typeof value === 'function' && refuseAll.test(key) && !key.endsWith('_state_size') ? () => 3 : value;
+      }
+      return { exports };
+    };
+    const internals = [keccak, blake2b, blake2s, blake3];
+    try {
+      internals.forEach((i) => i.reset(false));
+      for (const i of internals) assert.ok(i.runtime(), 'run `zig build js` first');
+      const makers = [
+        [keccak, () => new Sha3({ length: 256 })],
+        [keccak, () => new Shake({ length: 8000 })],
+        [blake2b, () => new Blake2b({ key: binary(KEY64) })],
+        [blake2s, () => new Blake2s({ key: binary(KEY32) })],
+        [blake3, () => new Blake3({ key: binary(KEY32), length: 800 })],
+      ];
+      for (const [internal, make] of makers) {
+        const h = make();
+        h.update(binary(BIG));
+        const digest = Buffer.from(h.finalize(), 'latin1');
+        assert.deepEqual(scanSampled(internal.runtime(), [['message', BIG], ['digest', digest], ['key', KEY32]]), []);
+      }
+    } finally {
+      WebAssembly.Instance = RealInstance;
+      internals.forEach((i) => i.reset(false));
+    }
+  });
+});
