@@ -1,21 +1,34 @@
 name: Publish to npm
 # Publishes packages/crypto-api to npm when a v* tag reaches the public repository.
 #
+# Two jobs, so that nothing that installs or runs third-party code can publish:
+#
+#   build    Checks the tag, builds, runs the tests, packs the tarball and uploads it
+#            with its SHA-256. Read-only token, no environment, no OIDC token.
+#   publish  Downloads that tarball, verifies the SHA-256 and runs `npm publish`.
+#            This is the only job that holds the OIDC token. It does not check out the
+#            repository, install dependencies or run any build or test code.
+#
 # Uses npm trusted publishing (OIDC): no npm token is stored anywhere. On npmjs.com,
 # crypto-api-ng -> Settings -> Trusted Publisher -> GitHub Actions with
 #   organization: Defense-Exploration-Holdings, repository: crypto-api-ng,
 #   workflow filename: publish.yml, environment: npm
 # and a GitHub environment named `npm` on that repository (add required reviewers there
-# if a release should wait for a person).
+# if a release should wait for a person; the `publish` job waits for them after `build`
+# has passed). Job names are not part of the trusted publisher configuration.
 #
 # Release: set "version" in packages/crypto-api/package.json and add a CHANGELOG entry,
-# merge, then push the matching tag (version 1.2.3 -> tag v1.2.3). The job refuses a tag
-# that does not match the package version. Versions with a pre-release part (1.2.3-rc.1)
-# are published under the `next` dist-tag instead of `latest`.
+# merge, then push the matching tag (version 1.2.3 -> tag v1.2.3). The build job refuses
+# a tag that does not match the package version. Versions with a pre-release part
+# (1.2.3-rc.1) are published under the `next` dist-tag instead of `latest`.
 #
 # If a publish fails after the tag exists (a tag is never moved), fix the workflow on main
 # and run it from main with Actions -> Publish to npm -> Run workflow, giving the existing
 # tag. It builds and publishes the tagged commit, not main.
+#
+# Pinned versions to keep current by hand: npm in the publish job (trusted publishing
+# needs 11.5.1 or later) and Playwright in the build job. Actions are pinned by commit
+# and updated by Dependabot.
 on:
   push:
     tags: ["v*"]
@@ -34,17 +47,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    # Only the public repository is a trusted publisher; elsewhere the job is skipped.
+  build:
+    # Only the public repository is a trusted publisher; elsewhere the jobs are skipped.
     if: github.repository == 'Defense-Exploration-Holdings/crypto-api-ng'
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    environment: npm
     permissions:
       contents: read
-      id-token: write # OIDC token for npm trusted publishing (and provenance)
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      dist_tag: ${{ steps.version.outputs.dist_tag }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
     steps:
       - name: Check the release tag format
         run: |
@@ -74,11 +89,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          registry-url: https://registry.npmjs.org
-      - name: npm with trusted publishing support (11.5.1 or later)
-        run: npm install -g npm@11
-      - name: Install build tools
-        run: npm ci
+      - name: Install build tools (without install scripts)
+        run: npm ci --ignore-scripts
       - name: Install Zig
         run: |
           scripts/install-zig.sh
@@ -91,15 +103,73 @@ jobs:
           npm run test:parity
       - name: Package tests (bundles, npm pack, smoke imports, Chromium global build)
         run: |
-          npm install --no-save playwright
+          npm install --no-save --ignore-scripts playwright@1.64.1
           npx playwright install --with-deps chromium
           npm run test:package
 
       - name: Pack the public package
-        run: node scripts/build-package.mjs --pack --name crypto-api-ng --public
+        id: pack
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          node scripts/build-package.mjs --pack --name crypto-api-ng --public
+          mkdir release
+          cp "dist/crypto-api-ng-$VERSION.tgz" release/
+          cd release
+          sha256sum "crypto-api-ng-$VERSION.tgz" | tee "crypto-api-ng-$VERSION.tgz.sha256"
+          echo "sha256=$(cut -d' ' -f1 "crypto-api-ng-$VERSION.tgz.sha256")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: release/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: github.repository == 'Defense-Exploration-Holdings/crypto-api-ng'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm
+    permissions:
+      id-token: write # OIDC token for npm trusted publishing (and provenance)
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+      DIST_TAG: ${{ needs.build.outputs.dist_tag }}
+      EXPECTED_SHA256: ${{ needs.build.outputs.sha256 }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22" # same major as .nvmrc; there is no checkout in this job
+          registry-url: https://registry.npmjs.org
+      - name: npm with trusted publishing support (11.5.1 or later), exact version
+        run: npm install -g --ignore-scripts npm@11.21.1
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+          path: release
+
+      - name: Verify the tarball
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "::error::bad version"; exit 1; }
+          [[ "$DIST_TAG" == latest || "$DIST_TAG" == next ]] || { echo "::error::bad dist-tag"; exit 1; }
+          [[ "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::bad checksum from the build job"; exit 1; }
+          cd release
+          tarball="crypto-api-ng-$VERSION.tgz"
+          [ "$(ls | sort | tr '\n' ' ')" = "$tarball $tarball.sha256 " ] || { echo "::error::unexpected files in the artifact"; ls -la; exit 1; }
+          sha256sum -c "$tarball.sha256"
+          [ "$(sha256sum "$tarball" | cut -d' ' -f1)" = "$EXPECTED_SHA256" ] || { echo "::error::tarball differs from the checksum the build job reported"; exit 1; }
+          tar -tzf "$tarball" | sort
+          tar -xzOf "$tarball" package/package.json | node -e '
+            const p = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            if (p.name !== "crypto-api-ng" || p.version !== process.env.VERSION || p.private) {
+              console.error("::error::package.json in the tarball does not match", p.name, p.version, p.private);
+              process.exit(1);
+            }'
+
       - name: Publish
         run: |
-          # The leading ./ matters: without it npm reads dist/x.tgz as a GitHub user/repo shorthand.
-          tarball="./dist/crypto-api-ng-${{ steps.version.outputs.version }}.tgz"
-          tar -tzf "$tarball" | sort
-          npm publish "$tarball" --access public --tag "${{ steps.version.outputs.dist_tag }}"
+          # The leading ./ matters: without it npm reads release/x.tgz as a GitHub user/repo shorthand.
+          npm publish "./release/crypto-api-ng-$VERSION.tgz" --access public --tag "$DIST_TAG"

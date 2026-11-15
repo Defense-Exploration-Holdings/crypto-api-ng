@@ -16,7 +16,7 @@ jobs:
         with:
           node-version-file: .nvmrc
       - name: Install build tools (esbuild, Babel, Terser for the package bundles)
-        run: npm ci
+        run: npm ci --ignore-scripts
       - name: Install Zig
         run: |
           scripts/install-zig.sh
@@ -27,7 +27,7 @@ jobs:
         run: npm run test:parity
       - name: Package (bundles, npm pack, smoke imports, Chromium global build)
         run: |
-          npm install --no-save playwright
+          npm install --no-save --ignore-scripts playwright@1.64.1
           npx playwright install --with-deps chromium
           npm run test:package
       - run: zig build check
