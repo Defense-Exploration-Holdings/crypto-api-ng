@@ -2,7 +2,7 @@
 
 ## Setup
 
-You need Zig 0.17.1 (pinned in `.zig-version`; `scripts/install-zig.sh` installs it) and Node.js 22 or newer (`.nvmrc`). Zig 0.17 differs from most tutorials: the optimize modes are `debug|safe|fast|small`, and `std.Io` and `std.process.Init` replace the older IO APIs. When in doubt, read the toolchain's own `lib/std`.
+You need Zig 0.17.1 (pinned in `.zig-version`; `scripts/install-zig.sh` installs it from a wheel whose hash is pinned in `scripts/zig-requirements.txt`; update both files together) and Node.js 22 or newer (`.nvmrc`). Zig 0.17 differs from most tutorials: the optimize modes are `debug|safe|fast|small`, and `std.Io` and `std.process.Init` replace the older IO APIs. When in doubt, read the toolchain's own `lib/std`.
 
 ```sh
 npm ci
