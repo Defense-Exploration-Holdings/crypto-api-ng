@@ -2,7 +2,7 @@
 'use strict';
 
 import Sponge from "./sponge.mjs";
-import {checkOptions} from "../tools/input.mjs";
+import {checkOptions, ownOption} from "../tools/input.mjs";
 
 /** Supported options. */
 const OPTIONS = {
@@ -35,8 +35,11 @@ class Shake extends Sponge {
    */
   constructor(options) {
     checkOptions('Shake', options, OPTIONS);
-    const strength = options && options.strength !== undefined ? options.strength : 128;
-    const length = options && options.length !== undefined ? options.length : strength * 2;
+    // Own properties only: an inherited value is not an option.
+    const given = ownOption(options, 'strength');
+    const strength = given !== undefined ? given : 128;
+    const bits = ownOption(options, 'length');
+    const length = bits !== undefined ? bits : strength * 2;
     super(options, 200 - strength / 4, 0x1f, length / 8);
   }
 }

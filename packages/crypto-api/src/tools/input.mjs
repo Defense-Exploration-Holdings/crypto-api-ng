@@ -143,6 +143,36 @@ export function explicitOptions(options, defaults) {
 }
 
 /**
+ * The value of option `key` if it is an own property of `options`, else
+ * `undefined`. For the hashers that have no original to stay compatible with
+ * (SHA-3, SHAKE, Keccak, BLAKE2, BLAKE3): a value inherited through the
+ * prototype chain, for example one added to `Object.prototype` by other code on
+ * the page, is never an option. A value that is not an object (`undefined`,
+ * `null`, a number, a string) has no options.
+ *
+ * @param {*} options
+ * @param {string} key
+ * @returns {*}
+ */
+export function ownOption(options, key) {
+  if (options === null || (typeof options !== 'object' && typeof options !== 'function')) return undefined;
+  return hasOwn.call(options, key) ? options[key] : undefined;
+}
+
+/**
+ * Set data property `key` of `target` to `value` without going through the
+ * prototype chain: a plain assignment would call a setter that other code
+ * installed for that name on `Object.prototype`.
+ *
+ * @param {Object} target
+ * @param {string} key
+ * @param {*} value
+ */
+export function defineOption(target, key, value) {
+  defineProperty(target, key, {value: value, writable: true, enumerable: true, configurable: true});
+}
+
+/**
  * `checkOptions` followed by `explicitOptions`: what every facade constructor
  * passes to `super()`. The check runs first so a rejected options object is
  * not modified.

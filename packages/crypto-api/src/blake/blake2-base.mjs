@@ -2,7 +2,7 @@
 'use strict';
 
 import Hasher from "../hasher/hasher.mjs";
-import {toBinaryString, checkOptions} from "../tools/input.mjs";
+import {toBinaryString, checkOptions, ownOption, defineOption} from "../tools/input.mjs";
 
 /**
  * What BLAKE2b and BLAKE2s share (RFC 7693, sequential mode). Not meant to be
@@ -47,10 +47,10 @@ class Blake2 extends Hasher {
     const options = this.options;
     const hash = spec.iv.slice();
     // Parameter block, sequential mode: digest length, key length, fanout 1, depth 1.
-    const key = options.key || '';
+    const key = ownOption(options, 'key') || '';
     hash[0] ^= (options.length / 8) | (key.length << 8) | (1 << 16) | (1 << 24);
-    xorParam(hash, spec, 4, options.salt);
-    xorParam(hash, spec, 6, options.personalization);
+    xorParam(hash, spec, 4, ownOption(options, 'salt'));
+    xorParam(hash, spec, 6, ownOption(options, 'personalization'));
     this.state = {
       message: key.length === 0 ? '' : key + new Array(spec.blockBytes - key.length + 1).join("\x00"),
       length: 0,
@@ -102,15 +102,18 @@ function normalize(spec, options) {
   options = options || {};
   const out = {};
   checkOptions(spec.name, options, {length: {min: 8, max: 8 * spec.digestBytes, step: 8}});
-  out.length = options.length === undefined ? 8 * spec.digestBytes : options.length;
+  // Own properties only: an inherited value (from `Object.prototype`, say) is not an option.
+  const length = ownOption(options, 'length');
+  defineOption(out, 'length', length === undefined ? 8 * spec.digestBytes : length);
   [['key', spec.digestBytes], ['salt', spec.paramBytes], ['personalization', spec.paramBytes]].forEach((entry) => {
     const name = entry[0];
-    if (options[name] !== undefined) {
-      const value = toBinaryString(options[name], name);
+    const given = ownOption(options, name);
+    if (given !== undefined) {
+      const value = toBinaryString(given, name);
       if (value.length > entry[1]) {
         throw new RangeError(spec.name + ': ' + name + ' can be at most ' + entry[1] + ' bytes, got ' + value.length);
       }
-      out[name] = value;
+      defineOption(out, name, value);
     }
   });
   return out;

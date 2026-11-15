@@ -5,7 +5,7 @@ import Hasher from "./hasher.mjs";
 import js, {IV, CHUNK, KEYED_HASH, DERIVE_KEY_CONTEXT, DERIVE_KEY_MATERIAL} from "../blake/blake3.mjs";
 import {wasmBytes} from "../../wasm/blake3.mjs";
 import createEngine from "../wasm/blake3.mjs";
-import {toBinaryString, checkOptions} from "../tools/input.mjs";
+import {toBinaryString, checkOptions, ownOption, defineOption} from "../tools/input.mjs";
 
 const engine = createEngine(wasmBytes, js);
 
@@ -46,19 +46,23 @@ function normalize(options) {
   }
   options = options || {};
   checkOptions('Blake3', options, {length: {min: 8, max: 8 * MAX_OUTPUT, step: 8}});
-  const out = {length: options.length === undefined ? 256 : options.length};
+  // Own properties only: an inherited value (from `Object.prototype`, say) is not an option.
+  const length = ownOption(options, 'length');
+  const key = ownOption(options, 'key');
+  const context = ownOption(options, 'context');
+  const out = {length: length === undefined ? 256 : length};
   let init = {key: IV, flags: 0};
-  if (options.key !== undefined && options.context !== undefined) {
+  if (key !== undefined && context !== undefined) {
     throw new TypeError('Blake3: key and context cannot be used together');
   }
-  if (options.key !== undefined) {
-    out.key = toBinaryString(options.key, 'key');
+  if (key !== undefined) {
+    defineOption(out, 'key', toBinaryString(key, 'key'));
     if (out.key.length !== 32) {
       throw new RangeError('Blake3: key must be 32 bytes, got ' + out.key.length);
     }
     init = {key: words(out.key), flags: KEYED_HASH};
-  } else if (options.context !== undefined) {
-    out.context = toBinaryString(options.context, 'context');
+  } else if (context !== undefined) {
+    defineOption(out, 'context', toBinaryString(context, 'context'));
     // The context string is hashed once; its 32-byte output keys the hash of the material.
     const contextKey = hashAll({key: IV, flags: DERIVE_KEY_CONTEXT}, out.context, 32);
     init = {key: words(contextKey), flags: DERIVE_KEY_MATERIAL};
