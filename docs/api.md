@@ -93,6 +93,8 @@ console.log(toHex(mac.finalize()));
 
 `new Hmac(key, hasher)` takes a binary string or bytes as the key and any hasher object, including your own subclass. It uses two fresh hashers of the same class and options, so the one you pass in stays untouched. `update(message)` adds data, `finalize()` returns the MAC as a binary string and can be called again (and `update()` continues the message), and `reset()` restarts with the same key. Whether the key is a UTF-8 string is up to you: use `CryptoApi.hmac()` or `fromUtf()` for text keys.
 
+Compare MAC values in constant time (`crypto.timingSafeEqual` in Node.js), not with `===`. An `Hmac` object keeps key-derived state in memory for as long as it exists. See "Security notes" in the [package README](../packages/crypto-api/README.md) and [SECURITY.md](../SECURITY.md).
+
 ## Encoders
 
 Each is its own module under `src/encoder/` with a named export, and also available as `CryptoApi.encoder.<name>`.
