@@ -35,7 +35,7 @@ pub const State = extern struct {
     /// Half-steps per block, 1..160 (`ceil(rounds / 2)` 64-bit steps are run).
     rounds: u32,
     _reserved0: u32,
-    /// Total bytes passed to `update`. Only the low 32 bits matter (`be32.lengthField`).
+    /// Total bytes passed to `update` (`be32.lengthField`).
     length: u64,
     /// Bytes currently buffered in `buf` (0..127).
     buffered: u32,
@@ -176,15 +176,15 @@ pub fn blocks(st: *State, data: []const u8) void {
 /// The bytes the original `finalize()` compresses after the buffered tail: ISO
 /// 7816-4 padding (`0x80`, then zeros) up to offset 112 (or 240 when the tail
 /// is 112 bytes or more), eight zero bytes, then the same 8-byte length field as
-/// the 32-bit hashers (`be32.lengthField`, bug included). `tail` is shorter than
+/// the 32-bit hashers (`be32.lengthField`). `tail` is shorter than
 /// one block. Returns the 128 or 256 bytes that remain to be compressed.
-pub fn finalTail(tail: []const u8, len_lo: u32, out: *[2 * block_len]u8) []const u8 {
+pub fn finalTail(tail: []const u8, length: u64, out: *[2 * block_len]u8) []const u8 {
     std.debug.assert(tail.len < block_len);
     @memset(out, 0);
     @memcpy(out[0..tail.len], tail);
     out[tail.len] = 0x80;
     const total: usize = if (tail.len < 112) block_len else 2 * block_len;
-    out[total - 8 ..][0..8].* = be32.lengthField(len_lo);
+    out[total - 8 ..][0..8].* = be32.lengthField(length);
     return out[0..total];
 }
 
@@ -222,7 +222,7 @@ pub fn update(st: *State, data: []const u8) void {
 pub fn final(st: *State, out: *[digest_len]u8) void {
     std.debug.assert(st.buffered < block_len);
     var buf: [2 * block_len]u8 = undefined;
-    blocks(st, finalTail(st.buf[0..st.buffered], @truncate(st.length), &buf));
+    blocks(st, finalTail(st.buf[0..st.buffered], st.length, &buf));
     st.buffered = 0;
     @memset(&st.buf, 0);
     inline for (0..16) |i| {
@@ -403,22 +403,28 @@ test "state after final matches the original (second final)" {
     try testing.expectEqualStrings("e7d716ecf244306d154a4f106efb7455539659529b73511be92399d9419a7982d218b6473ccde0a6a5ea80b1bb4bb5c1b206b5b0e2a7c9c88fd834ac99ddcf6f", &std.fmt.bytesToHex(out, .lower));
 }
 
-test "the 32-bit length field bug is kept: values captured from 0.8.5 with setState lengths" {
-    const cases = [_]struct { len: u64, hex: []const u8 }{
-        .{ .len = 1 << 31, .hex = "8c10f8843dfedc4321bf1edc708a08a1ec70f775e654e138c8829b2949fcb11f1de229ae0de51469d73edf2255429027295a3eea35e43a515b747aadc059956e" },
-        .{ .len = (1 << 31) + 5, .hex = "12584ed1a96aadddde1f897dc2cf030f485780d18236b1f302029f41c51617eab3d32bff86b1c98769ff799a753980adc9e62fbf2c0ef6df0d14e6d16e41c5de" },
-        // Bits above 2^32 are dropped (JS ToInt32): same field as length 7.
-        .{ .len = (1 << 32) + 7, .hex = "2c91534291c75eea96922422a703594898a47236f42627a837efc291388880bad050be3f91c7b9df08a2ed74755fb3540c214ab490262ecca553d326431d23be" },
-    };
-    for (cases) |c| {
+test "final writes the full 128-bit length field at and above 2 GiB" {
+    const lens = [_]u64{ 1 << 31, (1 << 31) + 5, (1 << 32) + 7, (1 << 53) - 1 };
+    for (lens) |len| {
         var st: State = undefined;
         init(&st, 512, 160);
         @memcpy(st.buf[0..3], "abc");
         st.buffered = 3;
-        st.length = c.len;
+        st.length = len;
         var out: [digest_len]u8 = undefined;
         final(&st, &out);
-        try testing.expectEqualStrings(c.hex, &std.fmt.bytesToHex(out, .lower));
+
+        // The same block built by hand: "abc", 0x80, zeros, 128-bit bit count.
+        var block: [block_len]u8 = @splat(0);
+        @memcpy(block[0..3], "abc");
+        block[3] = 0x80;
+        std.mem.writeInt(u128, block[112..128], @as(u128, len) * 8, .big);
+        var ref: State = undefined;
+        init(&ref, 512, 160);
+        blocks(&ref, &block);
+        var want: [digest_len]u8 = undefined;
+        for (0..16) |i| std.mem.writeInt(u32, want[i * 4 ..][0..4], ref.hash[i], .big);
+        try testing.expectEqualSlices(u8, &want, &out);
     }
 }
 

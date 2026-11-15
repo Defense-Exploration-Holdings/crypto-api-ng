@@ -1,3 +1,4 @@
+// crypto-api-ng:facade
 'use strict';
 
 import Hasher from "./hasher.mjs";
@@ -80,13 +81,21 @@ class Hasher32be extends Hasher {
    * @protected
    */
   addLengthBits() {
-    // @todo fix length to 64 bit
-    this.state.message += "\x00\x00\x00" +
-      String.fromCharCode(this.state.length >> 29 & 0xff) +
-      String.fromCharCode(this.state.length >> 21 & 0xff) +
-      String.fromCharCode(this.state.length >> 13 & 0xff) +
-      String.fromCharCode(this.state.length >> 5 & 0xff) +
-      String.fromCharCode(this.state.length << 3 & 0xff);
+    // The bit count as a 64-bit big-endian integer (0.8.5 used 32-bit shifts,
+    // which broke messages of 2 GiB or more). Modulo 2^64 for lengths
+    // that are not real byte counts (negative, beyond 2^53, from setState()).
+    const length = Math.floor(this.state.length);
+    const hi = Math.floor(length / 0x20000000) >>> 0;
+    const lo = (length % 0x20000000) * 8;
+    this.state.message +=
+      String.fromCharCode(hi >>> 24 & 0xff) +
+      String.fromCharCode(hi >>> 16 & 0xff) +
+      String.fromCharCode(hi >>> 8 & 0xff) +
+      String.fromCharCode(hi & 0xff) +
+      String.fromCharCode(lo >>> 24 & 0xff) +
+      String.fromCharCode(lo >>> 16 & 0xff) +
+      String.fromCharCode(lo >>> 8 & 0xff) +
+      String.fromCharCode(lo & 0xff);
   }
 }
 

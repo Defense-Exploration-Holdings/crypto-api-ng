@@ -2,7 +2,7 @@
 
 A hashing library for JavaScript with no dependencies: [`crypto-api`](https://github.com/nf404/crypto-api) 0.8.5 ported to Zig, with the compression functions compiled to WebAssembly.
 
-Version 1 is a drop-in replacement for `crypto-api@0.8.5`: same classes, import paths, options, digests and `getState()` output, bugs included. Where an input or option falls outside what the WebAssembly code models exactly, or WebAssembly is unavailable, the original JavaScript runs instead, so results are identical either way. Bug fixes and new APIs are planned for version 2.
+Version 1 is a drop-in replacement for `crypto-api@0.8.5`: same classes, import paths, options, digests and `getState()` output, bugs included. Where an input or option falls outside what the WebAssembly code models exactly, or WebAssembly is unavailable, the original JavaScript runs instead, so results are identical either way. Version 1.1 fixes the 0.8.5 bugs that 1.0 keeps (see "Changes in 1.1" in the package README); new APIs follow in version 2.
 
 The package is not on npm yet and its name is not final. Install and usage instructions are in [packages/crypto-api/README.md](packages/crypto-api/README.md).
 

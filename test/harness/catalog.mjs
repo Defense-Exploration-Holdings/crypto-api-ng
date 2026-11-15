@@ -61,7 +61,7 @@ export const VARIANTS = [
 /** The 7 HMAC vector files in the original suite: file id -> hasher variant. */
 export const HMAC_VARIANTS = ['has160', 'md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512'];
 
-/** Every name accepted by CryptoApi.getHasher(); `sm3` is intentionally not one of them (upstream bug, kept in v1). */
+/** Every name accepted by CryptoApi.getHasher() in 0.8.5 (which lacks `sm3`). */
 export const GET_HASHER_NAMES = [
   'has160', 'md2', 'md4', 'md5',
   'ripemd', 'ripemd128', 'ripemd160', 'ripemd256', 'ripemd320',
@@ -70,8 +70,55 @@ export const GET_HASHER_NAMES = [
   'whirlpool', 'whirlpool-0', 'whirlpool-t',
 ];
 
-/** Names that look valid but return undefined from getHasher(). */
+/** Names 1.1 adds to getHasher(), with the class they return. */
+export const ADDED_HASHER_NAMES = [{ name: 'sm3', family: 'sm3', variant: 'sm3' }];
+
+/** Names that look valid but return undefined from getHasher() (in 0.8.5 and 1.1, except `sm3`). */
 export const UNKNOWN_HASHER_NAMES = ['sm3', 'SHA256', 'MD5', 'sha-256', 'nope', '', 'sha3-256', 'blake2b'];
+
+// ---------------------------------------------------------------------------
+// 1.1 option rules
+// ---------------------------------------------------------------------------
+
+const range = (min, max, step = 1) => {
+  const out = [];
+  for (let v = min; v <= max; v += step) out.push(v);
+  return out;
+};
+
+/**
+ * The `rounds`/`length` values 1.1 accepts, per family. Anything else given for
+ * these keys (other numbers, strings, booleans, null, NaN) throws at
+ * construction; an absent key or `undefined` means the default.
+ * `rounds` may reduce the standard round count, never extend it (MD2, whose
+ * rounds use no constants, allows up to 255); `length` is the set the original
+ * documents.
+ */
+export const OPTION_RULES = {
+  has160: { rounds: range(1, 80) },
+  md2: { rounds: range(1, 255) },
+  md4: {},
+  md5: {},
+  ripemd: { length: [128, 160, 256, 320] },
+  sha0: { rounds: range(1, 80) },
+  sha1: { rounds: range(1, 80) },
+  sha256: { length: [224, 256], rounds: range(1, 64) },
+  sha512: { length: range(32, 512, 32), rounds: range(1, 160) },
+  sm3: { length: [256], rounds: range(1, 64) },
+  snefru: { length: range(32, 448, 32), rounds: range(1, 8) },
+  whirlpool: { rounds: range(1, 10) },
+};
+
+/** True when 1.1 accepts `options` for the family (see OPTION_RULES). */
+export function optionSupported(familyId, options) {
+  if (options === undefined || options === null || typeof options !== 'object') return true;
+  const rules = OPTION_RULES[familyId];
+  for (const key of Object.keys(rules)) {
+    const v = options[key];
+    if (v !== undefined && !rules[key].includes(v)) return false;
+  }
+  return true;
+}
 
 // ---------------------------------------------------------------------------
 // Option cells

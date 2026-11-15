@@ -4,6 +4,7 @@
 import LegacySha0 from "../../legacy/hasher/sha0.mjs";
 import family from "../wasm/sha1-family.mjs";
 import {createAccelerator, roundsIn} from "../wasm/be32.mjs";
+import {checkOptions} from "../tools/input.mjs";
 
 /*
  * SHA-0 with the compression and padding done in wasm, and everything else
@@ -31,6 +32,9 @@ const accel = createAccelerator({
   facade: () => Sha0
 });
 
+/** Supported `rounds`/`length` values (1.1 rejects the rest). */
+const OPTIONS = {rounds: {min: 1, max: 80}};
+
 /**
  * Calculates SHA-0 hash
  */
@@ -40,6 +44,7 @@ class Sha0 extends LegacySha0 {
    */
   constructor(options) {
     // Explicit, so `Sha0.length === 1` like the original (an implicit one has length 0).
+    checkOptions('Sha0', options, OPTIONS);
     super(options);
   }
 

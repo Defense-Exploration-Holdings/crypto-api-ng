@@ -10,7 +10,7 @@ import { boundaryLengths } from './catalog.mjs';
 // Inputs
 // ---------------------------------------------------------------------------
 
-/** Non-string values update() may be handed. The original coerces them with `+=`. */
+/** Non-string values update() may be handed. The original coerces them with `+=`; 1.1 hashes the bytes or throws. */
 const HOSTILE = [
   { t: 'u8', v: [1, 2] },
   { t: 'u8', v: [] },
@@ -22,6 +22,9 @@ const HOSTILE = [
   { t: 'bool', v: true },
   { t: 'obj' },
   { t: 'buf', v: [1, 2, 3, 4] },
+  { t: 'dv', v: [9, 8, 7, 6, 5] },
+  { t: 'u16', v: [0x4142, 0xffff, 0] },
+  { t: 'sub', v: [10, 20, 30, 40, 50, 60] },
 ];
 
 export function realize(input) {
@@ -29,6 +32,9 @@ export function realize(input) {
     case 's': return input.v;
     case 'u8': return Uint8Array.from(input.v);
     case 'buf': return Uint8Array.from(input.v).buffer;
+    case 'dv': return new DataView(Uint8Array.from(input.v).buffer);
+    case 'u16': return Uint16Array.from(input.v);
+    case 'sub': return Uint8Array.from(input.v).subarray(2, 5);
     case 'arr': return [...input.v];
     case 'num': return input.v;
     case 'bool': return input.v;
@@ -183,9 +189,16 @@ export function runHandoff(from, to, family, options, scenario, cut) {
 // Comparison
 // ---------------------------------------------------------------------------
 
-/** Returns null when equal, else a short description of the first difference. */
-export function diffRuns(expected, actual) {
-  if (expected.ctor !== actual.ctor) {
+/** With `loose`, a thrown error is compared by its class only ("!TypeError: ..." -> "!TypeError"). */
+const normalizer = (loose) => (loose ? (v) => (typeof v === 'string' && v.startsWith('!') ? v.replace(/:[\s\S]*$/, '') : v) : (v) => v);
+
+/**
+ * Returns null when equal, else a short description of the first difference.
+ * `opts.loose` compares thrown errors by class only (for the fixes model, see fixes-model.mjs).
+ */
+export function diffRuns(expected, actual, opts = {}) {
+  const n = normalizer(opts.loose);
+  if (n(expected.ctor) !== n(actual.ctor)) {
     return `constructor: expected ${expected.ctor}, got ${actual.ctor}`;
   }
   if (expected.optionsAfter !== actual.optionsAfter) {
@@ -195,7 +208,7 @@ export function diffRuns(expected, actual) {
     const e = expected.trace[i];
     const a = actual.trace[i];
     for (const k of Object.keys(e)) {
-      if (e[k] !== a[k]) return `step ${i} (${e.op}) ${k}:\n  expected ${trunc(e[k])}\n  actual   ${trunc(a[k])}`;
+      if (n(e[k]) !== n(a[k])) return `step ${i} (${e.op}) ${k}:\n  expected ${trunc(e[k])}\n  actual   ${trunc(a[k])}`;
     }
   }
   return null;
@@ -204,14 +217,15 @@ export function diffRuns(expected, actual) {
 const trunc = (s) => (typeof s === 'string' && s.length > 400 ? `${s.slice(0, 400)}…(${s.length} chars)` : s);
 
 /** Compare the tail of a handoff run with the matching tail of a straight-through oracle run. */
-export function diffHandoff(straight, handoff, cut) {
+export function diffHandoff(straight, handoff, cut, opts = {}) {
+  const n = normalizer(opts.loose);
   const expectedTail = straight.trace.slice(cut);
   if (handoff.set.r !== 'ok') return `setState failed: ${handoff.set.r}`;
   for (let i = 0; i < expectedTail.length; i++) {
     const e = expectedTail[i];
     const a = handoff.tail[i];
     for (const k of Object.keys(e)) {
-      if (e[k] !== a[k]) return `step ${cut + i} (${e.op}) after handoff ${k}:\n  expected ${trunc(e[k])}\n  actual   ${trunc(a[k])}`;
+      if (n(e[k]) !== n(a[k])) return `step ${cut + i} (${e.op}) after handoff ${k}:\n  expected ${trunc(e[k])}\n  actual   ${trunc(a[k])}`;
     }
   }
   return null;

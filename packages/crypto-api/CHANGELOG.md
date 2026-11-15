@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.1.0 (unreleased)
+
+Fixes the 0.8.5 bugs that 1.0 kept for compatibility.
+
+**Behavior changes.** Every digest that 1.0 computed correctly is unchanged. Inputs and options that gave a wrong or meaningless result in 0.8.5 and 1.0 now throw or give the correct result, so code that depended on one of those results needs updating. The 1.0.x line stays available for code that needs the exact 0.8.5 behavior.
+
+* `update()` accepts bytes: an `ArrayBuffer`, `SharedArrayBuffer` or any view of one (`Uint8Array`, `DataView`, other typed arrays) is hashed as its bytes. `Hmac` keys and messages, and the `CryptoApi.hash()`/`hmac()` messages and keys, accept bytes too (strings are still UTF-8 encoded there).
+* `update()` throws `TypeError` for a string with a character above `\xFF` (previously an algorithm-specific value that was neither UTF-8 nor Latin-1). Convert text with `fromUtf()` first, or pass bytes.
+* `update()` throws `TypeError` for any other value (previously coerced with `String()`, so `Uint8Array([1, 2])` was hashed as `"1,2"`).
+* The message length field is the full 64-bit bit count. Messages of 2 GiB or more now get the correct digest; shorter messages are unaffected.
+* `CryptoApi.getHasher('sm3')` returns an SM3 hasher, so `CryptoApi.hash('sm3', ...)` works.
+* `Hmac` no longer modifies the hasher passed to it: it hashes with two fresh hashers of the same class and options, and ignores any data already in the one given. `finalize()` can be called repeatedly and returns the same value; `update()` after it continues the message. New `reset()` restarts with the same key.
+* Out-of-range `rounds` and `length` options throw at construction: `RangeError` for a number outside the supported set, `TypeError` for a value that is not a number. `undefined` still selects the default. Supported values:
+
+  | Class | `rounds` | `length` |
+  |---|---|---|
+  | `Has160` | 1 to 80 | |
+  | `Md2` | 1 to 255 | |
+  | `Ripemd` | | 128, 160, 256, 320 |
+  | `Sha0`, `Sha1` | 1 to 80 | |
+  | `Sha256` | 1 to 64 | 224, 256 |
+  | `Sha512` | 1 to 160 | 32 to 512 in steps of 32 |
+  | `Sm3` | 1 to 64 | 256 |
+  | `Snefru` | 1 to 8 | 32 to 448 in steps of 32 |
+  | `Whirlpool` | 1 to 10 | |
+
+  `rounds` can reduce the standard round count but not extend it (MD2, whose rounds use no constants, allows up to 255). The rejected values previously ran on undefined round constants, threw from inside `update()`, or never returned.
+
 ## 1.0.0
 
 Maintained Zig/WebAssembly port of `crypto-api` 0.8.5. Drop-in replacement: same API, same import paths, same results and `getState()` JSON. See "Differences from crypto-api 0.8.5" in the README for the complete list of deliberate differences.

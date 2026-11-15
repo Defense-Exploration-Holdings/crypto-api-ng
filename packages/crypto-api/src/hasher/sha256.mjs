@@ -4,6 +4,7 @@
 import LegacySha256 from "../../legacy/hasher/sha256.mjs";
 import {wasmBytes} from "../../wasm/sha256.mjs";
 import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
+import {checkOptions} from "../tools/input.mjs";
 
 /*
  * SHA-224/256 with the compression and padding done in wasm, and everything else
@@ -35,6 +36,9 @@ const accel = createAccelerator({
   facade: () => Sha256
 });
 
+/** Supported `rounds`/`length` values (1.1 rejects the rest). */
+const OPTIONS = {length: {values: [224, 256]}, rounds: {min: 1, max: 64}};
+
 /**
  * Calculates SHA-224/256 hash
  */
@@ -44,6 +48,7 @@ class Sha256 extends LegacySha256 {
    */
   constructor(options) {
     // Explicit, so `Sha256.length === 1` like the original (an implicit one has length 0).
+    checkOptions('Sha256', options, OPTIONS);
     super(options);
   }
 

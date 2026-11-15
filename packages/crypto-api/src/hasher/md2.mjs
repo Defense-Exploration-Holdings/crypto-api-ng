@@ -4,6 +4,7 @@
 import LegacyMd2 from "../../legacy/hasher/md2.mjs";
 import {wasmBytes} from "../../wasm/md2.mjs";
 import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
+import {checkOptions} from "../tools/input.mjs";
 
 /*
  * MD2 with the compression and padding done in wasm, and everything else left
@@ -109,6 +110,9 @@ function store(array, n, o) {
   for (let i = 0; i < n; i++) array[i] = u8[o + i];
 }
 
+/** Supported `rounds`/`length` values (1.1 rejects the rest). */
+const OPTIONS = {rounds: {min: 1, max: 255}};
+
 /**
  * Calculates [MD2](https://tools.ietf.org/html/rfc1319) hash
  */
@@ -119,6 +123,7 @@ class Md2 extends LegacyMd2 {
    */
   constructor(options) {
     // Explicit, so `Md2.length === 1` like the original (an implicit one has length 0).
+    checkOptions('Md2', options, OPTIONS);
     super(options);
   }
 
