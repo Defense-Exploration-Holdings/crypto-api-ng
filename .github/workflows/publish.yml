@@ -67,7 +67,7 @@ jobs:
             v[0-9]*.[0-9]*.[0-9]*) ;;
             *) echo "::error::'$RELEASE_TAG' is not a release tag such as v1.2.3"; exit 1 ;;
           esac
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: refs/tags/${{ env.RELEASE_TAG }}
           persist-credentials: false
@@ -86,7 +86,7 @@ jobs:
 
       - name: Fetch the upstream crypto-api checkout (the parity oracle)
         run: scripts/fetch-upstream.sh
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
       - name: Install build tools (without install scripts)
@@ -119,7 +119,7 @@ jobs:
           cd release
           sha256sum "crypto-api-ng-$VERSION.tgz" | tee "crypto-api-ng-$VERSION.tgz.sha256"
           echo "sha256=$(cut -d' ' -f1 "crypto-api-ng-$VERSION.tgz.sha256")" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: npm-package
           path: release/
@@ -139,13 +139,13 @@ jobs:
       DIST_TAG: ${{ needs.build.outputs.dist_tag }}
       EXPECTED_SHA256: ${{ needs.build.outputs.sha256 }}
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22" # same major as .nvmrc; there is no checkout in this job
           registry-url: https://registry.npmjs.org
       - name: npm with trusted publishing support (11.5.1 or later), exact version
         run: npm install -g --ignore-scripts npm@11.21.1
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: npm-package
           path: release
