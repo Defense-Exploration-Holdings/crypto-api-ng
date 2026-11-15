@@ -6,7 +6,9 @@
   "type": "module",
   "main": "js/index.js",
   "types": "js/index.d.ts",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "zig build wasm --release=small",
     "build:debug": "zig build wasm",
@@ -28,6 +30,7 @@
     "@babel/preset-env": "8.0.7",
     "acorn": "8.19.0",
     "esbuild": "0.28.2",
-    "terser": "5.51.2"
+    "terser": "5.51.2",
+    "typescript": "5.9.3"
   }
 }

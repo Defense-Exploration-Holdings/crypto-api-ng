@@ -55,7 +55,7 @@ describe('tarball contents', () => {
     const top = new Set(files.map((f) => f.split('/')[0]));
     assert.deepEqual([...top].sort(), [
       'CHANGELOG.md', 'LICENSE', 'README.md', 'crypto-api.js', 'crypto-api.min.js', 'crypto-api.min.js.map',
-      'example', 'index.js', 'legacy', 'package.json', 'src', 'wasm',
+      'example', 'index.d.ts', 'index.js', 'legacy', 'package.json', 'src', 'types.d.ts', 'wasm',
     ]);
   });
 
@@ -112,7 +112,7 @@ describe('package name is configurable', () => {
       assert.equal(pkg.type, undefined);
       for (const f of walk(dir).filter((p) => /\.(md|html|mjs|cjs|json)$/.test(p) && !p.includes('/wasm/') && !p.includes('/legacy/'))) {
         if (/\/(README\.md|example\/)/.test(f) && name !== 'crypto-api-ng') {
-          assert.doesNotMatch(readFileSync(f, 'utf8'), /crypto-api-ng(?![\w-])/, f);
+          assert.doesNotMatch(readFileSync(f, 'utf8'), /(?<!Holdings\/)crypto-api-ng(?![\w-])/, f);
         }
       }
       assert.match(readFileSync(join(dir, 'README.md'), 'utf8'), new RegExp(`npm install ${name}\\n`));

@@ -15,6 +15,7 @@
     "url": "https://github.com/Defense-Exploration-Holdings/crypto-api-ng/issues"
   },
   "main": "index.js",
+  "types": "index.d.ts",
   "module": "src/index.mjs",
   "unpkg": "crypto-api.min.js",
   "jsdelivr": "crypto-api.min.js",
@@ -29,7 +30,9 @@
     "crypto-api.js",
     "crypto-api.min.js",
     "crypto-api.min.js.map",
-    "index.js"
+    "index.js",
+    "index.d.ts",
+    "types.d.ts"
   ],
   "sideEffects": false,
   "dependencies": {},

@@ -1,5 +1,9 @@
 # crypto-api-ng
 
+[![npm](https://img.shields.io/npm/v/crypto-api-ng)](https://www.npmjs.com/package/crypto-api-ng)
+[![license](https://img.shields.io/npm/l/crypto-api-ng)](LICENSE)
+[![types](https://img.shields.io/npm/types/crypto-api-ng)](docs/api.md)
+
 A hashing library for JavaScript with no dependencies: [`crypto-api`](https://github.com/nf404/crypto-api) 0.8.5 ported to Zig, with the compression functions compiled to WebAssembly.
 
 Version 1 is a drop-in replacement for `crypto-api@0.8.5`: same classes, import paths, options, digests and `getState()` output, bugs included. Where an input or option falls outside what the WebAssembly code models exactly, or WebAssembly is unavailable, the original JavaScript runs instead, so results are identical either way. Version 1.1 fixes the 0.8.5 bugs that 1.0 keeps (see "Changes in 1.1" in the package README); new APIs follow in version 2.
@@ -10,7 +14,20 @@ Version 1 is a drop-in replacement for `crypto-api@0.8.5`: same classes, import 
 npm install crypto-api-ng
 ```
 
-Usage for Node.js, bundlers and browsers is in [packages/crypto-api/README.md](packages/crypto-api/README.md).
+## Quick start
+
+```javascript
+const CryptoApi = require('crypto-api-ng');
+
+CryptoApi.hash('sha256', 'abc');
+// 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+
+CryptoApi.hmac('key', 'message', CryptoApi.getHasher('md5'));
+```
+
+Runs on Node.js 18 and newer, Bun, Deno and current browsers, and falls back to plain JavaScript where WebAssembly is unavailable. TypeScript declarations are included.
+
+The full API is in the [API reference](docs/api.md). Usage for Node.js, bundlers and browsers is in [packages/crypto-api/README.md](packages/crypto-api/README.md).
 
 ## Algorithms
 
@@ -25,6 +42,8 @@ Compatibility with 0.8.5 is tested, not assumed. The original's own 286 tests ru
 Measured on Node 22 against the same public API, v1 is 3.7x to 4.1x faster than 0.8.5 on average (geometric mean over 24 algorithm variants), and no measured throughput case is slower. The SHA-384/512 family gains the most (about 15x on larger inputs), followed by Whirlpool (about 8x) and MD5 (about 6x). MD2 gains the least (about 1.2x) because its cost is a chain of dependent table lookups.
 
 The trade-offs are size and start-up: the original JavaScript is kept as the fallback, so an import is about 1.8x to 4.3x larger after gzip, and loading a hasher costs roughly 1.5 to 3 milliseconds more at start-up. Full results, methodology and caveats are in [docs/benchmarks.md](docs/benchmarks.md).
+
+![Speedup of v1 over 0.8.5 per algorithm](docs/benchmarks/speedup.svg)
 
 ## Building from source
 

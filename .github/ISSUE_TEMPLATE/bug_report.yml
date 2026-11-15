@@ -1,0 +1,32 @@
+name: Bug report
+description: A wrong digest, an error, or behavior that differs from the documentation.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead. For a wrong digest, include the algorithm, options and input, and the digest you expected with its source (test vector, another implementation).
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: A short script that shows the problem.
+      render: javascript
+  - type: input
+    id: version
+    attributes:
+      label: crypto-api-ng version
+      placeholder: "1.1.0"
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime
+      description: Node.js, Bun, Deno or browser, with the version. Say if WebAssembly is disabled.
+      placeholder: "Node.js 22.12"
+    validations:
+      required: true

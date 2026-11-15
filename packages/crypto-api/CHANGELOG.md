@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+* TypeScript declarations ship with the package (`index.d.ts`, `types.d.ts` and a `.d.mts` file for every module under `src/`). No runtime change.
+* New [API reference](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/api.md).
+
 ## 1.1.0 (2026-11-15)
 
 Fixes the 0.8.5 bugs that 1.0 kept for compatibility.

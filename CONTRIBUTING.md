@@ -19,7 +19,7 @@ zig build families                # one module per algorithm family
 zig build js                      # embed the modules for the JavaScript facades (check does this)
 npm run test:parity               # the original's tests and the differential fuzzer (needs zig build js and crypto-api/)
 npm run build:package             # ES5 bundles and example vectors in packages/crypto-api
-npm run test:package              # bundles, tarball contents, smoke imports, Chromium (needs playwright)
+npm run test:package              # bundles, tarball contents, TypeScript declarations, smoke imports, Chromium (needs playwright)
 npm run pack -- --name <name>     # stage and `npm pack`; the package name is configurable on purpose
 ```
 
@@ -28,6 +28,10 @@ Run `zig build check` in debug and with `--release=small` before sending a chang
 ## Ground rules for v1
 
 Version 1 behaves exactly like `crypto-api` 0.8.5, bugs included. Do not improve outputs while porting; fixes and API changes belong to version 2. If you touch anything under `packages/crypto-api/`, keep `npm run test:parity` green. Hand-written files there start with `// crypto-api-ng:facade`; the rest are vendored from the original by `scripts/vendor-legacy.mjs`. The package name is configurable at pack time (`npm run pack -- --name <name>` replaces `crypto-api-ng` in the staged README and examples), so keep the README and examples using the committed name consistently.
+
+## TypeScript declarations
+
+The declarations are hand-written: `packages/crypto-api/types.d.ts` and `index.d.ts` for the `CryptoApi` object, and a `.d.mts` file next to each module under `src/`. When you add an algorithm or an option, update them and `docs/api.md`; `test/package/types.test.js` compiles sample programs against the packed package in a strict project and fails when a module has no declaration.
 
 ## Adding or changing an algorithm
 
