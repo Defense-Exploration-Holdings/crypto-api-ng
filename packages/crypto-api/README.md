@@ -4,8 +4,6 @@ Hashing library for JavaScript with no dependencies: a maintained port of [`cryp
 
 **Version 1 is a drop-in replacement for `crypto-api@0.8.5`**: same classes, same import paths, same options, same digests and the same `getState()` JSON for every input the original accepts, bugs included. **Version 1.1** keeps that API and fixes those bugs (see "Changes in 1.1"); the 1.0.x line keeps them for code that depends on the exact 0.8.5 behavior. Where a hasher is used outside what the WebAssembly code models exactly (subclasses overriding internals, unusual states set with `setState()`, no WebAssembly in the environment), the original JavaScript code runs instead, so the result is the same either way.
 
-> Status: pre-release. Not yet published to npm; the package name is not final.
-
 ## Install
 
 ```sh

@@ -28,6 +28,10 @@ Fixes the 0.8.5 bugs that 1.0 kept for compatibility.
 
   `rounds` can reduce the standard round count but not extend it (MD2, whose rounds use no constants, allows up to 255). The rejected values previously ran on undefined round constants, threw from inside `update()`, or never returned.
 
+## 1.0.1
+
+* README: remove the outdated pre-release notice. No code changes.
+
 ## 1.0.0
 
 Maintained Zig/WebAssembly port of `crypto-api` 0.8.5. Drop-in replacement: same API, same import paths, same results and `getState()` JSON. See "Differences from crypto-api 0.8.5" in the README for the complete list of deliberate differences.
