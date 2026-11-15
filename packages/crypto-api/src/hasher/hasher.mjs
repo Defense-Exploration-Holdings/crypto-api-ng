@@ -2,6 +2,7 @@
 'use strict';
 
 import {toBinaryString} from "../tools/input.mjs";
+import {checkEncoding, encodeDigest} from "../tools/digest.mjs";
 
 /**
  * Base hasher class
@@ -109,6 +110,21 @@ class Hasher {
    */
   finalize() {
     return '';
+  }
+
+  /**
+   * Finalize hash and return the digest as bytes, or encoded as text.
+   * Calls `finalize()`, so a hasher whose `finalize()` ends the message is used
+   * up the same way.
+   *
+   * @param {string} [encoding] - `'hex'`, `'base64'`, `'base64url'` or `'binary'`
+   *   (the binary string `finalize()` returns); left out, the digest is bytes
+   * @returns {Uint8Array|string}
+   * @throws {TypeError} for any other `encoding`
+   */
+  digest(encoding) {
+    checkEncoding(encoding);
+    return encodeDigest(this.finalize(), encoding);
   }
 
   /**

@@ -2,7 +2,7 @@
 
 This page covers the public API of `crypto-api-ng` 1.1. It is the API of [crypto-api](https://github.com/nf404/crypto-api) 0.8.5 plus the changes listed in the [CHANGELOG](../packages/crypto-api/CHANGELOG.md).
 
-Hashers work on **binary strings**: strings whose characters are all in `\x00`-`\xFF`, one character per byte. Digests are returned the same way. Use the encoders below to turn text into bytes and digests into hex or base64. Since 1.1 every input argument also accepts bytes (`ArrayBuffer`, `SharedArrayBuffer` or any view such as `Uint8Array`).
+Hashers work on **binary strings**: strings whose characters are all in `\x00`-`\xFF`, one character per byte. `finalize()` returns the digest the same way. Since 1.1 every input argument also accepts bytes (`ArrayBuffer`, `SharedArrayBuffer` or any view such as `Uint8Array`), and `digest()` returns bytes, so a program that works on bytes never has to touch a binary string: see [Working with bytes](#working-with-bytes).
 
 ## The `CryptoApi` object
 
@@ -16,10 +16,12 @@ CryptoApi.hash('sha256', 'abc');
 | Method | Returns | Notes |
 |---|---|---|
 | `hash(name, message, options?)` | hex string | A string `message` is UTF-8 encoded; bytes are hashed as they are. |
+| `hashBytes(name, message, options?)` | `Uint8Array` | Same as `hash`, digest as bytes. |
 | `getHasher(name, options?)` | a hasher | `undefined` for an unknown `name`. Names are in the table below. |
 | `hmac(key, message, hasher)` | hex string | `key` and `message` are UTF-8 encoded if they are strings, bytes otherwise. |
+| `hmacBytes(key, message, hasher)` | `Uint8Array` | Same as `hmac`, MAC as bytes. |
 | `getHmac(key, hasher)` | an `Hmac` | `key` is a binary string or bytes (not UTF-8 encoded). |
-| `encoder` | object | `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64`. |
+| `encoder` | object | `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64` (binary strings), and `utf8ToBytes`, `bytesToUtf8`, `bytesToHex`, `hexToBytes`, `bytesToBase64`, `base64ToBytes` (bytes). |
 
 ### Algorithm names
 
@@ -61,6 +63,7 @@ console.log(toHex(hasher.finalize()));   // sha256 of "abc"
 |---|---|
 | `update(message)` | Adds a binary string or bytes to the message. Can be called any number of times. Throws `TypeError` for anything else, and for a string with a character above `\xFF`. |
 | `finalize()` | Pads, finishes and returns the digest as a binary string. Pass it to `toHex` or `toBase64`. |
+| `digest(encoding?)` | `finalize()`, then the digest as a `Uint8Array`, or as text for `encoding` `'hex'`, `'base64'`, `'base64url'` or `'binary'`. See [Working with bytes](#working-with-bytes). |
 | `reset()` | Back to the initial state, keeping the options. |
 | `getState()` / `setState(state)` | A plain JSON-serializable snapshot of the hasher, and restoring it into a hasher of the same class and options. Use it to pause and resume a hash. |
 
@@ -135,7 +138,60 @@ mac.update('message');
 console.log(toHex(mac.finalize()));
 ```
 
-`new Hmac(key, hasher)` takes a binary string or bytes as the key and any hasher object, including your own subclass. It uses two fresh hashers of the same class and options, so the one you pass in stays untouched. `update(message)` adds data, `finalize()` returns the MAC as a binary string and can be called again (and `update()` continues the message), and `reset()` restarts with the same key. Whether the key is a UTF-8 string is up to you: use `CryptoApi.hmac()` or `fromUtf()` for text keys.
+`new Hmac(key, hasher)` takes a binary string or bytes as the key and any hasher object, including your own subclass. It uses two fresh hashers of the same class and options, so the one you pass in stays untouched. `update(message)` adds data, `finalize()` returns the MAC as a binary string and can be called again (and `update()` continues the message), and `reset()` restarts with the same key. `digest(encoding?)` is `finalize()` returning bytes or text, like the hashers' `digest()`. Whether the key is a UTF-8 string is up to you: use `CryptoApi.hmac()` or `utf8ToBytes()` for text keys.
+
+## Working with bytes
+
+The classic interface speaks binary strings. Everything below speaks bytes instead, so you can hash and encode without a binary string anywhere.
+
+```javascript
+import CryptoApi from "crypto-api-ng/src/index.mjs";
+import Sha256 from "crypto-api-ng/src/hasher/sha256.mjs";
+import Hmac from "crypto-api-ng/src/mac/hmac.mjs";
+import {utf8ToBytes, bytesToHex, hexToBytes} from "crypto-api-ng/src/encoder/bytes.mjs";
+
+const hasher = new Sha256();
+hasher.update(utf8ToBytes('message'));     // bytes in
+const digest = hasher.digest();            // Uint8Array(32) out
+console.log(bytesToHex(digest));
+
+const key = hexToBytes('000102030405060708090a0b0c0d0e0f');
+const mac = new Hmac(key, new Sha256());
+mac.update(new Uint8Array([1, 2, 3]));
+console.log(mac.digest('base64url'));      // or ask for text directly
+
+CryptoApi.hashBytes('sha3-256', 'a string is UTF-8 encoded');   // Uint8Array(32)
+CryptoApi.hmacBytes(key, new Uint8Array([1, 2, 3]), CryptoApi.getHasher('sha256'));
+```
+
+### `digest(encoding?)`
+
+`digest()` is on every hasher and on `Hmac`. It calls `finalize()` and converts the result, so everything said about `finalize()` applies: a 0.8.5 hasher is used up by it, the SHA-3 and BLAKE hashers and `Hmac` can be asked again. A subclass that overrides `finalize()` is respected.
+
+| `encoding` | Returns |
+|---|---|
+| left out | a new `Uint8Array` that owns its buffer |
+| `'hex'` | lowercase hex |
+| `'base64'` | base64 with padding |
+| `'base64url'` | URL-safe base64 without padding, as Node.js writes it |
+| `'binary'` | the binary string `finalize()` returns |
+
+Any other value throws `TypeError` before the hasher is touched.
+
+### Byte encoders
+
+Importable from `src/encoder/bytes.mjs` and available as `CryptoApi.encoder.<name>`. They take bytes (`ArrayBuffer`, `SharedArrayBuffer` or any view of one) and return `Uint8Array` or text. Options are read as own properties of the object you pass, never from the prototype chain.
+
+| Function | Description |
+|---|---|
+| `utf8ToBytes(text)` | UTF-8 bytes of a string. An unpaired surrogate becomes U+FFFD, as `TextEncoder` does. |
+| `bytesToUtf8(bytes, options?)` | Text from UTF-8 bytes. Invalid bytes become U+FFFD; with `{fatal: true}` they throw `TypeError`. A leading byte order mark is kept. |
+| `bytesToHex(bytes)` | Lowercase hex. |
+| `hexToBytes(hex)` | Bytes from hex of either case, no separators or `0x`. Throws `SyntaxError` for an odd length or a character that is not a hex digit. |
+| `bytesToBase64(bytes, options?)` | Base64 ([RFC 4648](https://www.rfc-editor.org/rfc/rfc4648)). Options: `alphabet` (`'base64'`, the default, or `'base64url'`) and `omitPadding` (default `false`). |
+| `base64ToBytes(text, options?)` | Bytes from base64. Option: `alphabet`. Padding may be left out, ASCII whitespace is ignored, and the unused bits of the last character must be zero. Throws `SyntaxError` for a character outside the alphabet, wrong padding, a length no byte string encodes to, or non-zero unused bits. |
+
+`TextEncoder` and `TextDecoder` do the UTF-8 work where they exist, and a built-in implementation with the same results takes over where they do not. The encoders throw `TypeError` for an argument of the wrong type (for example text where bytes are expected).
 
 ## Encoders
 
@@ -147,6 +203,8 @@ Each is its own module under `src/encoder/` with a named export, and also availa
 | `fromArrayBuffer(buffer)` | `array-buffer.mjs` | `ArrayBuffer` to a binary string. Since 1.1 `update()` takes the buffer directly. |
 | `toHex(binary)` | `hex.mjs` | Binary string (a digest) to lowercase hex. |
 | `toBase64(binary)` | `base64.mjs` | Binary string to base64. |
+
+These four work on binary strings, as in 0.8.5, and stay for compatibility. For new code prefer the [byte encoders](#byte-encoders).
 
 ## Errors
 

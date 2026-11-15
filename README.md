@@ -23,6 +23,8 @@ CryptoApi.hash('sha256', 'abc');
 // 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
 
 CryptoApi.hmac('key', 'message', CryptoApi.getHasher('md5'));
+
+CryptoApi.hashBytes('sha256', new Uint8Array([1, 2, 3]));   // Uint8Array(32), bytes in and out
 ```
 
 Runs on Node.js 18 and newer, Bun, Deno and current browsers, and falls back to plain JavaScript where WebAssembly is unavailable. TypeScript declarations are included.

@@ -23,6 +23,7 @@ import {fromUtf} from "./encoder/utf.mjs";
 import {fromArrayBuffer} from "./encoder/array-buffer.mjs";
 import {toHex} from "./encoder/hex.mjs";
 import {toBase64} from "./encoder/base64.mjs";
+import {utf8ToBytes, bytesToUtf8, bytesToHex, hexToBytes, bytesToBase64, base64ToBytes} from "./encoder/bytes.mjs";
 import Hmac from "./mac/hmac.mjs";
 import {toBinaryString} from "./tools/input.mjs";
 
@@ -57,6 +58,13 @@ class CryptoApi {
     this.encoder.toHex = toHex;
     /** @type {toBase64} */
     this.encoder.toBase64 = toBase64;
+    // Added by crypto-api-ng: the same conversions on bytes (Uint8Array)
+    this.encoder.utf8ToBytes = utf8ToBytes;
+    this.encoder.bytesToUtf8 = bytesToUtf8;
+    this.encoder.bytesToHex = bytesToHex;
+    this.encoder.hexToBytes = hexToBytes;
+    this.encoder.bytesToBase64 = bytesToBase64;
+    this.encoder.base64ToBytes = base64ToBytes;
   }
 
   /**
@@ -218,6 +226,21 @@ class CryptoApi {
   }
 
   /**
+   * Like {@link CryptoApi#hash}, but returns the digest as bytes. Not in 0.8.5.
+   *
+   * @param {string} name
+   * @param {string|ArrayBuffer|ArrayBufferView} message - a string is UTF-8 encoded
+   * @param {Object} options
+   * @returns {Uint8Array}
+   */
+  hashBytes(name, message, options) {
+    options = options || {};
+    let hasher = this.getHasher(name, options);
+    hasher.update(utfOrBytes(message, 'message'));
+    return hasher.digest();
+  }
+
+  /**
    * Get HMAC instance
    *
    * @param {string} key
@@ -240,6 +263,20 @@ class CryptoApi {
     let mac = this.getHmac(utfOrBytes(key, 'key'), hasher);
     mac.update(utfOrBytes(message, 'message'));
     return toHex(mac.finalize());
+  }
+
+  /**
+   * Like {@link CryptoApi#hmac}, but returns the MAC as bytes. Not in 0.8.5.
+   *
+   * @param {string|ArrayBuffer|ArrayBufferView} key - a string is UTF-8 encoded
+   * @param {string|ArrayBuffer|ArrayBufferView} message - a string is UTF-8 encoded
+   * @param {Hasher} hasher
+   * @returns {Uint8Array}
+   */
+  hmacBytes(key, message, hasher) {
+    let mac = this.getHmac(utfOrBytes(key, 'key'), hasher);
+    mac.update(utfOrBytes(message, 'message'));
+    return mac.digest();
   }
 }
 

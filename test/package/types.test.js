@@ -31,6 +31,7 @@ import { toHex } from "crypto-api-ng/src/encoder/hex.mjs";
 import { toBase64 } from "crypto-api-ng/src/encoder/base64.mjs";
 import { fromUtf } from "crypto-api-ng/src/encoder/utf.mjs";
 import { fromArrayBuffer } from "crypto-api-ng/src/encoder/array-buffer.mjs";
+import { utf8ToBytes, bytesToUtf8, bytesToHex, hexToBytes, bytesToBase64, base64ToBytes } from "crypto-api-ng/src/encoder/bytes.mjs";
 import type { HasherLike, HasherName } from "crypto-api-ng/types.js";
 
 const hex: string = CryptoApi.hash('sha256', 'abc');
@@ -65,6 +66,22 @@ const viaApi: string = CryptoApi.hmac('key', new Uint8Array(2), CryptoApi.getHas
 CryptoApi.getHmac('key', known).update('m');
 const encoded: string = CryptoApi.encoder.toHex(CryptoApi.encoder.fromUtf('x'));
 
+const raw: Uint8Array = hasher.digest();
+const rawHex: string = new Sha3({ length: 256 }).digest('hex');
+const rawB64: string = new Blake3().digest('base64url');
+const rawBin: string = mac.digest('binary');
+const macBytes: Uint8Array = mac.digest();
+const bytesOut: Uint8Array = CryptoApi.hashBytes('sha256', 'abc') ;
+const macOut: Uint8Array = CryptoApi.hmacBytes(utf8ToBytes('key'), new Uint8Array(2), CryptoApi.getHasher('md5'));
+const text: string = bytesToUtf8(utf8ToBytes('x'), { fatal: true });
+const hexText: string = bytesToHex(raw) + bytesToBase64(raw, { alphabet: 'base64url', omitPadding: true });
+const back: Uint8Array = hexToBytes(hexText).length ? base64ToBytes(rawB64, { alphabet: 'base64url' }) : CryptoApi.encoder.hexToBytes('00');
+// @ts-expect-error not an encoding
+hasher.digest('latin1');
+// @ts-expect-error not an alphabet
+bytesToBase64(raw, { alphabet: 'base32' });
+// @ts-expect-error hex is text, not bytes
+hexToBytes(raw);
 // @ts-expect-error an unsupported length for Sha256
 new Sha256({ length: 123 });
 // @ts-expect-error key and context exclude each other
@@ -79,7 +96,7 @@ hasher.update(42);
 unknown.update('x');
 // @ts-expect-error digests are strings
 const notNumber: number = hex;
-export { hex, same, macHex, b64, viaApi, encoded, notNumber };
+export { hex, same, macHex, b64, viaApi, encoded, notNumber, rawHex, rawBin, macBytes, bytesOut, macOut, text, back };
 `;
 
 const CJS = `

@@ -2,6 +2,7 @@
 'use strict';
 
 import {toBinaryString} from "../tools/input.mjs";
+import {checkEncoding, encodeDigest} from "../tools/digest.mjs";
 
 /**
  * Calculates [HMAC](https://tools.ietf.org/html/rfc2104)
@@ -121,6 +122,19 @@ class Hmac {
     this.outer.setState(JSON.parse(this.outerStart));
     this.outer.update(hash);
     return this.outer.finalize();
+  }
+
+  /**
+   * Like `finalize()`, but returns the MAC as bytes, or encoded as text.
+   *
+   * @param {string} [encoding] - `'hex'`, `'base64'`, `'base64url'` or `'binary'`
+   *   (the binary string `finalize()` returns); left out, the MAC is bytes
+   * @returns {Uint8Array|string}
+   * @throws {TypeError} for any other `encoding`
+   */
+  digest(encoding) {
+    checkEncoding(encoding);
+    return encodeDigest(this.finalize(), encoding);
   }
 }
 
