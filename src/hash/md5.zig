@@ -4,7 +4,7 @@
 //! export wrapper is `src/wasm/md.zig`.
 //!
 //! Where the original differs from RFC 1321 the port follows the original,
-//! with one exception fixed in v2:
+//! with one exception fixed in 1.1:
 //!   * the bit-length field is the 64-bit bit count (`lengthField`). 0.8.5 and
 //!     v1 built it from the 32-bit byte count with signed shifts, so messages
 //!     of 2^31 bytes or more got a wrong field.

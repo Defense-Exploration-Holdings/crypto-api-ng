@@ -2,12 +2,12 @@
 'use strict';
 
 /*
- * Input and option checks shared by every hasher and by `Hmac` (v2).
+ * Input and option checks shared by every hasher and by `Hmac` (1.1).
  *
  * crypto-api 0.8.5 accepted anything: a string with code units above 0xFF was
  * hashed into an algorithm-specific value, other types were coerced with
  * `String()` (`Uint8Array([1, 2])` became "1,2"), and any `rounds`/`length`
- * value was used as given. v2 rejects what it cannot hash meaningfully.
+ * value was used as given. 1.1 rejects what it cannot hash meaningfully.
  */
 
 const WIDE = /[^\x00-\xff]/;

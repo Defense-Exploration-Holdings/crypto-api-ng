@@ -13,7 +13,7 @@ import Hasher32be from '../packages/crypto-api/src/hasher/hasher32be.mjs';
 import Hmac from '../packages/crypto-api/src/mac/hmac.mjs';
 import { toHex } from '../packages/crypto-api/src/encoder/hex.mjs';
 import { FUZZ_ITERS, readVectors, rng, binString, hex, json, attempt, update, finalize } from './support/le32-suite.js';
-import { v2Supported } from './harness/catalog.mjs';
+import { optionSupported } from './harness/catalog.mjs';
 
 const wasmUsed = (fn) => {
   const before = _internal.wasmCalls();
@@ -629,7 +629,7 @@ test('snefru: every length 32..448 and rounds 1..8 equals the original', () => {
   }
 });
 
-test('snefru: length outside 32..448 (steps of 32) or rounds outside 1..8 throw at construction (v2)', () => {
+test('snefru: length outside 32..448 (steps of 32) or rounds outside 1..8 throw at construction (1.1)', () => {
   for (const length of [0, 1, 31, 33, 100, 129, 480, 512, 1024, 1.5, NaN, Infinity, -1, -32, 32.9]) {
     assert.throws(() => new Snefru({ length }), RangeError, `length ${length}`);
   }
@@ -656,7 +656,7 @@ test('snefru: options the wasm code does not model behave exactly like the origi
           return `${e.constructor.name}: ${e.message}`;
         }
       };
-      if (!v2Supported('snefru', { [key]: value })) continue;
+      if (!optionSupported('snefru', { [key]: value })) continue;
       const a = mk(Snefru);
       const b = mk(LegacySnefru);
       const what = `${key} ${typeof value === 'bigint' ? value + 'n' : JSON.stringify(value) ?? String(value)}`;

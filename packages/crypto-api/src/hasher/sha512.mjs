@@ -66,7 +66,7 @@ const IV_256 = [
 const baseReset = Object.getPrototypeOf(LegacySha512.prototype).reset;
 const ORIGINAL_RESET = LegacySha512.prototype.reset;
 
-/** Supported `rounds`/`length` values (v2 rejects the rest). */
+/** Supported `rounds`/`length` values (1.1 rejects the rest). */
 const OPTIONS = {length: {min: 32, max: 512, step: 32}, rounds: {min: 1, max: 160}};
 
 /**

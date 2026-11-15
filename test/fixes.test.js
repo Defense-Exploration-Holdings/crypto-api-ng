@@ -1,4 +1,4 @@
-// The behaviors of crypto-api 0.8.5 that v2 fixes, each checked against an
+// The behaviors of crypto-api 0.8.5 that 1.1 fixes, each checked against an
 // independent reference (node:crypto, BigInt arithmetic, the compression
 // function of the original code fed a hand-built final block).
 import { test } from 'node:test';
@@ -32,7 +32,7 @@ import LegacySha256 from '../packages/crypto-api/legacy/hasher/sha256.mjs';
 import LegacySha512 from '../packages/crypto-api/legacy/hasher/sha512.mjs';
 import LegacySm3 from '../packages/crypto-api/legacy/hasher/sm3.mjs';
 import LegacyWhirlpool from '../packages/crypto-api/legacy/hasher/whirlpool.mjs';
-import { V2_OPTIONS } from './harness/catalog.mjs';
+import { OPTION_RULES } from './harness/catalog.mjs';
 
 const hex = (h) => toHex(h.finalize());
 const json = (h) => JSON.stringify(h.getState());
@@ -302,7 +302,7 @@ test('Hmac works with a user-written hasher, including one whose constructor tak
 
 test('rounds/length: every supported value is accepted, neighbours and odd values throw', () => {
   for (const [id, C] of ALL) {
-    const rules = V2_OPTIONS[id];
+    const rules = OPTION_RULES[id];
     for (const [key, values] of Object.entries(rules)) {
       for (const v of values) assert.doesNotThrow(() => new C({ [key]: v }), `${id} ${key} ${v}`);
       const lo = Math.min(...values);

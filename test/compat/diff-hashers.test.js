@@ -1,5 +1,5 @@
 // Seeded differential fuzzer: target vs the original crypto-api 0.8.5 with the
-// v2 fixes applied (test/harness/v2-model.mjs), for every hasher family and
+// 1.1 fixes applied (test/harness/fixes-model.mjs), for every hasher family and
 // every option cell in the catalog. Thrown errors are compared by class.
 //
 //   FUZZ_ITERS=200   iterations per cell (CI default; use 100000 for release gates)
@@ -17,7 +17,7 @@
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadBoth } from '../harness/load.mjs';
-import { v2Model } from '../harness/v2-model.mjs';
+import { fixesModel } from '../harness/fixes-model.mjs';
 import { FAMILIES, OPTION_CELLS, cellLabel } from '../harness/catalog.mjs';
 import { Rng } from '../harness/prng.mjs';
 import {
@@ -34,7 +34,7 @@ let oracle;
 let target;
 before(async () => {
   const both = await loadBoth();
-  oracle = V1 ? both.oracle : v2Model(both.oracle);
+  oracle = V1 ? both.oracle : fixesModel(both.oracle);
   target = both.target;
 });
 

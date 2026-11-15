@@ -1,13 +1,13 @@
 // Executable form of the documented quirks of crypto-api 0.8.5.
 // 1. The oracle must still give the pinned answer (the claim is true).
 // 2. The target must give the same answer (the quirk is kept), except for the
-//    quirks v2 fixes, where it must give the v2 answer instead, and the
+//    quirks 1.1 fixes, where it must give the 1.1 answer instead, and the
 //    documented v1 divergences, where the listed alternative is also accepted.
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { loadBoth, make } from '../harness/load.mjs';
-import { v2Model } from '../harness/v2-model.mjs';
+import { fixesModel } from '../harness/fixes-model.mjs';
 import { QUIRK_PROBES } from '../harness/quirks.mjs';
 import { FAMILIES, VARIANTS } from '../harness/catalog.mjs';
 
@@ -36,8 +36,8 @@ const PINNED = {
   'setState keeps a live reference in the original': { live: true },
 };
 
-/** Quirks fixed in v2: the only answer the target may give. */
-const V2_ANSWERS = {
+/** Quirks fixed in 1.1: the only answer the target may give. */
+const FIXED_ANSWERS = {
   'wide characters hash to neither UTF-8 nor Latin-1': '!TypeError',
   'update(Uint8Array) hashes the text "1,2" and counts 2': { message: '\x01\x02', length: 2 },
   'sha256 rounds 80 runs on undefined constants': '!RangeError',
@@ -66,7 +66,7 @@ describe('verified quirks of crypto-api 0.8.5', () => {
       assert.ok(name in PINNED, 'probe has no pinned answer');
       assert.deepStrictEqual(QUIRK_PROBES[name](oracle), PINNED[name], 'the oracle no longer behaves as documented');
       const got = out(() => QUIRK_PROBES[name](target));
-      const allowed = name in V2_ANSWERS ? [V2_ANSWERS[name]] : [PINNED[name], ...(DIVERGENCES[name] ?? [])];
+      const allowed = name in FIXED_ANSWERS ? [FIXED_ANSWERS[name]] : [PINNED[name], ...(DIVERGENCES[name] ?? [])];
       assert.ok(allowed.some((a) => JSON.stringify(a) === JSON.stringify(got)), `target answered ${JSON.stringify(got)}, allowed ${JSON.stringify(allowed)}`);
     });
   }
@@ -80,11 +80,11 @@ describe('verified quirks of crypto-api 0.8.5', () => {
   });
 });
 
-describe('64-bit length field (the 2 GiB bug of 0.8.5 is fixed in v2)', () => {
+describe('64-bit length field (the 2 GiB bug of 0.8.5 is fixed in 1.1)', () => {
   // Real 2 GiB inputs are impractical, so state.length is set directly: the
   // padding code reads it exactly as it would after that many bytes. Below
-  // 2^31 the target equals the original; everywhere it equals the v2 model,
-  // whose length field is computed with BigInt (test/harness/v2-model.mjs).
+  // 2^31 the target equals the original; everywhere it equals the fixes model,
+  // whose length field is computed with BigInt (test/harness/fixes-model.mjs).
   const LENGTHS = [0, 1, 2 ** 28, 2 ** 29 - 1, 2 ** 29, 2 ** 29 + 1, 2 ** 31 - 1, 2 ** 31, 2 ** 31 + 5, 2 ** 32 - 1, 2 ** 32, 2 ** 32 + 3, 2 ** 33 + 77, 2 ** 40 + 1, 2 ** 53 - 1, -1, 1.5];
   for (const v of VARIANTS) {
     it(v.id, () => {
@@ -95,7 +95,7 @@ describe('64-bit length field (the 2 GiB bug of 0.8.5 is fixed in v2)', () => {
         h.state.length = len;
         try { return api.toHex(h.finalize()); } catch (e) { return `!${e.constructor.name}`; }
       };
-      const model = v2Model(oracle);
+      const model = fixesModel(oracle);
       let fixed = 0;
       for (const len of LENGTHS) {
         for (const msg of ['', 'abc', 'x'.repeat(63), 'y'.repeat(130)]) {

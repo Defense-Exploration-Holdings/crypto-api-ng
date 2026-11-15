@@ -5,8 +5,8 @@
 // mutated trees come from the upstream checkout, not from packages/crypto-api, so
 // the test stays valid once facades replace the vendored files.
 //
-// A second set breaks each v2 rule in a copy of the package and requires the
-// fuzzer in its default mode (against the v2 model) to reject it.
+// A second set breaks each 1.1 rule in a copy of the package and requires the
+// fuzzer in its default mode (against the fixes model) to reject it.
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, cpSync, readFileSync } from 'node:fs';
@@ -31,12 +31,12 @@ const MUTATIONS = [
   { name: 'update() length written as a = a + b', file: 'hasher/hasher.mjs', from: 'this.state.length += message.length;', to: 'this.state.length = this.state.length + message.length;', only: 'md2', expectPass: true },
 ];
 
-/** Defects in the v2 code of the package (paths relative to packages/crypto-api). */
-const V2_MUTATIONS = [
-  { name: 'v2: wide characters accepted', file: 'src/tools/input.mjs', from: 'const WIDE = /[^\\x00-\\xff]/;', to: 'const WIDE = /[^\\x00-\\uffff]/;', only: 'sha1' },
-  { name: 'v2: bytes coerced with String()', file: 'src/tools/input.mjs', from: 'const bytes = bytesOf(input);', to: 'if (input !== null && typeof input === "object") return String(input);\n  const bytes = bytesOf(input);', only: 'md5' },
-  { name: 'v2: rounds range one too wide', file: 'src/hasher/sha256.mjs', from: 'rounds: {min: 1, max: 64}', to: 'rounds: {min: 1, max: 65}', only: 'sha256' },
-  { name: 'v2: length check missing', file: 'src/hasher/ripemd.mjs', from: "checkOptions('Ripemd', options, OPTIONS);", to: '', only: 'ripemd' },
+/** Defects in the 1.1 code of the package (paths relative to packages/crypto-api). */
+const FIX_MUTATIONS = [
+  { name: '1.1: wide characters accepted', file: 'src/tools/input.mjs', from: 'const WIDE = /[^\\x00-\\xff]/;', to: 'const WIDE = /[^\\x00-\\uffff]/;', only: 'sha1' },
+  { name: '1.1: bytes coerced with String()', file: 'src/tools/input.mjs', from: 'const bytes = bytesOf(input);', to: 'if (input !== null && typeof input === "object") return String(input);\n  const bytes = bytesOf(input);', only: 'md5' },
+  { name: '1.1: rounds range one too wide', file: 'src/hasher/sha256.mjs', from: 'rounds: {min: 1, max: 64}', to: 'rounds: {min: 1, max: 65}', only: 'sha256' },
+  { name: '1.1: length check missing', file: 'src/hasher/ripemd.mjs', from: "checkOptions('Ripemd', options, OPTIONS);", to: '', only: 'ripemd' },
 ];
 const PACKAGE = join(here, '..', '..', 'packages', 'crypto-api');
 
@@ -59,7 +59,7 @@ before(() => {
     }
     roots.set(m.name, root);
   }
-  for (const m of V2_MUTATIONS) {
+  for (const m of FIX_MUTATIONS) {
     const root = join(tmp, m.name.replace(/\W+/g, '-'));
     for (const dir of ['src', 'legacy', 'wasm']) cpSync(join(PACKAGE, dir), join(root, dir), { recursive: true });
     const file = join(root, m.file);
@@ -83,8 +83,8 @@ describe('harness self-test: the fuzzer rejects deliberately broken targets', ()
     });
   }
 
-  it('the unmodified package copy passes in v2 mode (control)', () => {
-    const root = join(tmp, 'v2-control');
+  it('the unmodified package copy passes in 1.1 mode (control)', () => {
+    const root = join(tmp, 'fixes-control');
     for (const dir of ['src', 'legacy', 'wasm']) cpSync(join(PACKAGE, dir), join(root, dir), { recursive: true });
     const env = { ...process.env, CRYPTO_API_TARGET: root, FUZZ_ONLY: 'sha256', FUZZ_ITERS: '25' };
     delete env.NODE_TEST_CONTEXT;
@@ -92,7 +92,7 @@ describe('harness self-test: the fuzzer rejects deliberately broken targets', ()
     assert.equal(r.status, 0, r.stdout.slice(-2000));
   });
 
-  for (const m of V2_MUTATIONS) {
+  for (const m of FIX_MUTATIONS) {
     it(m.name, () => {
       const env = { ...process.env, CRYPTO_API_TARGET: roots.get(m.name), FUZZ_ONLY: m.only, FUZZ_ITERS: '25' };
       delete env.NODE_TEST_CONTEXT;

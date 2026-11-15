@@ -1,12 +1,12 @@
 // Differential tests for everything that is not a hasher class: Hmac, the four
 // encoders, the rotate helpers and the CryptoApi facade (getHasher/hash/hmac/getHmac).
-// Where v2 fixes a 0.8.5 behavior (Hmac reuse, non-string input, sm3, option
-// checks) the expected v2 result is derived from the original's answer.
+// Where 1.1 fixes a 0.8.5 behavior (Hmac reuse, non-string input, sm3, option
+// checks) the expected 1.1 result is derived from the original's answer.
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadBoth, make } from '../harness/load.mjs';
 import {
-  VARIANTS, FAMILIES, GET_HASHER_NAMES, UNKNOWN_HASHER_NAMES, v2Supported,
+  VARIANTS, FAMILIES, GET_HASHER_NAMES, UNKNOWN_HASHER_NAMES, optionSupported,
 } from '../harness/catalog.mjs';
 import { Rng } from '../harness/prng.mjs';
 
@@ -53,19 +53,19 @@ describe('Hmac', () => {
         const got = { stateAfterCtor: JSON.stringify(h.getState()) };
         for (const c of chunks) m.update(c);
         got.mac = target.toHex(m.finalize());
-        got.mac2 = outcome(() => target.toHex(m.finalize())); // v2: finalize() is repeatable
+        got.mac2 = outcome(() => target.toHex(m.finalize())); // 1.1: finalize() is repeatable
         m.update(extra); // ... and does not end the message
         got.macMore = target.toHex(m.finalize());
         m.reset();
         m.update(extra);
         got.macReset = target.toHex(m.finalize());
-        got.stateAfter = JSON.stringify(h.getState()); // v2: the hasher passed in is not touched
+        got.stateAfter = JSON.stringify(h.getState()); // 1.1: the hasher passed in is not touched
         same(expected, got, `${v.id} keylen=${key.length} iteration=${i} seed=${SEED}`);
       }
     });
   }
 
-  it('keys: bytes are accepted, other non-strings and wide strings throw TypeError (v2)', () => {
+  it('keys: bytes are accepted, other non-strings and wide strings throw TypeError (1.1)', () => {
     const run = (api, k) => outcome(() => {
       const m = new api.Hmac(k, new api.hashers.Md5());
       m.update('abc');
@@ -183,7 +183,7 @@ describe('tools', () => {
 describe('CryptoApi facade', () => {
   const OPTS = [undefined, {}, { rounds: 3 }, { length: 224 }, { type: 't' }, { rounds: 80, length: 160 }];
 
-  it('getHasher: every documented name builds the same hasher, or rejects unsupported options (v2)', () => {
+  it('getHasher: every documented name builds the same hasher, or rejects unsupported options (1.1)', () => {
     let rejected = 0;
     for (const name of GET_HASHER_NAMES) {
       for (const opts of OPTS) {
@@ -195,12 +195,12 @@ describe('CryptoApi facade', () => {
         });
         const expected = run(oracle);
         if (expected.err) {
-          // The original fails on these options too (e.g. Snefru rounds 80); v2 fails at construction.
+          // The original fails on these options too (e.g. Snefru rounds 80); 1.1 fails at construction.
           assert.match(run(target).err ?? '', /^(RangeError|TypeError): /, `${name} ${JSON.stringify(opts)}`);
           continue;
         }
         const familyOf = FAMILIES.find((f) => f.className === expected.ok.cls);
-        if (v2Supported(familyOf.id, JSON.parse(expected.ok.options))) {
+        if (optionSupported(familyOf.id, JSON.parse(expected.ok.options))) {
           same(expected, run(target), `${name} ${JSON.stringify(opts)}`);
         } else {
           rejected++;
@@ -211,7 +211,7 @@ describe('CryptoApi facade', () => {
     assert.ok(rejected > 0);
   });
 
-  it('getHasher: sm3 (v2)', () => {
+  it('getHasher: sm3 (1.1)', () => {
     const h = target.CryptoApi.getHasher('sm3');
     assert.ok(h instanceof target.hashers.Sm3);
     const o = new oracle.hashers.Sm3();
@@ -241,7 +241,7 @@ describe('CryptoApi facade', () => {
         same(expected, outcome(() => target.CryptoApi.hash(name, t)), `${name} ${JSON.stringify(t)}`);
       }
     }
-    // v2: bytes are hashed as they are, not UTF-8 encoded.
+    // 1.1: bytes are hashed as they are, not UTF-8 encoded.
     same(oracle.CryptoApi.hash('sha256', 'abc'), target.CryptoApi.hash('sha256', new Uint8Array([97, 98, 99])));
     assert.throws(() => target.CryptoApi.hash('sha256', 5), TypeError);
   });

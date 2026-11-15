@@ -102,7 +102,7 @@ describe('same answers as the original', () => {
         }
       });
 
-      it('v2 fixes: sm3, bytes in, wide characters and bad options rejected, repeatable Hmac', () => {
+      it('1.1 fixes: sm3, bytes in, wide characters and bad options rejected, repeatable Hmac', () => {
         const api = subjects[label];
         assert.equal(api.hash('sm3', 'abc'), '66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0');
         const h = api.getHasher('sha256');

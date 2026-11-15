@@ -51,7 +51,7 @@ function variantOf(processBlock) {
   }
 }
 
-/** Supported `rounds`/`length` values (v2 rejects the rest). */
+/** Supported `rounds`/`length` values (1.1 rejects the rest). */
 const OPTIONS = {length: {values: [128, 160, 256, 320]}};
 
 /**

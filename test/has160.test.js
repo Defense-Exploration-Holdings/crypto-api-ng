@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import Has160, { _internal } from '../packages/crypto-api/src/hasher/has160.mjs';
 import LegacyHas160 from '../packages/crypto-api/legacy/hasher/has160.mjs';
 import { defineSuite, rng, binString, hex, json, attempt } from './support/le32-suite.js';
-import { v2Supported } from './harness/catalog.mjs';
+import { optionSupported } from './harness/catalog.mjs';
 
 const base = { Facade: Has160, Legacy: LegacyHas160, internal: _internal, words: 5, replacesHash: false };
 
@@ -46,7 +46,7 @@ test('has160: every rounds value 0..80 (set through options) matches the origina
   }
 });
 
-test('has160: rounds outside 1..80 or not a number throw at construction (v2)', () => {
+test('has160: rounds outside 1..80 or not a number throw at construction (1.1)', () => {
   for (const rounds of [0, 81, 100, -1, 1.5, NaN, 1e5]) assert.throws(() => new Has160({ rounds }), RangeError, String(rounds));
   for (const rounds of ['20', true, null, [], {}]) assert.throws(() => new Has160({ rounds }), TypeError, String(rounds));
   assert.equal(new Has160({ rounds: undefined }).options.rounds, 80);
@@ -57,7 +57,7 @@ test('has160: rounds set to odd values after construction are the original code'
   // Infinity (and anything that large) makes the original loop for ever, so it is not probed.
   for (const rounds of odd) {
     for (const via of ['ctor', 'mutate']) {
-      if (via === 'ctor' && !v2Supported('has160', { rounds })) continue;
+      if (via === 'ctor' && !optionSupported('has160', { rounds })) continue;
       const mk = (Class) => {
         if (via === 'ctor') return new Class({ rounds });
         const h = new Class();

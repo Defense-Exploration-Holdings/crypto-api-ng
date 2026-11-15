@@ -35,7 +35,7 @@ const accel = createAccelerator({
   facade: () => Sm3
 });
 
-/** Supported `rounds`/`length` values (v2 rejects the rest). */
+/** Supported `rounds`/`length` values (1.1 rejects the rest). */
 const OPTIONS = {length: {values: [256]}, rounds: {min: 1, max: 64}};
 
 /**

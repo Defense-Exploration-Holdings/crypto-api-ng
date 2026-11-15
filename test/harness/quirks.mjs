@@ -2,7 +2,7 @@
 // running the original, as executable probes. Each probe takes an API tree
 // (oracle or target) and returns JSON-able observations. quirks.test.js pins the
 // oracle's answers (so the claims stay true) and requires the target to give
-// the same answers (the quirk is kept), except where v2 fixes it.
+// the same answers (the quirk is kept), except where 1.1 fixes it.
 import { createHash } from 'node:crypto';
 
 const out = (fn) => { try { return fn(); } catch (e) { return `!${e.constructor.name}`; } };

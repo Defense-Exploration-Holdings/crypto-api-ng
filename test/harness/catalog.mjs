@@ -70,14 +70,14 @@ export const GET_HASHER_NAMES = [
   'whirlpool', 'whirlpool-0', 'whirlpool-t',
 ];
 
-/** Names v2 adds to getHasher(), with the class they return. */
-export const V2_HASHER_NAMES = [{ name: 'sm3', family: 'sm3', variant: 'sm3' }];
+/** Names 1.1 adds to getHasher(), with the class they return. */
+export const ADDED_HASHER_NAMES = [{ name: 'sm3', family: 'sm3', variant: 'sm3' }];
 
-/** Names that look valid but return undefined from getHasher() (in 0.8.5 and v2, except `sm3`). */
+/** Names that look valid but return undefined from getHasher() (in 0.8.5 and 1.1, except `sm3`). */
 export const UNKNOWN_HASHER_NAMES = ['sm3', 'SHA256', 'MD5', 'sha-256', 'nope', '', 'sha3-256', 'blake2b'];
 
 // ---------------------------------------------------------------------------
-// v2 option rules
+// 1.1 option rules
 // ---------------------------------------------------------------------------
 
 const range = (min, max, step = 1) => {
@@ -87,15 +87,16 @@ const range = (min, max, step = 1) => {
 };
 
 /**
- * The `rounds`/`length` values v2 accepts, per family. Anything else given for
+ * The `rounds`/`length` values 1.1 accepts, per family. Anything else given for
  * these keys (other numbers, strings, booleans, null, NaN) throws at
  * construction; an absent key or `undefined` means the default.
- * `rounds` may reduce the standard round count, never extend it; `length`
- * is the set the original documents.
+ * `rounds` may reduce the standard round count, never extend it (MD2, whose
+ * rounds use no constants, allows up to 255); `length` is the set the original
+ * documents.
  */
-export const V2_OPTIONS = {
+export const OPTION_RULES = {
   has160: { rounds: range(1, 80) },
-  md2: { rounds: range(1, 18) },
+  md2: { rounds: range(1, 255) },
   md4: {},
   md5: {},
   ripemd: { length: [128, 160, 256, 320] },
@@ -108,10 +109,10 @@ export const V2_OPTIONS = {
   whirlpool: { rounds: range(1, 10) },
 };
 
-/** True when v2 accepts `options` for the family (see V2_OPTIONS). */
-export function v2Supported(familyId, options) {
+/** True when 1.1 accepts `options` for the family (see OPTION_RULES). */
+export function optionSupported(familyId, options) {
   if (options === undefined || options === null || typeof options !== 'object') return true;
-  const rules = V2_OPTIONS[familyId];
+  const rules = OPTION_RULES[familyId];
   for (const key of Object.keys(rules)) {
     const v = options[key];
     if (v !== undefined && !rules[key].includes(v)) return false;

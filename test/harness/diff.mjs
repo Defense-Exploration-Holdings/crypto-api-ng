@@ -10,7 +10,7 @@ import { boundaryLengths } from './catalog.mjs';
 // Inputs
 // ---------------------------------------------------------------------------
 
-/** Non-string values update() may be handed. The original coerces them with `+=`; v2 hashes the bytes or throws. */
+/** Non-string values update() may be handed. The original coerces them with `+=`; 1.1 hashes the bytes or throws. */
 const HOSTILE = [
   { t: 'u8', v: [1, 2] },
   { t: 'u8', v: [] },
@@ -194,7 +194,7 @@ const normalizer = (loose) => (loose ? (v) => (typeof v === 'string' && v.starts
 
 /**
  * Returns null when equal, else a short description of the first difference.
- * `opts.loose` compares thrown errors by class only (for the v2 model, see v2-model.mjs).
+ * `opts.loose` compares thrown errors by class only (for the fixes model, see fixes-model.mjs).
  */
 export function diffRuns(expected, actual, opts = {}) {
   const n = normalizer(opts.loose);

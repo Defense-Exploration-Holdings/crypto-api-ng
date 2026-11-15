@@ -16,7 +16,7 @@ import Hasher from '../packages/crypto-api/src/hasher/hasher.mjs';
 import Hasher8 from '../packages/crypto-api/src/hasher/hasher8.mjs';
 import Hmac from '../packages/crypto-api/src/mac/hmac.mjs';
 import { toHex } from '../packages/crypto-api/src/encoder/hex.mjs';
-import { v2Supported } from './harness/catalog.mjs';
+import { optionSupported } from './harness/catalog.mjs';
 
 const vec = (name) => JSON.parse(readFileSync(new URL(`./vectors/${name}.json`, import.meta.url), 'utf8'));
 const FUZZ_ITERS = Number(process.env.FUZZ_ITERS || 200);
@@ -137,7 +137,7 @@ describe('md2', () => {
   test('differential: random messages split across random update() calls, every option set', () => {
     const rand = rng(2);
     const lengths = [0, 1, 14, 15, 16, 17, 31, 32, 33, 47, 48, 49, 63, 64, 65, 127, 128, 129, 255, 256, 257];
-    for (const options of [...INSIDE, ...OUTSIDE].filter((o) => v2Supported('md2', o))) {
+    for (const options of [...INSIDE, ...OUTSIDE].filter((o) => optionSupported('md2', o))) {
       for (let it = 0; it < Math.max(20, FUZZ_ITERS / 4); it++) {
         const len = it < lengths.length ? lengths[it] : (rand() * 300) | 0;
         const msg = binString(rand, len);
@@ -160,14 +160,14 @@ describe('md2', () => {
   });
 
   test('options inside the envelope run in wasm, others in the original', () => {
-    for (const options of INSIDE.filter((o) => v2Supported('md2', o))) {
+    for (const options of INSIDE.filter((o) => optionSupported('md2', o))) {
       assert.equal(wasmUsed(() => {
         const h = new Md2(opts(options));
         h.update('x'.repeat(2 * B + 2));
         h.finalize();
       }), 2, JSON.stringify(options));
     }
-    for (const options of OUTSIDE.filter((o) => v2Supported('md2', o))) {
+    for (const options of OUTSIDE.filter((o) => optionSupported('md2', o))) {
       const used = wasmUsed(() => {
         const a = new Md2(opts(options));
         attempt(() => {
@@ -659,8 +659,8 @@ describe('md2', () => {
     }
   });
 
-  test('rounds: every count 1..18 matches the original', () => {
-    for (let rounds = 1; rounds <= 18; rounds++) {
+  test('rounds: every count 1..40 and a few large ones up to 255 match the original', () => {
+    for (const rounds of [...Array.from({ length: 40 }, (_, i) => i + 1), 100, 200, 254, 255]) {
       for (const len of [0, 5, 16, 40]) {
         const msg = 'm'.repeat(len);
         const a = new Md2({ rounds });
@@ -677,10 +677,11 @@ describe('md2', () => {
       return hex(h);
     };
     assert.notEqual(run(17), run(18));
+    assert.notEqual(run(18), run(19));
   });
 
-  test('v2: rounds outside 1..18 throw at construction', () => {
-    for (const rounds of [0, 19, 50, 255, 256, 4096, -1, 1.5, NaN]) {
+  test('1.1: rounds outside 1..255 throw at construction', () => {
+    for (const rounds of [0, 256, 257, 300, 4096, -1, 1.5, NaN]) {
       assert.throws(() => new Md2({ rounds }), RangeError, `rounds ${rounds}`);
     }
     for (const rounds of ['5', true, null]) {

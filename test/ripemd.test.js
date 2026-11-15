@@ -22,7 +22,7 @@ const wasmUsed = (fn) => {
   return _internal.wasmCalls() - before;
 };
 
-test('ripemd: unlisted or odd `length` options throw at construction (v2)', () => {
+test('ripemd: unlisted or odd `length` options throw at construction (1.1)', () => {
   for (const length of [0, 100, 129, 512, 161, -128, 1.5, NaN, Infinity]) assert.throws(() => new Ripemd({ length }), RangeError, String(length));
   for (const length of ['128', '160', ' 320', true, null, [], [128], {}, 320n]) assert.throws(() => new Ripemd({ length }), TypeError, String(length));
 });

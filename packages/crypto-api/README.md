@@ -2,7 +2,7 @@
 
 Hashing library for JavaScript with no dependencies: a maintained port of [`crypto-api`](https://github.com/nf404/crypto-api) 0.8.5 (Aleksandr Mogilnikov, "nf404") whose compression functions run as Zig-compiled WebAssembly.
 
-**Version 1 is a drop-in replacement for `crypto-api@0.8.5`**: same classes, same import paths, same options, same digests and the same `getState()` JSON for every input the original accepts, bugs included. **Version 2**, in development on this branch, keeps that API and fixes those bugs (see "Changes in version 2"). Where a hasher is used outside what the WebAssembly code models exactly (subclasses overriding internals, unusual states set with `setState()`, no WebAssembly in the environment), the original JavaScript code runs instead, so the result is the same either way.
+**Version 1 is a drop-in replacement for `crypto-api@0.8.5`**: same classes, same import paths, same options, same digests and the same `getState()` JSON for every input the original accepts, bugs included. **Version 1.1** keeps that API and fixes those bugs (see "Changes in 1.1"); the 1.0.x line keeps them for code that depends on the exact 0.8.5 behavior. Where a hasher is used outside what the WebAssembly code models exactly (subclasses overriding internals, unusual states set with `setState()`, no WebAssembly in the environment), the original JavaScript code runs instead, so the result is the same either way.
 
 > Status: pre-release. Not yet published to npm; the package name is not final.
 
@@ -100,16 +100,16 @@ example/                  runnable examples
 
 ## Differences from crypto-api 0.8.5
 
-Everything observable is kept, with these deliberate exceptions (and, in version 2, the fixes listed in the next section):
+Everything observable is kept, with these deliberate exceptions (and, from 1.1, the fixes listed in the next section):
 
-1. **No endless loop in Snefru.** `length` of 512 or more gives a block size of 0 or less, and the original `process()` never returns. Version 1 throws `RangeError` from `update()`; version 2 rejects such a `length` at construction.
+1. **No endless loop in Snefru.** `length` of 512 or more gives a block size of 0 or less, and the original `process()` never returns. 1.0 throws `RangeError` from `update()`; 1.1 rejects such a `length` at construction.
 2. **`main` works.** `require('crypto-api-ng')` loads `index.js` (the original's `main` pointed at a file that was never published).
 3. **`src/index.mjs` is loadable.** The original assigned `module.exports` inside an ES module, which only the original's own babel setup accepted. v1 default-exports the same object.
 4. **Private scratch arrays.** The `@private` working arrays of some hashers (`W`, `blockUnits`) are not filled when WebAssembly did the work, so `JSON.stringify(hasher)` can differ from the original in those fields. `getState()`, `setState()` and `state` are unaffected.
 
-## Changes in version 2
+## Changes in 1.1
 
-Version 2 fixes the 0.8.5 behaviors that version 1 kept for compatibility. Every digest version 1 computed correctly is unchanged; what changes is what happens with inputs and options that gave wrong or meaningless results:
+1.1 fixes the 0.8.5 bugs that 1.0 kept for compatibility. Every digest 1.0 computed correctly is unchanged; what changes is what happens with inputs and options that gave wrong or meaningless results:
 
 * **Bytes in.** `update()` takes a binary string (characters `\x00` to `\xFF`) or bytes: an `ArrayBuffer`, `SharedArrayBuffer` or any view of one (`Uint8Array`, `DataView`, ...). So do `Hmac` and the keys and messages of `CryptoApi.hash()` and `CryptoApi.hmac()`, which still UTF-8 encode strings.
 * **No silent garbage.** `update()` throws `TypeError` for a string with a character above `\xFF` (encode text with `fromUtf()` first) and for any value that is neither a string nor bytes.
@@ -121,7 +121,7 @@ Version 2 fixes the 0.8.5 behaviors that version 1 kept for compatibility. Every
 ## Migrating
 
 * **From 0.8.x**: change the package name in `package.json`, imports and CDN URLs. Paths under `src/` and the `CryptoApi` global are unchanged. Persisted `getState()` objects load as before.
-* **From 1.x**: code that hashes text with `fromUtf()` (or `CryptoApi.hash()`), uses documented options and creates a new `Hmac` per message works unchanged. Replace `update(fromArrayBuffer(buffer))` with `update(buffer)` if you like; both work. Code that relied on one of the behaviors listed under "Changes in version 2" needs updating.
+* **From 1.0**: code that hashes text with `fromUtf()` (or `CryptoApi.hash()`), uses documented options and creates a new `Hmac` per message works unchanged. Replace `update(fromArrayBuffer(buffer))` with `update(buffer)` if you like; both work. Code that relied on one of the behaviors listed under "Changes in 1.1" needs updating, or can pin `~1.0.0`.
 * **From 0.7.x**: 0.8.0 changed the API (`CryptoApi.hash(...).stringify('hex')` became `CryptoApi.hash(name, message)` returning hex, hashers are classes). Nothing in this package restores the 0.7 API.
 
 ## License
