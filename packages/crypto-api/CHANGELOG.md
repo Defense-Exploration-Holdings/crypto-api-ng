@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+* New hashers `Blake2b`, `Blake2s` and `Blake3` (`src/hasher/blake2b.mjs`, `blake2s.mjs`, `blake3.mjs`; `CryptoApi.getHasher()` names `blake2b`, `blake2s`, `blake3` and the sized variants `blake2b-256`, `blake2s-128`, ...). BLAKE2 supports digests of 8 to 512 (BLAKE2b) or 256 (BLAKE2s) bits, a key, a salt and a personalization string; BLAKE3 supports keyed hashing, key derivation and output of up to 1 MiB. Verified against the official BLAKE2 and BLAKE3 test vectors, RFC 7693, `node:crypto` and Python's `hashlib`. Compression runs in WebAssembly, with a plain JavaScript implementation where it is unavailable. `finalize()` of these hashers does not modify them. See the [API reference](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/api.md#blake2-and-blake3).
 * TypeScript declarations ship with the package (`index.d.ts`, `types.d.ts` and a `.d.mts` file for every module under `src/`). No runtime change.
 * New [API reference](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/api.md).
 

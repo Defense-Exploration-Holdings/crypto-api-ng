@@ -50,6 +50,31 @@ Scratch layout, identical in every family (offsets from `scratch_ptr()`): algori
 
 Embedded bytes for synchronous loading are written to `packages/crypto-api/wasm/<family>.mjs` by `zig build js` (gitignored). The package-internal loader is `packages/crypto-api/src/wasm/family.mjs`; its `ABI_VERSION` must equal `runtime.abi_version` (a test compares it with `js/index.js`).
 
+## BLAKE2 and BLAKE3
+
+These have no 0.8.5 original, so their JS hashers keep all buffering, the key block and the parameter block, and wasm only compresses. Three family modules, `blake2b`, `blake2s` and `blake3`, all returning a `Status` (0 ok, 1 `invalid_argument`).
+
+BLAKE2 (`src/hash/blake2.zig`, `src/wasm/blake2_exports.zig`; `<p>` is `blake2b` or `blake2s`):
+
+```
+<p>_state_size() -> u32                            // 72 (blake2b) or 40 (blake2s)
+<p>_blocks(state, data, len)                       // len % block == 0; none of the blocks is the final one
+<p>_final(state, tail, tail_len, out)              // tail_len <= block; writes the whole 64 or 32 digest bytes to out
+```
+
+`State` is the chaining value `h` (8 words, little-endian) followed by the byte counter `t` (u64): `h` at 0, `t` at 64 (blake2b) or 32 (blake2s). `blocks` adds the block size to `t` before each block; `final` adds `tail_len` to a copy and does not modify `state`. The key, salt, personalization and digest length are in the initial `h`, which JS computes.
+
+BLAKE3 (`src/hash/blake3.zig`, `src/wasm/blake3.zig`):
+
+```
+blake3_state_size() -> u32                         // 48
+blake3_update(state, stack, data, nchunks)         // nchunks whole 1024-byte chunks into the tree
+blake3_root(state, stack, tail, tail_len, params)  // tail_len <= 1024; writes the 104-byte root parameters
+blake3_xof(params, seek, out, out_len)             // output bytes from output block `seek` (64 bytes per block)
+```
+
+`State` is `key` (8 words) at 0, `flags` (u32) at 32 and `chunks` (u64, chunks added so far) at 40. The `stack` argument is the chaining values of the finished subtrees, 32 bytes each, `popcount(chunks)` entries, up to 54 (1728 bytes); it does not fit the 128-byte state slot, so the JS side places it at the start of the input region (+256) and the data at +2304 (leaving 62 chunks per call). `params` (the cv, the last block, its length and flags) is written to the output slot at +128. The JS hasher holds back the last chunk, so a chunk only enters the tree when more input follows.
+
 ## Loading: async and sync
 
 The original crypto-api is fully synchronous, so v1 needs a sync path. `js/index.js` exports `load()` (async: fetch or fs) and `loadSync(bytes)`. `js/sync.js` embeds the wasm as base64 (`zig build js` writes `js/generated/wasm-bytes.js`, which is gitignored) and instantiates on import. Browsers limit synchronous compilation on the main thread, so keep the module small (target under 64 KB).

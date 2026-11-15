@@ -33,6 +33,8 @@ The full API is in the [API reference](docs/api.md). Usage for Node.js, bundlers
 
 HAS-160, MD2, MD4, MD5, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512, SHA-512/224, SHA-512/256, SM3, Snefru v2.0 and v2.5, Whirlpool, Whirlpool-0 and Whirlpool-T, plus HMAC and the hex, base64 and UTF-8 encoders of the original.
 
+Beyond the original: BLAKE2b and BLAKE2s (any digest length, keyed, salted, personalized) and BLAKE3 (keyed hash, key derivation, extendable output). Unlike the algorithms above, these have no 0.8.5 behavior to match, and they run in plain JavaScript where WebAssembly is unavailable.
+
 ## Compatibility
 
 Compatibility with 0.8.5 is tested, not assumed. The original's own 286 tests run unmodified against this package, and a differential fuzzer compares both implementations across every documented option, including state round trips and the `getState()` JSON. See [docs/test-harness.md](docs/test-harness.md). The few deliberate differences are listed under "Differences from crypto-api 0.8.5" in the package README.

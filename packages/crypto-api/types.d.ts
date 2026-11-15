@@ -30,6 +30,37 @@ export interface HmacLike {
   reset(): void;
 }
 
+export interface Blake2bOptions {
+  /** Digest size in bits: 8 to 512 in steps of 8 (default 512). */
+  length?: number;
+  /** Up to 64 bytes. Makes the hash a MAC. */
+  key?: BinaryInput;
+  /** Up to 16 bytes, zero padded. */
+  salt?: BinaryInput;
+  /** Up to 16 bytes, zero padded. */
+  personalization?: BinaryInput;
+}
+export interface Blake2sOptions {
+  /** Digest size in bits: 8 to 256 in steps of 8 (default 256). */
+  length?: number;
+  /** Up to 32 bytes. Makes the hash a MAC. */
+  key?: BinaryInput;
+  /** Up to 8 bytes, zero padded. */
+  salt?: BinaryInput;
+  /** Up to 8 bytes, zero padded. */
+  personalization?: BinaryInput;
+}
+/** `key` (keyed hash) and `context` (key derivation) exclude each other. */
+export type Blake3Options = {
+  /** Output size in bits: 8 to 8388608 in steps of 8 (default 256). */
+  length?: number;
+} & (
+  | { key?: undefined; context?: undefined }
+  /** Exactly 32 bytes. */
+  | { key: BinaryInput; context?: undefined }
+  /** The context string of the key derivation. */
+  | { context: BinaryInput; key?: undefined }
+);
 export interface Has160Options { rounds?: number }
 export interface Md2Options { rounds?: number }
 export interface RipemdOptions { length?: 128 | 160 | 256 | 320 }
@@ -50,10 +81,21 @@ export interface HasherOptions {
   length?: number;
   /** Whirlpool variant: `'0'` or `'t'`. */
   type?: '0' | 't' | (string & {});
+  /** BLAKE2 and BLAKE3: the key of a keyed hash. */
+  key?: BinaryInput;
+  /** BLAKE2: salt. */
+  salt?: BinaryInput;
+  /** BLAKE2: personalization string. */
+  personalization?: BinaryInput;
+  /** BLAKE3: context string of the key derivation mode. */
+  context?: BinaryInput;
 }
 
 /** Algorithm names understood by `getHasher()` and `hash()`. */
 export type HasherName =
+  | 'blake2b' | 'blake2b-512' | 'blake2b-384' | 'blake2b-256' | 'blake2b-160' | 'blake2b-128'
+  | 'blake2s' | 'blake2s-256' | 'blake2s-224' | 'blake2s-160' | 'blake2s-128'
+  | 'blake3'
   | 'has160' | 'md2' | 'md4' | 'md5'
   | 'ripemd' | 'ripemd128' | 'ripemd160' | 'ripemd256' | 'ripemd320'
   | 'sha0' | 'sha1' | 'sha224' | 'sha256' | 'sha384' | 'sha512' | 'sha512/224' | 'sha512/256'
