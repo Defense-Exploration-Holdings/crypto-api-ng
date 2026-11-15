@@ -1,6 +1,9 @@
 // crypto-api-ng:facade
 'use strict';
 
+import Blake2b from "./hasher/blake2b.mjs";
+import Blake2s from "./hasher/blake2s.mjs";
+import Blake3 from "./hasher/blake3.mjs";
 import Has160 from "./hasher/has160.mjs";
 import Md2 from "./hasher/md2.mjs";
 import Md4 from "./hasher/md4.mjs";
@@ -156,6 +159,38 @@ class CryptoApi {
       case 'snefru256/4':
         options = Object.assign({}, {length: 256, rounds: 4}, options);
         return new Snefru(options);
+      case 'blake2b':
+      case 'blake2b-512':
+        options = Object.assign({}, {length: 512}, options);
+        return new Blake2b(options);
+      case 'blake2b-384':
+        options = Object.assign({}, {length: 384}, options);
+        return new Blake2b(options);
+      case 'blake2b-256':
+        options = Object.assign({}, {length: 256}, options);
+        return new Blake2b(options);
+      case 'blake2b-160':
+        options = Object.assign({}, {length: 160}, options);
+        return new Blake2b(options);
+      case 'blake2b-128':
+        options = Object.assign({}, {length: 128}, options);
+        return new Blake2b(options);
+      case 'blake2s':
+      case 'blake2s-256':
+        options = Object.assign({}, {length: 256}, options);
+        return new Blake2s(options);
+      case 'blake2s-224':
+        options = Object.assign({}, {length: 224}, options);
+        return new Blake2s(options);
+      case 'blake2s-160':
+        options = Object.assign({}, {length: 160}, options);
+        return new Blake2s(options);
+      case 'blake2s-128':
+        options = Object.assign({}, {length: 128}, options);
+        return new Blake2s(options);
+      case 'blake3':
+        options = Object.assign({}, {length: 256}, options);
+        return new Blake3(options);
       case 'whirlpool':
         return new Whirlpool(options);
       case 'whirlpool-0':

@@ -92,7 +92,7 @@ Where WebAssembly is missing or blocked (a page whose Content-Security-Policy la
 ## What is included
 
 * Hashing: HAS-160, MD2, MD4, MD5, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512, SHA-512/224, SHA-512/256, SM3, Snefru v2.0 and v2.5, WHIRLPOOL, WHIRLPOOL-0, WHIRLPOOL-T
-* Added in this package: SHA3-224/256/384/512, SHAKE128/256, Keccak-224/256/384/512
+* Added in this package: SHA3-224/256/384/512, SHAKE128/256, Keccak-224/256/384/512, BLAKE2b, BLAKE2s, BLAKE3
 * MAC: HMAC (`src/mac/hmac.mjs`, works with any hasher object, including your own)
 * Encodings: `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64`
 * The `CryptoApi` object: `getHasher`, `hash`, `getHmac`, `hmac`, `encoder`
@@ -105,7 +105,7 @@ The full API, with options, errors and examples, is in the [API reference](https
 index.js                  CommonJS main (requires crypto-api.js)
 index.d.ts, types.d.ts    TypeScript declarations (each module under src/ has a .d.mts next to it)
 crypto-api.js, .min.js    UMD / global `CryptoApi` build, ES5 syntax, WebAssembly embedded
-src/                      the public modules of 0.8.5, same paths (hasher classes, hmac, encoders, tools)
+src/                      the public modules of 0.8.5, same paths (hasher classes, hmac, encoders, tools), and the BLAKE hashers
 legacy/hasher/            the original 0.8.5 hasher code, used as fallback and as the base of the wasm facades
 wasm/                     embedded WebAssembly, one module per algorithm family
 example/                  runnable examples
