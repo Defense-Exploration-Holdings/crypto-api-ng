@@ -1,4 +1,7 @@
+// crypto-api-ng:facade
 'use strict';
+
+import {toBinaryString} from "../tools/input.mjs";
 
 /**
  * Base hasher class
@@ -78,11 +81,14 @@ class Hasher {
   }
 
   /**
-   * Update message from binary string
+   * Update message from binary string or bytes
    *
-   * @param {string} message
+   * @param {string|ArrayBuffer|ArrayBufferView} message - a binary string
+   *   (code units 0x00-0xFF; convert text with `fromUtf()`), or bytes
+   * @throws {TypeError} for other values, or a string with a code unit above 0xFF
    */
   update(message) {
+    message = toBinaryString(message);
     this.state.message += message;
     this.state.length += message.length;
     this.process();

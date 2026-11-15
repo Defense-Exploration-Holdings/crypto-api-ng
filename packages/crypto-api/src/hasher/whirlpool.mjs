@@ -4,6 +4,7 @@
 import LegacyWhirlpool from "../../legacy/hasher/whirlpool.mjs";
 import {wasmBytes} from "../../wasm/whirlpool.mjs";
 import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
+import {checkOptions} from "../tools/input.mjs";
 
 /*
  * Whirlpool, Whirlpool-T (`type: 't'`) and Whirlpool-0 (`type: '0'`) with the
@@ -72,6 +73,9 @@ function accelFor(hasher) {
   return null;
 }
 
+/** Supported `rounds`/`length` values (1.1 rejects the rest). */
+const OPTIONS = {rounds: {min: 1, max: 10}};
+
 /**
  * Calculates Whirlpool hash
  */
@@ -81,6 +85,7 @@ class Whirlpool extends LegacyWhirlpool {
    */
   constructor(options) {
     // Explicit, so `Whirlpool.length === 1` like the original (an implicit one has length 0).
+    checkOptions('Whirlpool', options, OPTIONS);
     super(options);
   }
 

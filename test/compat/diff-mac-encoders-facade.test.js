@@ -1,10 +1,12 @@
 // Differential tests for everything that is not a hasher class: Hmac, the four
 // encoders, the rotate helpers and the CryptoApi facade (getHasher/hash/hmac/getHmac).
+// Where 1.1 fixes a 0.8.5 behavior (Hmac reuse, non-string input, sm3, option
+// checks) the expected 1.1 result is derived from the original's answer.
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadBoth, make } from '../harness/load.mjs';
 import {
-  VARIANTS, FAMILIES, GET_HASHER_NAMES, UNKNOWN_HASHER_NAMES,
+  VARIANTS, FAMILIES, GET_HASHER_NAMES, UNKNOWN_HASHER_NAMES, optionSupported,
 } from '../harness/catalog.mjs';
 import { Rng } from '../harness/prng.mjs';
 
@@ -30,30 +32,54 @@ describe('Hmac', () => {
       for (let i = 0; i < Math.max(10, ITERS / 4); i++) {
         const key = rng.bytes(rng.chance(0.5) ? rng.pick(KEY_LENS) : rng.range(0, 260));
         const chunks = [rng.bytes(rng.range(0, 150)), rng.bytes(rng.range(0, 150))];
-        const run = (api) => {
-          const h = make(api, fam(v.family), structuredClone(v.options));
-          const m = new api.Hmac(key, h);
-          const trace = { stateAfterCtor: JSON.stringify(h.getState()) };
-          for (const c of chunks) m.update(c);
-          trace.mac = api.toHex(m.finalize());
-          trace.mac2 = outcome(() => api.toHex(m.finalize())); // reuse quirk: second finalize
-          trace.stateAfter = JSON.stringify(h.getState());
-          return trace;
+        const extra = rng.bytes(rng.range(0, 150));
+        // 0.8.5: the first finalize() is correct, everything after it is not.
+        const macOf = (api, message) => {
+          const m = new api.Hmac(key, make(api, fam(v.family), structuredClone(v.options)));
+          m.update(message);
+          return api.toHex(m.finalize());
         };
-        same(run(oracle), run(target), `${v.id} keylen=${key.length} iteration=${i} seed=${SEED}`);
+        const fresh = JSON.stringify(make(oracle, fam(v.family), structuredClone(v.options)).getState());
+        const expected = {
+          stateAfterCtor: fresh,
+          mac: macOf(oracle, chunks.join('')),
+          mac2: { ok: macOf(oracle, chunks.join('')) },
+          macMore: macOf(oracle, chunks.join('') + extra),
+          macReset: macOf(oracle, extra),
+          stateAfter: fresh,
+        };
+        const h = make(target, fam(v.family), structuredClone(v.options));
+        const m = new target.Hmac(key, h);
+        const got = { stateAfterCtor: JSON.stringify(h.getState()) };
+        for (const c of chunks) m.update(c);
+        got.mac = target.toHex(m.finalize());
+        got.mac2 = outcome(() => target.toHex(m.finalize())); // 1.1: finalize() is repeatable
+        m.update(extra); // ... and does not end the message
+        got.macMore = target.toHex(m.finalize());
+        m.reset();
+        m.update(extra);
+        got.macReset = target.toHex(m.finalize());
+        got.stateAfter = JSON.stringify(h.getState()); // 1.1: the hasher passed in is not touched
+        same(expected, got, `${v.id} keylen=${key.length} iteration=${i} seed=${SEED}`);
       }
     });
   }
 
-  it('hostile keys and messages behave the same', () => {
-    const keys = [undefined, null, 5, [1, 2], new Uint8Array([1, 2, 3]), { length: 3 }, 'wideĀሴ', ''];
-    for (const k of keys) {
-      const run = (api) => outcome(() => {
-        const m = new api.Hmac(k, new api.hashers.Md5());
-        m.update('abc');
-        return api.toHex(m.finalize());
-      });
-      same(run(oracle), run(target), `key ${String(k)}`);
+  it('keys: bytes are accepted, other non-strings and wide strings throw TypeError (1.1)', () => {
+    const run = (api, k) => outcome(() => {
+      const m = new api.Hmac(k, new api.hashers.Md5());
+      m.update('abc');
+      return api.toHex(m.finalize());
+    });
+    for (const k of [undefined, null, 5, [1, 2], { length: 3 }, 'wideĀሴ']) {
+      assert.match(run(target, k).err ?? '', /^TypeError: /, `key ${String(k)}`);
+    }
+    same(run(oracle, '\x01\x02\x03'), run(target, new Uint8Array([1, 2, 3])), 'Uint8Array key');
+    same(run(oracle, '\x01\x02\x03'), run(target, Uint8Array.from([1, 2, 3]).buffer), 'ArrayBuffer key');
+    same(run(oracle, ''), run(target, ''), 'empty key');
+    for (const msg of [5, null, 'Ā']) {
+      const m = new target.Hmac('key', new target.hashers.Md5());
+      assert.throws(() => m.update(msg), TypeError, `message ${String(msg)}`);
     }
   });
 
@@ -157,7 +183,8 @@ describe('tools', () => {
 describe('CryptoApi facade', () => {
   const OPTS = [undefined, {}, { rounds: 3 }, { length: 224 }, { type: 't' }, { rounds: 80, length: 160 }];
 
-  it('getHasher: every documented name builds the same hasher', () => {
+  it('getHasher: every documented name builds the same hasher, or rejects unsupported options (1.1)', () => {
+    let rejected = 0;
     for (const name of GET_HASHER_NAMES) {
       for (const opts of OPTS) {
         const run = (api) => outcome(() => {
@@ -166,13 +193,36 @@ describe('CryptoApi facade', () => {
           h.update('abc');
           return { hex: api.toHex(h.finalize()), options: JSON.stringify(h.options), callerOptions: JSON.stringify(arg), cls: h.constructor.name };
         });
-        same(run(oracle), run(target), `${name} ${JSON.stringify(opts)}`);
+        const expected = run(oracle);
+        if (expected.err) {
+          // The original fails on these options too (e.g. Snefru rounds 80); 1.1 fails at construction.
+          assert.match(run(target).err ?? '', /^(RangeError|TypeError): /, `${name} ${JSON.stringify(opts)}`);
+          continue;
+        }
+        const familyOf = FAMILIES.find((f) => f.className === expected.ok.cls);
+        if (optionSupported(familyOf.id, JSON.parse(expected.ok.options))) {
+          same(expected, run(target), `${name} ${JSON.stringify(opts)}`);
+        } else {
+          rejected++;
+          assert.match(run(target).err ?? '', /^(RangeError|TypeError): /, `${name} ${JSON.stringify(opts)}`);
+        }
       }
     }
+    assert.ok(rejected > 0);
+  });
+
+  it('getHasher: sm3 (1.1)', () => {
+    const h = target.CryptoApi.getHasher('sm3');
+    assert.ok(h instanceof target.hashers.Sm3);
+    const o = new oracle.hashers.Sm3();
+    for (const x of [h, o]) x.update('abc');
+    same(oracle.toHex(o.finalize()), target.toHex(h.finalize()));
+    const r = target.CryptoApi.getHasher('sm3', { rounds: 32 });
+    assert.equal(r.options.rounds, 32);
   });
 
   it('getHasher: unknown names return undefined', () => {
-    for (const name of UNKNOWN_HASHER_NAMES) {
+    for (const name of UNKNOWN_HASHER_NAMES.filter((n) => n !== 'sm3')) {
       same(outcome(() => oracle.CryptoApi.getHasher(name)), outcome(() => target.CryptoApi.getHasher(name)), name);
     }
     for (const bad of [undefined, null, 5, {}]) {
@@ -184,11 +234,16 @@ describe('CryptoApi facade', () => {
     const rng = new Rng(SEED, 'facade-hash');
     const texts = ['', 'abc', 'Привет', '€uro', '\u{1F600}', 'a\ud800', '\0'];
     for (let i = 0; i < 20; i++) texts.push(rng.wide(rng.range(0, 100)));
+    const sm3 = (t) => { const h = new oracle.hashers.Sm3(); h.update(oracle.fromUtf(t)); return oracle.toHex(h.finalize()); };
     for (const name of [...GET_HASHER_NAMES, ...UNKNOWN_HASHER_NAMES]) {
       for (const t of texts) {
-        same(outcome(() => oracle.CryptoApi.hash(name, t)), outcome(() => target.CryptoApi.hash(name, t)), `${name} ${JSON.stringify(t)}`);
+        const expected = name === 'sm3' ? outcome(() => sm3(t)) : outcome(() => oracle.CryptoApi.hash(name, t));
+        same(expected, outcome(() => target.CryptoApi.hash(name, t)), `${name} ${JSON.stringify(t)}`);
       }
     }
+    // 1.1: bytes are hashed as they are, not UTF-8 encoded.
+    same(oracle.CryptoApi.hash('sha256', 'abc'), target.CryptoApi.hash('sha256', new Uint8Array([97, 98, 99])));
+    assert.throws(() => target.CryptoApi.hash('sha256', 5), TypeError);
   });
 
   it('hmac() and getHmac()', () => {

@@ -27,6 +27,7 @@ import Hasher from '../packages/crypto-api/src/hasher/hasher.mjs';
 import Hasher32be from '../packages/crypto-api/src/hasher/hasher32be.mjs';
 import Hmac from '../packages/crypto-api/src/mac/hmac.mjs';
 import { toHex } from '../packages/crypto-api/src/encoder/hex.mjs';
+import { optionSupported } from './harness/catalog.mjs';
 
 const vec = (name) => JSON.parse(readFileSync(new URL(`./vectors/${name}.json`, import.meta.url), 'utf8'));
 const FUZZ_ITERS = Number(process.env.FUZZ_ITERS || 200);
@@ -239,7 +240,7 @@ for (const A of ALGOS) {
     test('differential: random messages split across random update() calls, every option set', () => {
       const rand = rng(2);
       const lengths = [0, 1, 15, 16, 17, 55, 56, 57, 63, 64, 65, 111, 112, 113, 119, 120, 121, 127, 128, 129, 239, 240, 241, 255, 256, 257];
-      const optionSets = [...A.inside, ...(A.processOnly || []), ...A.outside];
+      const optionSets = [...A.inside, ...(A.processOnly || []), ...A.outside].filter((o) => optionSupported(A.id, o));
       for (const options of optionSets) {
         for (let it = 0; it < Math.max(20, FUZZ_ITERS / 4); it++) {
           const len = it < lengths.length ? lengths[it] : (rand() * 300) | 0;
@@ -263,7 +264,7 @@ for (const A of ALGOS) {
     });
 
     test('options inside the envelope run in wasm, others in the original', () => {
-      for (const options of A.inside) {
+      for (const options of A.inside.filter((o) => optionSupported(A.id, o))) {
         assert.equal(wasmUsed(() => {
           const h = new F(opts(options));
           h.update('x'.repeat(2 * B + 2));
@@ -272,14 +273,14 @@ for (const A of ALGOS) {
       }
       // A `length` the wasm code does not serve still lets process() use it (length
       // only picks the IV and the output size); finalize() runs the original code.
-      for (const options of A.processOnly || []) {
+      for (const options of (A.processOnly || []).filter((o) => optionSupported(A.id, o))) {
         assert.equal(wasmUsed(() => {
           const h = new F(opts(options));
           h.update('x'.repeat(2 * B + 2));
           attempt(() => h.finalize());
         }), 2, JSON.stringify(options)); // update() and the original finalize() both call process()
       }
-      for (const options of A.outside) {
+      for (const options of A.outside.filter((o) => optionSupported(A.id, o))) {
         // Some of these throw or hang in the original for the whole message; compare only what is safe.
         const a = new F(opts(options));
         const used = wasmUsed(() => {
@@ -290,6 +291,24 @@ for (const A of ALGOS) {
         });
         assert.equal(used, 0, `${JSON.stringify(options)} must not use wasm`);
       }
+    });
+
+    test('1.1: rounds/length outside the supported set throw at construction', () => {
+      const all = [...A.inside, ...(A.processOnly || []), ...A.outside, { rounds: 0 }, { rounds: NaN }, { rounds: A.maxRounds + 1 }];
+      let rejected = 0;
+      for (const options of all) {
+        const o = opts(options);
+        const before = JSON.stringify(o);
+        const r = attempt(() => new F(o));
+        if (optionSupported(A.id, options)) {
+          assert.equal(r.error, undefined, JSON.stringify(options));
+        } else {
+          rejected++;
+          assert.match(r.error || '', /^(RangeError|TypeError): /, JSON.stringify(options));
+          assert.equal(JSON.stringify(o), before, 'options object is not modified');
+        }
+      }
+      assert.ok(rejected >= 3);
     });
 
     test('options changed after construction are honored on the next call', () => {
@@ -467,7 +486,7 @@ for (const A of ALGOS) {
       assert.equal(json(a), json(b));
     });
 
-    test('the 2^31-byte length bug is kept (setState with huge lengths)', () => {
+    test('huge lengths give the 64-bit length field (setState), wasm and JS alike', () => {
       const lengths = [(2 ** 31) - 1, 2 ** 31, 2 ** 31 + 5, 2 ** 32 - 1, 2 ** 32, 2 ** 32 + 7, 3 * 2 ** 31 + 9, 2 ** 40 + 3, Number.MAX_SAFE_INTEGER, -1, -(2 ** 31), -(2 ** 33) - 5];
       for (const length of lengths) {
         for (const message of ['', 'abc', 'x'.repeat(T - 1), 'y'.repeat(T), 'z'.repeat(B - 1)]) {
@@ -762,7 +781,7 @@ describe('sha512: reset() and initial hash words', () => {
   const lengths = [512, 384, 224, 256, 160, 128, 100, 480, 32, 33, 31, 1, 600, 2.5, -5, '224', '256', '384', true, 224.5];
 
   test('constructing with any length gives the original state, key order and IV included', () => {
-    for (const length of lengths) {
+    for (const length of lengths.filter((l) => optionSupported('sha512', { length: l }))) {
       const a = new Sha512({ length });
       const b = new LegacySha512({ length });
       assert.equal(json(a), json(b), `length ${JSON.stringify(length)}`);
@@ -792,7 +811,7 @@ describe('sha512: reset() and initial hash words', () => {
   });
 
   test('reset() after changing options.length picks the IV for the new length', () => {
-    for (const from of [512, 224, 256, 384, 100]) {
+    for (const from of [512, 224, 256, 384, 160]) {
       for (const to of [224, 256, 384, 512, 100, 160]) {
         const a = new Sha512({ length: from });
         const b = new LegacySha512({ length: from });

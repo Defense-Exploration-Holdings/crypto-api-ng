@@ -1,8 +1,8 @@
-# v1 parity test harness
+# Parity test harness
 
 Goal: prove that the port is the same library as `crypto-api` 0.8.5 for every input
 the original accepts: same digests, same thrown errors, same `getState()` JSON,
-same object shape. The oracle is the **untouched original** (the `crypto-api/`
+same object shape, except for the documented fixes of 1.1 (see "The fixes model" below). The oracle is the **untouched original** (the `crypto-api/`
 git checkout of upstream, `scripts/fetch-upstream.sh`). The implementation under
 test (the **target**) is `packages/crypto-api`, or any other package root named by
 `CRYPTO_API_TARGET`. Zero npm dependencies: only Node 22 (`node:test`, `node:crypto`).
@@ -20,15 +20,28 @@ npm run vectors              # regenerate test/vectors from the original test fi
 | Test | What it proves |
 |---|---|
 | `test/legacy-suite/run.mjs target` | The original `crypto-api/test/test.mjs`, unmodified, passes against the target: **286 tests**. Its `../src/...` imports are redirected to the target by a resolve hook, `node:test` stands in for mocha and `node:assert` for chai (the tests only use `assert.equal`). `run.mjs oracle` runs it against the original itself and must also give 286. |
-| `compat/diff-hashers.test.js` | Seeded differential fuzzer, 12 hasher classes x 239 option cells (defaults, every documented `length`/`rounds`/`type`, values just outside the supported set, odd types such as `'7'`, `true`, `NaN`, `-1`, `1.5`). Each iteration runs one scenario on both implementations and compares every observable: return values, thrown error class and message, the caller's mutated `options` object, and `JSON.stringify(getState())` after every step. Scenarios: random bytes at block/padding boundaries and random lengths, split over 1-6 `update()` calls, `finalize()` (sometimes twice, or followed by more `update()`), `reset()` and a second message, plus 8% hostile inputs (strings with code units above 0xFF, `Uint8Array`, `ArrayBuffer`, numbers, `undefined`, `null`, plain arrays). Every scenario is then replayed with the state handed over mid-stream with `getState()` / `setState()` oracle -> target and target -> oracle. |
+| `compat/diff-hashers.test.js` | Seeded differential fuzzer, 12 hasher classes x 239 option cells (defaults, every documented `length`/`rounds`/`type`, values just outside the supported set, odd types such as `'7'`, `true`, `NaN`, `-1`, `1.5`). Each iteration runs one scenario on the target and on the fixes model of the original, and compares every observable: return values, thrown error class, the caller's mutated `options` object, and `JSON.stringify(getState())` after every step. Scenarios: random bytes at block/padding boundaries and random lengths, split over 1-6 `update()` calls, `finalize()` (sometimes twice, or followed by more `update()`), `reset()` and a second message, plus 8% hostile inputs (strings with code units above 0xFF, `Uint8Array`, `ArrayBuffer`, `DataView`, `Uint16Array`, subarrays, numbers, `undefined`, `null`, plain arrays). Every scenario is then replayed with the state handed over mid-stream with `getState()` / `setState()` model -> target and target -> model. |
 | `compat/harness-selftest.test.js` | Mutation test of the harness itself: 8 deliberately broken copies of the original (one constant, default, field or padding byte changed each) must all be rejected by the fuzzer, and one equivalent rewrite must be accepted. |
 | `compat/vectors.test.js` | The 238 hash and HMAC vectors of the original suite (`test/vectors/*.json`) in one `update()`, byte by byte, and with a `getState()`/`setState()` round trip at every 7th offset. |
 | `compat/openssl.test.js` | Independent oracle: `node:crypto` for MD5, SHA-1, SHA-224/256/384/512, SHA-512/224, SHA-512/256, RIPEMD-160 and SM3 (every block/padding boundary length plus random lengths, one million `a`), and `createHmac` for 8 of them with key lengths around the block size. |
 | `compat/diff-mac-encoders-facade.test.js` | `Hmac` over every variant (including hostile keys and a user-written hasher), the four encoders with lone surrogates and code units above 0xFF, the rotate helpers, and the `CryptoApi` facade: every `getHasher` name with option variants, unknown names, `hash`, `hmac`, `getHmac`. |
-| `compat/quirks.test.js` | The documented quirks of 0.8.5 as 20 executable probes (pinned oracle answers, target must match), the 32-bit length field for all 24 variants at 17 lengths up to 2^53 (set through `state.length`, because 2 GiB inputs are impractical), and direct reads/writes of `.state`. |
+| `compat/quirks.test.js` | The documented quirks of 0.8.5 as 20 executable probes (pinned oracle answers; the target must match, or give the 1.1 answer for the quirks 1.1 fixes), the 64-bit length field for all 24 variants at 17 lengths up to 2^53 against the fixes model and, below 2^31, the original (set through `state.length`, because 2 GiB inputs are impractical), and direct reads/writes of `.state`. |
 | `compat/shape.test.js` | Class names, inheritance chains, prototype methods, instance properties, `instanceof` against the target's own base classes, and user subclasses overriding `processBlock`, `update`, `finalize`, `getStateHash`, `addLengthBits` behaving identically. |
-| `compat/divergences.test.js` | The three intentional v1 divergences. The Snefru `length >= 512` hang is proved against the original in a child process with a timeout. The "target throws RangeError" half passes. |
+| `compat/divergences.test.js` | The three intentional v1 divergences (the package README lists them). The Snefru `length >= 512` hang is proved against the original in a child process with a timeout. The "target throws RangeError" half passes. |
 | `compat/vendor.test.js` | Every file under `packages/crypto-api/{src,legacy}` equals the original with only relative import specifiers changed, and each import still resolves to the same module. `vendor-legacy.mjs --check` and `extract-vectors.mjs --check` show no drift. |
+
+## The fixes model
+
+Version 1.1 fixes six behaviors of 0.8.5 (package `CHANGELOG.md`, "1.1.0"). Comparing against the
+plain original would flag every one of them, so the differential tests compare against
+`test/harness/fixes-model.mjs`: the original's classes, subclassed with exactly the 1.1 rules and
+nothing else. The model is written independently of the package code: `update()` accepts binary
+strings and bytes and throws `TypeError` otherwise, the length field is computed with `BigInt`,
+and `rounds`/`length` outside `OPTION_RULES` (in `catalog.mjs`) throw at construction. Errors are
+compared by class only, because the model does not reproduce the package's messages.
+`test/fixes.test.js` checks each fix against an independent reference (`node:crypto`, BigInt,
+the original's compression of a hand-built final block); `LARGE_TESTS=1` adds real messages over
+2 GiB for MD5, SHA-256 and SHA-512 (a few minutes).
 
 ## Environment variables
 

@@ -303,7 +303,7 @@ test('integer hash words outside int32 are still computed by wasm, identically',
   assert.equal(json(a), json(b));
 });
 
-test('the 2^31-byte length bug is kept (setState with huge lengths)', () => {
+test('huge lengths give the 64-bit length field (setState), wasm and JS alike', () => {
   const iv = [1732584193, -271733879, -1732584194, 271733878];
   const lengths = [(2 ** 31) - 1, 2 ** 31, 2 ** 31 + 5, 2 ** 32 - 1, 2 ** 32, 2 ** 32 + 7, 3 * 2 ** 31 + 9, 2 ** 40 + 3, Number.MAX_SAFE_INTEGER, -1, -(2 ** 31), -(2 ** 33) - 5];
   for (const length of lengths) {

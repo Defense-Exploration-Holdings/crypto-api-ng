@@ -339,7 +339,7 @@ export function defineSuite(c) {
     assert.equal(json(a), json(b));
   });
 
-  test(label('the 2^31-byte length bug is kept (setState with huge lengths)'), () => {
+  test(label('huge lengths give the 64-bit length field (setState), wasm and JS alike'), () => {
     const lengths = [(2 ** 31) - 1, 2 ** 31, 2 ** 31 + 5, 2 ** 32 - 1, 2 ** 32, 2 ** 32 + 7, 3 * 2 ** 31 + 9, 2 ** 40 + 3, Number.MAX_SAFE_INTEGER, -1, -(2 ** 31), -(2 ** 33) - 5];
     for (const length of lengths) {
       for (const message of ['', 'abc', 'x'.repeat(55), 'y'.repeat(56), 'z'.repeat(63)]) {

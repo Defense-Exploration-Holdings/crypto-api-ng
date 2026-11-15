@@ -1,9 +1,8 @@
 //! Shared helpers for the 64-byte-block, big-endian-word hashers of crypto-api
 //! (SHA-0, SHA-1, SHA-224/256, SM3).
 //!
-//! These reproduce the original library's quirks, not the standards' ideal
-//! behavior: in particular the message length field is built from the JS
-//! `state.length` with 32-bit shift operators (see `lengthField`).
+//! The message length field is the standard 64-bit big-endian bit count
+//! (see `lengthField`); crypto-api 0.8.5 and v1 built it with 32-bit shifts.
 
 const std = @import("std");
 
@@ -18,29 +17,15 @@ pub inline fn loadBlock(block: *const [block_size]u8) [16]u32 {
     return w;
 }
 
-/// The 8 length bytes the original `Hasher32be.addLengthBits()` appends:
-///
-///     "\x00\x00\x00" + chr(len >> 29 & 0xff) + chr(len >> 21 & 0xff)
-///                    + chr(len >> 13 & 0xff) + chr(len >> 5 & 0xff)
-///                    + chr(len << 3 & 0xff)
-///
-/// JS applies `>>` and `<<` to ToInt32(len), i.e. the low 32 bits of the byte
-/// count read as a signed integer, and `>>` sign-extends. So for byte counts of
-/// 2^31 and above the field is wrong; this function is wrong in exactly the
-/// same way (v1 keeps the bug, v2 fixes it). `len_lo` is the byte count modulo
-/// 2^32 (JS `len >>> 0`), which is all the original ever looks at.
-pub fn lengthField(len_lo: u32) [8]u8 {
-    const l: i32 = @bitCast(len_lo);
-    return .{
-        0,
-        0,
-        0,
-        @truncate(@as(u32, @bitCast(l >> 29))),
-        @truncate(@as(u32, @bitCast(l >> 21))),
-        @truncate(@as(u32, @bitCast(l >> 13))),
-        @truncate(@as(u32, @bitCast(l >> 5))),
-        @truncate(len_lo << 3),
-    };
+/// The 8 length bytes `Hasher32be.addLengthBits()` appends: the message length
+/// in bits as a 64-bit big-endian integer. `length` is the byte count, which a
+/// JS Number holds exactly below 2^53, so the multiplication cannot overflow.
+/// (crypto-api 0.8.5 and v1 used 32-bit signed shifts here, which corrupted the
+/// field for messages of 2 GiB or more.)
+pub fn lengthField(length: u64) [8]u8 {
+    var out: [8]u8 = undefined;
+    std.mem.writeInt(u64, &out, length *% 8, .big);
+    return out;
 }
 
 /// Padding done by the original `finalize()` of these hashers: ISO 7816-4
@@ -48,13 +33,13 @@ pub fn lengthField(len_lo: u32) [8]u8 {
 /// bytes or more), then the length field. `tail` is the buffered, unprocessed
 /// message, shorter than one block. Returns the 64 or 128 bytes that remain to
 /// be compressed.
-pub fn finalTail(tail: []const u8, len_lo: u32, out: *[2 * block_size]u8) []const u8 {
+pub fn finalTail(tail: []const u8, length: u64, out: *[2 * block_size]u8) []const u8 {
     std.debug.assert(tail.len < block_size);
     @memset(out, 0);
     @memcpy(out[0..tail.len], tail);
     out[tail.len] = 0x80;
     const total: usize = if (tail.len < 56) block_size else 2 * block_size;
-    out[total - 8 ..][0..8].* = lengthField(len_lo);
+    out[total - 8 ..][0..8].* = lengthField(length);
     return out[0..total];
 }
 
@@ -90,7 +75,7 @@ pub fn update(comptime S: type, comptime blocksFn: fn (*S, []const u8) void, st:
 /// gives what crypto-api 0.8.5 gives.
 pub fn finish(comptime S: type, comptime blocksFn: fn (*S, []const u8) void, st: *S) void {
     var buf: [2 * block_size]u8 = undefined;
-    blocksFn(st, finalTail(st.buf[0..st.buffered], @truncate(st.length), &buf));
+    blocksFn(st, finalTail(st.buf[0..st.buffered], st.length, &buf));
     st.buffered = 0;
     @memset(&st.buf, 0);
 }
@@ -110,12 +95,13 @@ test "lengthField matches the standard below 2 GiB" {
     try std.testing.expectEqualSlices(u8, &.{ 0, 0, 0, 0x00, 0x91, 0xA2, 0xB3, 0xC0 }, &lengthField(0x12345678));
 }
 
-test "lengthField keeps the 2 GiB sign-extension bug" {
-    // 2^31 bytes: the standard field is 00 00 00 04 00 00 00 00, but the
-    // original's arithmetic shift of a negative int32 gives 0xfc as the top byte.
-    try std.testing.expectEqualSlices(u8, &.{ 0, 0, 0, 0xfc, 0, 0, 0, 0 }, &lengthField(0x8000_0000));
-    // Bits above 2^32 are dropped (JS ToInt32): same as length 0.
-    try std.testing.expectEqualSlices(u8, &lengthField(0), &lengthField(@truncate(@as(u64, 1) << 32)));
+test "lengthField is the 64-bit bit count at and above 2 GiB" {
+    // 2^31 bytes = 2^34 bits.
+    try std.testing.expectEqualSlices(u8, &.{ 0, 0, 0, 0x04, 0, 0, 0, 0 }, &lengthField(0x8000_0000));
+    // 2^32 + 7 bytes: the high bits are kept.
+    try std.testing.expectEqualSlices(u8, &.{ 0, 0, 0, 0x08, 0, 0, 0, 0x38 }, &lengthField((1 << 32) + 7));
+    // 2^53 - 1 bytes, the largest exact JS length.
+    try std.testing.expectEqualSlices(u8, &.{ 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf8 }, &lengthField((1 << 53) - 1));
 }
 
 test "finalTail switches to two blocks at 56 bytes" {

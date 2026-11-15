@@ -3,11 +3,11 @@
 //! Target-agnostic (no wasm/OS code), so it is unit-tested natively. The wasm
 //! export wrapper is `src/wasm/md.zig`.
 //!
-//! Faithful means bug-for-bug where the original differs from RFC 1321:
-//!   * the bit-length field is built from the *32-bit* byte count with signed
-//!     shifts (`addLengthBits` in hasher32le.mjs), so messages of 2^31 bytes
-//!     or more get a wrong length field. This is kept in v1 and fixed in v2.
-//!     See `lengthField`.
+//! Where the original differs from RFC 1321 the port follows the original,
+//! with one exception fixed in 1.1:
+//!   * the bit-length field is the 64-bit bit count (`lengthField`). 0.8.5 and
+//!     v1 built it from the 32-bit byte count with signed shifts, so messages
+//!     of 2^31 bytes or more got a wrong field.
 //!   * `final` leaves the state exactly as the original `finalize()` does
 //!     (buffer drained, hash words advanced, `length` unchanged), so a second
 //!     `final` call, or `update` after `final`, behaves like the original.
@@ -28,7 +28,7 @@ pub const State = extern struct {
     /// a, b, c, d. Stored as u32; JS exposes them as int32 (the original's JSON).
     hash: [4]u32,
     /// Total bytes passed to `update`. The original keeps a JS Number (exact
-    /// below 2^53); only the low 32 bits ever matter, see `lengthField`.
+    /// below 2^53), see `lengthField`.
     length: u64,
     /// Bytes currently buffered in `buf` (0..63).
     buffered: u32,
@@ -123,29 +123,15 @@ pub fn blocks(hash: *[4]u32, data: []const u8) void {
     }
 }
 
-/// The 8 length bytes the original appends after the 0x80 padding, derived
-/// from `length` exactly like `Hasher32le.addLengthBits`:
-///
-///     (len << 3) & 0xff, (len >> 5) & 0xff, (len >> 13) & 0xff,
-///     (len >> 21) & 0xff, (len >> 29) & 0xff, 0, 0, 0
-///
-/// where `len` is the JS Number converted with ToInt32 and `>>` is an
-/// arithmetic shift. For lengths below 2^31 this equals the RFC's 64-bit
-/// little-endian bit count. From 2^31 up the sign extension corrupts byte 4
-/// and the high bits are lost. Kept in v1.
+/// The 8 length bytes `Hasher32le.addLengthBits` appends after the padding:
+/// the message length in bits as a 64-bit little-endian integer. `length` is
+/// the byte count, exact below 2^53, so the multiplication cannot overflow.
+/// (crypto-api 0.8.5 and v1 used 32-bit signed shifts here, which corrupted the
+/// field for messages of 2 GiB or more.)
 pub fn lengthField(length: u64) [8]u8 {
-    const len: i32 = @bitCast(@as(u32, @truncate(length)));
-    const shl: i32 = len << 3;
-    return .{
-        @truncate(@as(u32, @bitCast(shl))),
-        @truncate(@as(u32, @bitCast(len >> 5))),
-        @truncate(@as(u32, @bitCast(len >> 13))),
-        @truncate(@as(u32, @bitCast(len >> 21))),
-        @truncate(@as(u32, @bitCast(len >> 29))),
-        0,
-        0,
-        0,
-    };
+    var out: [8]u8 = undefined;
+    std.mem.writeInt(u64, &out, length *% 8, .little);
+    return out;
 }
 
 /// Pad, process the final block(s) and write the 16-byte digest. Mutates `st`
@@ -273,7 +259,7 @@ test "matches std.crypto Md5 at every length 0..300, one shot and split" {
     }
 }
 
-test "length field matches the original addLengthBits (values from crypto-api 0.8.5)" {
+test "length field is the 64-bit little-endian bit count, also at and above 2 GiB" {
     const cases = [_]struct { len: u64, bytes: [8]u8 }{
         .{ .len = 0, .bytes = .{ 0, 0, 0, 0, 0, 0, 0, 0 } },
         .{ .len = 1, .bytes = .{ 8, 0, 0, 0, 0, 0, 0, 0 } },
@@ -281,23 +267,23 @@ test "length field matches the original addLengthBits (values from crypto-api 0.
         .{ .len = 64, .bytes = .{ 0, 2, 0, 0, 0, 0, 0, 0 } },
         .{ .len = 1 << 29, .bytes = .{ 0, 0, 0, 0, 1, 0, 0, 0 } },
         .{ .len = (1 << 31) - 1, .bytes = .{ 248, 255, 255, 255, 3, 0, 0, 0 } },
-        // From 2^31 the original sign-extends byte 4 and drops the high bits.
-        .{ .len = 1 << 31, .bytes = .{ 0, 0, 0, 0, 252, 0, 0, 0 } },
-        .{ .len = (1 << 31) + 5, .bytes = .{ 40, 0, 0, 0, 252, 0, 0, 0 } },
-        .{ .len = (1 << 32) - 1, .bytes = .{ 248, 255, 255, 255, 255, 0, 0, 0 } },
-        .{ .len = 1 << 32, .bytes = .{ 0, 0, 0, 0, 0, 0, 0, 0 } },
-        .{ .len = (1 << 32) + 7, .bytes = .{ 56, 0, 0, 0, 0, 0, 0, 0 } },
-        .{ .len = 3 * (1 << 31) + 9, .bytes = .{ 72, 0, 0, 0, 252, 0, 0, 0 } },
-        .{ .len = (1 << 40) + 3, .bytes = .{ 24, 0, 0, 0, 0, 0, 0, 0 } },
+        .{ .len = 1 << 31, .bytes = .{ 0, 0, 0, 0, 4, 0, 0, 0 } },
+        .{ .len = (1 << 31) + 5, .bytes = .{ 40, 0, 0, 0, 4, 0, 0, 0 } },
+        .{ .len = (1 << 32) - 1, .bytes = .{ 248, 255, 255, 255, 7, 0, 0, 0 } },
+        .{ .len = 1 << 32, .bytes = .{ 0, 0, 0, 0, 8, 0, 0, 0 } },
+        .{ .len = (1 << 32) + 7, .bytes = .{ 56, 0, 0, 0, 8, 0, 0, 0 } },
+        .{ .len = 3 * (1 << 31) + 9, .bytes = .{ 72, 0, 0, 0, 12, 0, 0, 0 } },
+        .{ .len = (1 << 40) + 3, .bytes = .{ 24, 0, 0, 0, 0, 8, 0, 0 } },
+        .{ .len = (1 << 53) - 1, .bytes = .{ 248, 255, 255, 255, 255, 255, 255, 0 } },
     };
     for (cases) |c| try testing.expectEqualSlices(u8, &c.bytes, &lengthField(c.len));
 }
 
-test "length field equals the RFC 64-bit bit count below 2^31" {
+test "length field equals the RFC 64-bit bit count for random lengths below 2^53" {
     var prng = std.Random.DefaultPrng.init(1);
     const rnd = prng.random();
     for (0..1000) |_| {
-        const len = rnd.intRangeLessThan(u64, 0, 1 << 31);
+        const len = rnd.intRangeLessThan(u64, 0, 1 << 53);
         var want: [8]u8 = undefined;
         std.mem.writeInt(u64, &want, len * 8, .little);
         try testing.expectEqualSlices(u8, &want, &lengthField(len));

@@ -2,7 +2,7 @@
 
 Hashing library for JavaScript with no dependencies: a maintained port of [`crypto-api`](https://github.com/nf404/crypto-api) 0.8.5 (Aleksandr Mogilnikov, "nf404") whose compression functions run as Zig-compiled WebAssembly.
 
-**Version 1 is a drop-in replacement for `crypto-api@0.8.5`**: same classes, same import paths, same options, same digests and the same `getState()` JSON for every input the original accepts, bugs included. Where a hasher is used outside what the WebAssembly code models exactly (unusual options, non-string input, characters above `\xFF`, subclasses overriding internals, no WebAssembly in the environment), the original JavaScript code runs instead, so the result is the same either way. Fixes and new algorithms are planned for version 2.
+**Version 1 is a drop-in replacement for `crypto-api@0.8.5`**: same classes, same import paths, same options, same digests and the same `getState()` JSON for every input the original accepts, bugs included. **Version 1.1** keeps that API and fixes those bugs (see "Changes in 1.1"); the 1.0.x line keeps them for code that depends on the exact 0.8.5 behavior. Where a hasher is used outside what the WebAssembly code models exactly (subclasses overriding internals, unusual states set with `setState()`, no WebAssembly in the environment), the original JavaScript code runs instead, so the result is the same either way.
 
 ## Install
 
@@ -98,27 +98,28 @@ example/                  runnable examples
 
 ## Differences from crypto-api 0.8.5
 
-Everything observable is kept, with these deliberate exceptions:
+Everything observable is kept, with these deliberate exceptions (and, from 1.1, the fixes listed in the next section):
 
-1. **No endless loop in Snefru.** `length` of 512 or more gives a block size of 0 or less, and the original `process()` never returns. v1 throws `RangeError`.
+1. **No endless loop in Snefru.** `length` of 512 or more gives a block size of 0 or less, and the original `process()` never returns. 1.0 throws `RangeError` from `update()`; 1.1 rejects such a `length` at construction.
 2. **`main` works.** `require('crypto-api-ng')` loads `index.js` (the original's `main` pointed at a file that was never published).
 3. **`src/index.mjs` is loadable.** The original assigned `module.exports` inside an ES module, which only the original's own babel setup accepted. v1 default-exports the same object.
 4. **Private scratch arrays.** The `@private` working arrays of some hashers (`W`, `blockUnits`) are not filled when WebAssembly did the work, so `JSON.stringify(hasher)` can differ from the original in those fields. `getState()`, `setState()` and `state` are unaffected.
 
-## Behaviors kept from 0.8.5 (fixed in v2)
+## Changes in 1.1
 
-These are bugs of the original that existing users may depend on, so v1 keeps them:
+1.1 fixes the 0.8.5 bugs that 1.0 kept for compatibility. Every digest 1.0 computed correctly is unchanged; what changes is what happens with inputs and options that gave wrong or meaningless results:
 
-* `update()` does not encode text. A string with characters above `\xFF` gives an algorithm-specific result that is neither UTF-8 nor Latin-1. Only `CryptoApi.hash()` and `CryptoApi.hmac()` convert with `fromUtf`.
-* Non-string `update()` arguments are coerced with `String()` (`Uint8Array([1, 2])` is hashed as `"1,2"`). Use `fromArrayBuffer`.
-* The message length field is 32-bit: messages of 2 GiB or more get a wrong digest.
-* `CryptoApi.getHasher('sm3')` returns `undefined`; import `src/hasher/sm3.mjs` instead.
-* `Hmac` mutates the hasher it is given, and a second `finalize()` returns a wrong value.
-* Out-of-range `rounds`/`length` options are not rejected and give algorithm-specific results.
+* **Bytes in.** `update()` takes a binary string (characters `\x00` to `\xFF`) or bytes: an `ArrayBuffer`, `SharedArrayBuffer` or any view of one (`Uint8Array`, `DataView`, ...). So do `Hmac` and the keys and messages of `CryptoApi.hash()` and `CryptoApi.hmac()`, which still UTF-8 encode strings.
+* **No silent garbage.** `update()` throws `TypeError` for a string with a character above `\xFF` (encode text with `fromUtf()` first) and for any value that is neither a string nor bytes.
+* **Messages of 2 GiB and more.** The length field is the full 64-bit bit count, so these get the correct digest.
+* **`CryptoApi.getHasher('sm3')`** returns an SM3 hasher.
+* **`Hmac`** leaves the hasher it is given untouched, `finalize()` can be called more than once, and `reset()` restarts with the same key.
+* **Options are checked.** A `rounds` or `length` outside the supported set throws `RangeError` (or `TypeError` for a non-number) when the hasher is created. The supported values are listed in `CHANGELOG.md`.
 
 ## Migrating
 
 * **From 0.8.x**: change the package name in `package.json`, imports and CDN URLs. Paths under `src/` and the `CryptoApi` global are unchanged. Persisted `getState()` objects load as before.
+* **From 1.0**: code that hashes text with `fromUtf()` (or `CryptoApi.hash()`), uses documented options and creates a new `Hmac` per message works unchanged. Replace `update(fromArrayBuffer(buffer))` with `update(buffer)` if you like; both work. Code that relied on one of the behaviors listed under "Changes in 1.1" needs updating, or can pin `~1.0.0`.
 * **From 0.7.x**: 0.8.0 changed the API (`CryptoApi.hash(...).stringify('hex')` became `CryptoApi.hash(name, message)` returning hex, hashers are classes). Nothing in this package restores the 0.7 API.
 
 ## License
