@@ -27,7 +27,7 @@ Run `zig build check` in debug and with `--release=small` before sending a chang
 
 ## Ground rules for v1
 
-Version 1 behaves exactly like `crypto-api` 0.8.5, bugs included. Do not improve outputs while porting; fixes and API changes belong to version 2. If you touch anything under `packages/crypto-api/`, keep `npm run test:parity` green. Hand-written files there start with `// crypto-api-ng:facade`; the rest are vendored from the original by `scripts/vendor-legacy.mjs`. The package README must use `{{name}}` instead of a hard-coded package name.
+Version 1 behaves exactly like `crypto-api` 0.8.5, bugs included. Do not improve outputs while porting; fixes and API changes belong to version 2. If you touch anything under `packages/crypto-api/`, keep `npm run test:parity` green. Hand-written files there start with `// crypto-api-ng:facade`; the rest are vendored from the original by `scripts/vendor-legacy.mjs`. The package name is configurable at pack time (`npm run pack -- --name <name>` replaces `crypto-api-ng` in the staged README and examples), so keep the README and examples using the committed name consistently.
 
 ## Adding or changing an algorithm
 
