@@ -36,7 +36,7 @@ const FIX_MUTATIONS = [
   { name: '1.1: wide characters accepted', file: 'src/tools/input.mjs', from: 'const WIDE = /[^\\x00-\\xff]/;', to: 'const WIDE = /[^\\x00-\\uffff]/;', only: 'sha1' },
   { name: '1.1: bytes coerced with String()', file: 'src/tools/input.mjs', from: 'const bytes = bytesOf(input);', to: 'if (input !== null && typeof input === "object") return String(input);\n  const bytes = bytesOf(input);', only: 'md5' },
   { name: '1.1: rounds range one too wide', file: 'src/hasher/sha256.mjs', from: 'rounds: {min: 1, max: 64}', to: 'rounds: {min: 1, max: 65}', only: 'sha256' },
-  { name: '1.1: length check missing', file: 'src/hasher/ripemd.mjs', from: "checkOptions('Ripemd', options, OPTIONS);", to: '', only: 'ripemd' },
+  { name: '1.1: length check missing', file: 'src/hasher/ripemd.mjs', from: "prepareOptions('Ripemd', options, OPTIONS, DEFAULTS)", to: 'options', only: 'ripemd' },
 ];
 const PACKAGE = join(here, '..', '..', 'packages', 'crypto-api');
 

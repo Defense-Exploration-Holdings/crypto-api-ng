@@ -4,7 +4,7 @@
 import LegacyWhirlpool from "../../legacy/hasher/whirlpool.mjs";
 import {wasmBytes} from "../../wasm/whirlpool.mjs";
 import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
-import {checkOptions} from "../tools/input.mjs";
+import {prepareOptions} from "../tools/input.mjs";
 
 /*
  * Whirlpool, Whirlpool-T (`type: 't'`) and Whirlpool-0 (`type: '0'`) with the
@@ -55,15 +55,16 @@ const accelT = accelerator('whirlpoolt');
 // for each `type`, so that identity decides which wasm variant applies.
 let tables = null;
 
-function tablesOf(options) {
-  const h = new LegacyWhirlpool(options);
+function tablesOf(type) {
+  // Explicit values: the original reads missing ones through `Object.prototype`.
+  const h = new LegacyWhirlpool({type, rounds: 10});
   return {C: h.C, RC: h.RC};
 }
 
 /** The accelerator for the tables this hasher holds, or null for tables the wasm code does not know. */
 function accelFor(hasher) {
   if (tables === null) {
-    tables = {plain: tablesOf({}), zero: tablesOf({type: '0'}), t: tablesOf({type: 't'})};
+    tables = {plain: tablesOf(''), zero: tablesOf('0'), t: tablesOf('t')};
   }
   const C = hasher.C;
   const RC = hasher.RC;
@@ -77,6 +78,16 @@ function accelFor(hasher) {
 const OPTIONS = {rounds: {min: 1, max: 10}};
 
 /**
+ * What the original constructor assigns when an option is missing, in its order
+ * (see `explicitOptions` in tools/input.mjs). The original writes `type: ''`
+ * (plain Whirlpool) into the options object when there is none, so that is the
+ * visible default here too and the object has the same keys as in 0.8.5. An own
+ * `type` is never replaced; one that is only inherited (from `Object.prototype`)
+ * is ignored, because it would select the tables of another variant.
+ */
+const DEFAULTS = {type: '', rounds: 10};
+
+/**
  * Calculates Whirlpool hash
  */
 class Whirlpool extends LegacyWhirlpool {
@@ -85,8 +96,7 @@ class Whirlpool extends LegacyWhirlpool {
    */
   constructor(options) {
     // Explicit, so `Whirlpool.length === 1` like the original (an implicit one has length 0).
-    checkOptions('Whirlpool', options, OPTIONS);
-    super(options);
+    super(prepareOptions('Whirlpool', options, OPTIONS, DEFAULTS));
   }
 
   /**

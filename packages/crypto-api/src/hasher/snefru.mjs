@@ -4,7 +4,7 @@
 import LegacySnefru from "../../legacy/hasher/snefru.mjs";
 import {wasmBytes} from "../../wasm/snefru.mjs";
 import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
-import {checkOptions} from "../tools/input.mjs";
+import {prepareOptions} from "../tools/input.mjs";
 
 /*
  * Snefru with the compression and padding done in wasm, and everything else
@@ -122,6 +122,12 @@ function store(hash, w, n) {
 const OPTIONS = {length: {min: 32, max: 448, step: 32}, rounds: {min: 1, max: 8}};
 
 /**
+ * What the original constructor assigns when an option is missing, in its order
+ * (see `explicitOptions` in tools/input.mjs).
+ */
+const DEFAULTS = {length: 128, rounds: 8};
+
+/**
  * Calculates Snefru v2.0 (2 rounds 128, 4 rounds 256), Snefru v2.5 (8 rounds)
  * hash. Same API, output and `getState()` JSON as crypto-api 0.8.5; see
  * legacy/hasher/snefru.mjs for the original documentation and examples.
@@ -132,8 +138,7 @@ class Snefru extends LegacySnefru {
    */
   constructor(options) {
     // Spelled out so `Snefru.length` is 1, as in 0.8.5.
-    checkOptions('Snefru', options, OPTIONS);
-    super(options);
+    super(prepareOptions('Snefru', options, OPTIONS, DEFAULTS));
   }
 
   /**
