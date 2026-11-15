@@ -19,6 +19,9 @@ pub const has160 = @import("hash/has160.zig");
 pub const ripemd = @import("hash/ripemd.zig");
 pub const snefru = @import("hash/snefru.zig");
 pub const whirlpool = @import("hash/whirlpool.zig");
+pub const blake2 = @import("hash/blake2.zig");
+pub const blake3 = @import("hash/blake3.zig");
+pub const keccak = @import("hash/keccak.zig");
 
 test {
     // Pull in tests from every module referenced above.

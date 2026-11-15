@@ -79,6 +79,10 @@ scenario as JSON and the first differing observation, for example
   These files are generated; edit the extractor, not the JSON. Hand-written vectors go in a
   different file name so the generator does not overwrite them.
 
+## Algorithms the original lacks
+
+SHA-3, SHAKE and Keccak have no 0.8.5 class, so the harness has no oracle for them and they are not in `test/harness/catalog.mjs`. `test/sha3.test.js` covers them with published answers (`test/vectors/sha3.json`), `node:crypto` (SHA-3, SHAKE, HMAC-SHA-3) at every length from 0 to 600, random splits, the wasm path against the JavaScript fallback, state round trips and the option checks; the Zig tests compare the core with `std.crypto.hash.sha3`. Their names are accepted by `getHasher()`, so they are not in `UNKNOWN_HASHER_NAMES`.
+
 ## What it does not cover (yet)
 
 - **NIST CAVP / official vector files** are not vendored.

@@ -25,6 +25,9 @@ CryptoApi.hash('sha256', 'abc');
 
 | Names for `getHasher` and `hash` | Class (path under `src/hasher/`) | Digest |
 |---|---|---|
+| `blake2b` (also `blake2b-512`), `blake2b-384`, `blake2b-256`, `blake2b-160`, `blake2b-128` | `Blake2b` (`blake2b.mjs`) | 512, 384, 256, 160, 128 bits |
+| `blake2s` (also `blake2s-256`), `blake2s-224`, `blake2s-160`, `blake2s-128` | `Blake2s` (`blake2s.mjs`) | 256, 224, 160, 128 bits |
+| `blake3` | `Blake3` (`blake3.mjs`) | 256 bits (any length with the `length` option) |
 | `has160` | `Has160` (`has160.mjs`) | 160 bits |
 | `md2`, `md4`, `md5` | `Md2`, `Md4`, `Md5` | 128 bits |
 | `ripemd128`, `ripemd160` (also `ripemd`), `ripemd256`, `ripemd320` | `Ripemd` (`ripemd.mjs`) | 128, 160, 256, 320 bits |
@@ -32,6 +35,9 @@ CryptoApi.hash('sha256', 'abc');
 | `sha224`, `sha256` | `Sha256` (`sha256.mjs`) | 224, 256 bits |
 | `sha384`, `sha512`, `sha512/224`, `sha512/256` | `Sha512` (`sha512.mjs`) | 384, 512, 224, 256 bits |
 | `sm3` | `Sm3` (`sm3.mjs`) | 256 bits |
+| `sha3-224`, `sha3-256`, `sha3-384`, `sha3-512` | `Sha3` (`sha3.mjs`) | 224, 256, 384, 512 bits |
+| `shake128`, `shake256` | `Shake` (`shake.mjs`) | any length, 256 and 512 bits by default |
+| `keccak224`, `keccak256`, `keccak384`, `keccak512` | `Keccak` (`keccak.mjs`) | 224, 256, 384, 512 bits |
 | `snefru` (also `snefru128`, `snefru128/8`), `snefru128/2`, `snefru256` (also `snefru256/8`), `snefru256/4` | `Snefru` (`snefru.mjs`) | 128 or 256 bits |
 | `whirlpool`, `whirlpool-0`, `whirlpool-t` | `Whirlpool` (`whirlpool.mjs`) | 512 bits |
 
@@ -58,7 +64,7 @@ console.log(toHex(hasher.finalize()));   // sha256 of "abc"
 | `reset()` | Back to the initial state, keeping the options. |
 | `getState()` / `setState(state)` | A plain JSON-serializable snapshot of the hasher, and restoring it into a hasher of the same class and options. Use it to pause and resume a hash. |
 
-A hasher is single use: after `finalize()` call `reset()` before hashing another message.
+A hasher is single use: after `finalize()` call `reset()` before hashing another message (the BLAKE hashers are the exception, see below).
 
 ### Options
 
@@ -66,6 +72,9 @@ An option that is left out (or `undefined`) takes its default. Since 1.1 a value
 
 | Class | `rounds` (default) | `length` (default) | Other |
 |---|---|---|---|
+| `Blake2b` | | 8 to 512 in steps of 8 (512) | `key` (up to 64 bytes), `salt` and `personalization` (up to 16 bytes each) |
+| `Blake2s` | | 8 to 256 in steps of 8 (256) | `key` (up to 32 bytes), `salt` and `personalization` (up to 8 bytes each) |
+| `Blake3` | | 8 to 8388608 in steps of 8 (256) | `key` (exactly 32 bytes) or `context`, not both |
 | `Has160` | 1 to 80 (80) | | |
 | `Md2` | 1 to 255 (18) | | |
 | `Md4`, `Md5` | | | |
@@ -74,10 +83,45 @@ An option that is left out (or `undefined`) takes its default. Since 1.1 a value
 | `Sha256` | 1 to 64 (64) | 224 or 256 (256) | |
 | `Sha512` | 1 to 160 (160) | 32 to 512 in steps of 32 (512) | 384 is SHA-384, 512 is SHA-512, any other value is SHA-512/t (224 and 256 are the standard SHA-512/224 and SHA-512/256). |
 | `Sm3` | 1 to 64 (64) | 256 | |
+| `Sha3`, `Keccak` | | 224, 256, 384 or 512 (512) | |
+| `Shake` | | 8 to 2^30 in steps of 8 (256 for strength 128, 512 for strength 256) | `strength`: 128 (SHAKE128, the default) or 256 (SHAKE256) |
 | `Snefru` | 1 to 8 (8) | 32 to 448 in steps of 32 (128) | |
 | `Whirlpool` | 1 to 10 (10) | | `type`: `'0'` (Whirlpool-0), `'t'` (Whirlpool-T), anything else is Whirlpool |
 
+The SHA-3 hashers `Sha3`, `Shake` and `Keccak` are additions of this package (the original has no SHA-3). They use the same interface with these differences:
+
+- `length` is the digest size in bits. For `Shake` it is the output length, a multiple of 8, and `strength` selects SHAKE128 or SHAKE256; the digest can be up to 128 MiB, returned as a string of `length / 8` characters. `Shake` has no `rounds` option.
+- `Keccak` is the hash with the padding of the original Keccak submission, which differs from SHA-3 in one byte of domain separation. Keccak-256 is the hash Ethereum calls "keccak256". Use `Sha3` for the standard.
+- `finalize()` does not end the message: it can be called again with the same result, and `update()` continues the message. `reset()` still starts over.
+- `blockSizeInBytes` is the sponge rate (144, 136, 104 and 72 for the four SHA-3 sizes, 168 and 136 for SHAKE128 and SHAKE256), which is the block size HMAC uses. HMAC-SHA3-256 and the like match the usual definition. NIST does not define HMAC over SHAKE (use KMAC for that); the combination works but has no standard to compare with.
+
 `rounds` can lower the standard number of rounds, never raise it (MD2 allows up to 255). It exists for compatibility with the original and for research on reduced-round variants; leave it alone for normal hashing.
+
+### BLAKE2 and BLAKE3
+
+[BLAKE2b and BLAKE2s](https://www.rfc-editor.org/rfc/rfc7693) and [BLAKE3](https://github.com/BLAKE3-team/BLAKE3) are not in `crypto-api` 0.8.5, so they follow the conventions of this package instead. Their `length` is in bits, like the other hashers', and a value that is not supported throws.
+
+```javascript
+import Blake2b from "crypto-api-ng/src/hasher/blake2b.mjs";
+import Blake3 from "crypto-api-ng/src/hasher/blake3.mjs";
+import {toHex} from "crypto-api-ng/src/encoder/hex.mjs";
+
+const mac = new Blake2b({length: 256, key: 'secret key'});   // a keyed hash is a MAC, no HMAC needed
+mac.update('message');
+console.log(toHex(mac.finalize()));
+
+const kdf = new Blake3({context: 'my-app 2026-11-15 session keys', length: 512});
+kdf.update(inputKeyMaterial);                                // bytes or a binary string
+const keys = kdf.finalize();                                 // 64 bytes of derived key
+```
+
+- `key`, `salt`, `personalization` and `context` are binary strings or bytes, not UTF-8 encoded: use `fromUtf()` for text that is not ASCII. A BLAKE2 `salt` or `personalization` shorter than its size is padded with zero bytes.
+- BLAKE2 `key` makes the digest a MAC. An empty key is no key.
+- BLAKE3 has three modes. Without options it is a plain hash. With `key` (32 bytes) it is a keyed hash. With `context` it derives a key: the context string should be hard-coded and globally unique for the use, and the data you `update()` with is the key material. `key` and `context` cannot be combined.
+- BLAKE3 can produce output of any length: the first 256 bits are the usual digest, and a longer `length` extends it (up to 1 MiB). A shorter output is a prefix of a longer one.
+- Unlike the older hashers, `finalize()` leaves the hasher as it was: calling it again returns the same digest, and `update()` continues the message. Messages are limited to 2^53 - 1 bytes.
+- `getState()` returns a JSON-serializable object like the other hashers'. A keyed BLAKE2 state holds the key (zero padded) until the first block is compressed, so treat it as secret material.
+- The tree modes of BLAKE2 (`blake2bp`, `blake2sp`, `blake2xb`) are not implemented.
 
 ## HMAC
 
