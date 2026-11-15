@@ -4,6 +4,7 @@
 import LegacySha512 from "../../legacy/hasher/sha512.mjs";
 import {wasmBytes} from "../../wasm/sha512.mjs";
 import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
+import {checkOptions} from "../tools/input.mjs";
 
 /*
  * SHA-384, SHA-512, SHA-512/224 and SHA-512/256 with the compression and
@@ -65,6 +66,9 @@ const IV_256 = [
 const baseReset = Object.getPrototypeOf(LegacySha512.prototype).reset;
 const ORIGINAL_RESET = LegacySha512.prototype.reset;
 
+/** Supported `rounds`/`length` values (v2 rejects the rest). */
+const OPTIONS = {length: {min: 32, max: 512, step: 32}, rounds: {min: 1, max: 160}};
+
 /**
  * Calculates SHA-384/512, SHA-512/224 and SHA-512/256 hash
  */
@@ -74,6 +78,7 @@ class Sha512 extends LegacySha512 {
    */
   constructor(options) {
     // Explicit, so `Sha512.length === 1` like the original (an implicit one has length 0).
+    checkOptions('Sha512', options, OPTIONS);
     super(options);
   }
 

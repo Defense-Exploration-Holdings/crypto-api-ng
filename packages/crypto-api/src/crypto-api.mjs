@@ -1,3 +1,4 @@
+// crypto-api-ng:facade
 'use strict';
 
 import Has160 from "./hasher/has160.mjs";
@@ -9,6 +10,7 @@ import Sha0 from "./hasher/sha0.mjs";
 import Sha1 from "./hasher/sha1.mjs";
 import Sha256 from "./hasher/sha256.mjs";
 import Sha512 from "./hasher/sha512.mjs";
+import Sm3 from "./hasher/sm3.mjs";
 import Snefru from "./hasher/snefru.mjs";
 import Whirlpool from "./hasher/whirlpool.mjs";
 import {fromUtf} from "./encoder/utf.mjs";
@@ -16,6 +18,19 @@ import {fromArrayBuffer} from "./encoder/array-buffer.mjs";
 import {toHex} from "./encoder/hex.mjs";
 import {toBase64} from "./encoder/base64.mjs";
 import Hmac from "./mac/hmac.mjs";
+import {toBinaryString} from "./tools/input.mjs";
+
+/**
+ * UTF-8 encode a string; pass bytes through as a binary string.
+ *
+ * @ignore
+ * @param {*} value
+ * @param {string} what
+ * @returns {string}
+ */
+function utfOrBytes(value, what) {
+  return typeof value === 'string' ? fromUtf(value) : toBinaryString(value, what);
+}
 
 /**
  * Main class for ES5 compatibility.
@@ -91,6 +106,8 @@ class CryptoApi {
       case 'sha512/256':
         options = Object.assign({}, {length: 256}, options);
         return new Sha512(options);
+      case 'sm3':
+        return new Sm3(options);
       case 'snefru':
       case 'snefru128':
       case 'snefru128/8':
@@ -118,17 +135,17 @@ class CryptoApi {
   }
 
   /**
-   * Hash UTF message and return result in hex
+   * Hash a UTF message (or bytes) and return the result in hex
    *
    * @param {string} name
-   * @param {string} message
+   * @param {string|ArrayBuffer|ArrayBufferView} message - a string is UTF-8 encoded
    * @param {Object} options
    * @returns {string}
    */
   hash(name, message, options) {
     options = options || {};
     let hasher = this.getHasher(name, options);
-    hasher.update(fromUtf(message));
+    hasher.update(utfOrBytes(message, 'message'));
     return toHex(hasher.finalize());
   }
 
@@ -144,16 +161,16 @@ class CryptoApi {
   }
 
   /**
-   * HMAC with UTF key from UTF message and return result in hex
+   * HMAC with UTF key from UTF message (either may be bytes) and return result in hex
    *
-   * @param {string} key
-   * @param {string} message
+   * @param {string|ArrayBuffer|ArrayBufferView} key - a string is UTF-8 encoded
+   * @param {string|ArrayBuffer|ArrayBufferView} message - a string is UTF-8 encoded
    * @param {Hasher} hasher
    * @returns {string}
    */
   hmac(key, message, hasher) {
-    let mac = this.getHmac(fromUtf(key), hasher);
-    mac.update(fromUtf(message));
+    let mac = this.getHmac(utfOrBytes(key, 'key'), hasher);
+    mac.update(utfOrBytes(message, 'message'));
     return toHex(mac.finalize());
   }
 }

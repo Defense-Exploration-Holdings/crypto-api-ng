@@ -11,7 +11,7 @@
 //!     = `length / 32`), so the block size shrinks as the digest grows.
 //!   * `finalize()`: zero-pad a non-empty tail to a full block, then one more
 //!     block of zeros that ends in the 8 length bytes of `Hasher32be.addLengthBits`
-//!     (with its 32-bit quirk, see `lengthField`).
+//!     (the 64-bit bit count, see `lengthField`).
 //!
 //! `State` layout (a wasm ABI contract with packages/crypto-api/src/hasher/snefru.mjs):
 //!
@@ -126,8 +126,8 @@ pub const State = extern struct {
     rounds: u8,
     buffered: u8,
     _pad: u8 = 0,
-    /// Total bytes passed to `update`, modulo 2^32. The original keeps a JS
-    /// Number but only ever reads `ToInt32(length)`, see `lengthField`.
+    /// Total bytes passed to `update`, modulo 2^32. The JS facade only uses
+    /// the wasm `final` for lengths below 2^32, see `lengthField`.
     length: u32,
     buf: [max_block]u8,
 
@@ -155,28 +155,14 @@ pub const State = extern struct {
     }
 };
 
-/// The 8 length bytes `Hasher32be.addLengthBits` appends, from the JS length
-/// (`ToInt32` of it is all that matters) exactly like the original:
-///
-///     0, 0, 0, (len >> 29) & 0xff, (len >> 21) & 0xff, (len >> 13) & 0xff,
-///     (len >> 5) & 0xff, (len << 3) & 0xff
-///
-/// with `>>` arithmetic. Below 2^31 this is the 64-bit big-endian bit count;
-/// from 2^31 up the sign extension corrupts the top byte and the high bits are
-/// lost. Kept in v1, fixed in v2.
+/// The 8 length bytes `Hasher32be.addLengthBits` appends: the bit count as a
+/// 64-bit big-endian integer. `State.length` is 32 bits wide, so longer
+/// messages are finalized by the JS code (crypto-api 0.8.5 and v1 used 32-bit
+/// signed shifts here, which corrupted the field from 2 GiB up).
 pub fn lengthField(length: u32) [8]u8 {
-    const len: i32 = @bitCast(length);
-    const shl: i32 = len << 3;
-    return .{
-        0,
-        0,
-        0,
-        @truncate(@as(u32, @bitCast(len >> 29))),
-        @truncate(@as(u32, @bitCast(len >> 21))),
-        @truncate(@as(u32, @bitCast(len >> 13))),
-        @truncate(@as(u32, @bitCast(len >> 5))),
-        @truncate(@as(u32, @bitCast(shl))),
-    };
+    var out: [8]u8 = undefined;
+    std.mem.writeInt(u64, &out, @as(u64, length) * 8, .big);
+    return out;
 }
 
 /// A fresh hasher: what `reset()` leaves (all hash words zero).
@@ -316,30 +302,25 @@ test "layout" {
     try testing.expectEqual(@as(usize, 128), @sizeOf(State));
 }
 
-test "length field matches the original addLengthBits (values from crypto-api 0.8.5)" {
-    const cases = [_]struct { len: u64, bytes: [8]u8 }{
+test "length field is the 64-bit big-endian bit count, also at and above 2 GiB" {
+    const cases = [_]struct { len: u32, bytes: [8]u8 }{
         .{ .len = 0, .bytes = .{ 0, 0, 0, 0, 0, 0, 0, 0 } },
         .{ .len = 1, .bytes = .{ 0, 0, 0, 0, 0, 0, 0, 8 } },
         .{ .len = 55, .bytes = .{ 0, 0, 0, 0, 0, 0, 1, 184 } },
-        .{ .len = 64, .bytes = .{ 0, 0, 0, 0, 0, 0, 2, 0 } },
         .{ .len = 1 << 29, .bytes = .{ 0, 0, 0, 1, 0, 0, 0, 0 } },
         .{ .len = (1 << 31) - 1, .bytes = .{ 0, 0, 0, 3, 255, 255, 255, 248 } },
-        .{ .len = 1 << 31, .bytes = .{ 0, 0, 0, 252, 0, 0, 0, 0 } },
-        .{ .len = (1 << 31) + 5, .bytes = .{ 0, 0, 0, 252, 0, 0, 0, 40 } },
-        .{ .len = (1 << 32) - 1, .bytes = .{ 0, 0, 0, 255, 255, 255, 255, 248 } },
-        .{ .len = 1 << 32, .bytes = .{ 0, 0, 0, 0, 0, 0, 0, 0 } },
-        .{ .len = (1 << 32) + 7, .bytes = .{ 0, 0, 0, 0, 0, 0, 0, 56 } },
-        .{ .len = 3 * (1 << 31) + 9, .bytes = .{ 0, 0, 0, 252, 0, 0, 0, 72 } },
-        .{ .len = (1 << 40) + 3, .bytes = .{ 0, 0, 0, 0, 0, 0, 0, 24 } },
+        .{ .len = 1 << 31, .bytes = .{ 0, 0, 0, 4, 0, 0, 0, 0 } },
+        .{ .len = (1 << 31) + 5, .bytes = .{ 0, 0, 0, 4, 0, 0, 0, 40 } },
+        .{ .len = 0xffff_ffff, .bytes = .{ 0, 0, 0, 7, 255, 255, 255, 248 } },
     };
-    for (cases) |c| try testing.expectEqualSlices(u8, &c.bytes, &lengthField(@truncate(c.len)));
+    for (cases) |c| try testing.expectEqualSlices(u8, &c.bytes, &lengthField(c.len));
 }
 
-test "length field equals the 64-bit bit count below 2^31" {
+test "length field equals the 64-bit bit count for random 32-bit lengths" {
     var prng = std.Random.DefaultPrng.init(1);
     const rnd = prng.random();
     for (0..1000) |_| {
-        const len = rnd.intRangeLessThan(u32, 0, 1 << 31);
+        const len = rnd.int(u32);
         var want: [8]u8 = undefined;
         std.mem.writeInt(u64, &want, @as(u64, len) * 8, .big);
         try testing.expectEqualSlices(u8, &want, &lengthField(len));

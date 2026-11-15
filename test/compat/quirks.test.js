@@ -1,11 +1,13 @@
 // Executable form of the documented quirks of crypto-api 0.8.5.
 // 1. The oracle must still give the pinned answer (the claim is true).
-// 2. The target must give the same answer (v1 keeps the quirk), except for the
+// 2. The target must give the same answer (the quirk is kept), except for the
+//    quirks v2 fixes, where it must give the v2 answer instead, and the
 //    documented v1 divergences, where the listed alternative is also accepted.
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { loadBoth, make } from '../harness/load.mjs';
+import { v2Model } from '../harness/v2-model.mjs';
 import { QUIRK_PROBES } from '../harness/quirks.mjs';
 import { FAMILIES, VARIANTS } from '../harness/catalog.mjs';
 
@@ -34,6 +36,21 @@ const PINNED = {
   'setState keeps a live reference in the original': { live: true },
 };
 
+/** Quirks fixed in v2: the only answer the target may give. */
+const V2_ANSWERS = {
+  'wide characters hash to neither UTF-8 nor Latin-1': '!TypeError',
+  'update(Uint8Array) hashes the text "1,2" and counts 2': { message: '\x01\x02', length: 2 },
+  'sha256 rounds 80 runs on undefined constants': '!RangeError',
+  'snefru rounds 9 throws TypeError': '!RangeError',
+  'sha256 length 160 is a 5-word digest': '!RangeError',
+  'getHasher(sm3) and getHasher(SHA256) are undefined': { sm3: false, upper: true },
+  'hmac-md5 second finalize differs, first is correct': { first: '80070713463e7749b90c2dc24911e275', differs: false },
+  'new Hmac(key, md5) leaves 64 bytes in the hasher': 0,
+  'state.length high bits are dropped (2**29 vs 2**29 + 2**32)': { same: false },
+};
+
+const out = (fn) => { try { return fn(); } catch (e) { return `!${e.constructor.name}`; } };
+
 /** Documented v1 divergences: extra answers the target may give. */
 const DIVERGENCES = {
   'setState keeps a live reference in the original': [{ live: false }],
@@ -48,8 +65,8 @@ describe('verified quirks of crypto-api 0.8.5', () => {
     it(name, () => {
       assert.ok(name in PINNED, 'probe has no pinned answer');
       assert.deepStrictEqual(QUIRK_PROBES[name](oracle), PINNED[name], 'the oracle no longer behaves as documented');
-      const got = QUIRK_PROBES[name](target);
-      const allowed = [PINNED[name], ...(DIVERGENCES[name] ?? [])];
+      const got = out(() => QUIRK_PROBES[name](target));
+      const allowed = name in V2_ANSWERS ? [V2_ANSWERS[name]] : [PINNED[name], ...(DIVERGENCES[name] ?? [])];
       assert.ok(allowed.some((a) => JSON.stringify(a) === JSON.stringify(got)), `target answered ${JSON.stringify(got)}, allowed ${JSON.stringify(allowed)}`);
     });
   }
@@ -63,9 +80,11 @@ describe('verified quirks of crypto-api 0.8.5', () => {
   });
 });
 
-describe('32-bit length field (the 2 GiB bug is kept in v1)', () => {
+describe('64-bit length field (the 2 GiB bug of 0.8.5 is fixed in v2)', () => {
   // Real 2 GiB inputs are impractical, so state.length is set directly: the
-  // padding code reads it exactly as it would after that many bytes.
+  // padding code reads it exactly as it would after that many bytes. Below
+  // 2^31 the target equals the original; everywhere it equals the v2 model,
+  // whose length field is computed with BigInt (test/harness/v2-model.mjs).
   const LENGTHS = [0, 1, 2 ** 28, 2 ** 29 - 1, 2 ** 29, 2 ** 29 + 1, 2 ** 31 - 1, 2 ** 31, 2 ** 31 + 5, 2 ** 32 - 1, 2 ** 32, 2 ** 32 + 3, 2 ** 33 + 77, 2 ** 40 + 1, 2 ** 53 - 1, -1, 1.5];
   for (const v of VARIANTS) {
     it(v.id, () => {
@@ -76,11 +95,18 @@ describe('32-bit length field (the 2 GiB bug is kept in v1)', () => {
         h.state.length = len;
         try { return api.toHex(h.finalize()); } catch (e) { return `!${e.constructor.name}`; }
       };
+      const model = v2Model(oracle);
+      let fixed = 0;
       for (const len of LENGTHS) {
         for (const msg of ['', 'abc', 'x'.repeat(63), 'y'.repeat(130)]) {
-          assert.equal(run(target, len, msg), run(oracle, len, msg), `length=${len} msg.length=${msg.length}`);
+          const got = run(target, len, msg);
+          assert.equal(got, run(model, len, msg), `length=${len} msg.length=${msg.length}`);
+          if (len >= 0 && len < 2 ** 31) assert.equal(got, run(oracle, len, msg), `length=${len} msg.length=${msg.length} (below 2^31)`);
+          else if (Number.isInteger(len) && len > 0 && got !== run(oracle, len, msg)) fixed++;
         }
       }
+      // MD2 has no length field.
+      if (fam.lengthFieldBytes > 0 || fam.id === 'snefru') assert.ok(fixed > 0, 'the 2 GiB fix changes some digests');
     });
   }
 });

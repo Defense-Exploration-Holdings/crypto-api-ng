@@ -26,7 +26,7 @@ pub const State = extern struct {
     hash: [5]u32,
     /// Steps per block, 1..80.
     rounds: u32,
-    /// Total bytes passed to `update`. Only the low 32 bits matter (`be32.lengthField`).
+    /// Total bytes passed to `update` (`be32.lengthField`).
     length: u64,
     /// Bytes currently buffered in `buf` (0..63).
     buffered: u32,

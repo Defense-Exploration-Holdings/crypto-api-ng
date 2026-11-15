@@ -96,10 +96,28 @@ describe('same answers as the original', () => {
 
       it('unknown names: getHasher() is undefined and hash() throws like the original', () => {
         const api = subjects[label];
-        for (const name of UNKNOWN_HASHER_NAMES) {
+        for (const name of UNKNOWN_HASHER_NAMES.filter((n) => n !== 'sm3')) {
           assert.equal(api.getHasher(name), undefined, name);
           assert.deepEqual(outcome(() => api.hash(name, 'abc')), outcome(() => oracle.hash(name, 'abc')), name);
         }
+      });
+
+      it('v2 fixes: sm3, bytes in, wide characters and bad options rejected, repeatable Hmac', () => {
+        const api = subjects[label];
+        assert.equal(api.hash('sm3', 'abc'), '66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0');
+        const h = api.getHasher('sha256');
+        h.update(new Uint8Array([97, 98, 99]));
+        assert.equal(api.encoder.toHex(h.finalize()), oracle.hash('sha256', 'abc'));
+        assert.throws(() => api.getHasher('md5').update('Ā'), TypeError);
+        assert.throws(() => api.getHasher('md5').update(5), TypeError);
+        assert.throws(() => api.getHasher('sha256', { rounds: 80 }), RangeError);
+        const md5 = api.getHasher('md5');
+        const m = api.getHmac('key', md5);
+        m.update('message');
+        const first = api.encoder.toHex(m.finalize());
+        assert.equal(first, '4e4748e62b463521f6775fbf921234b5');
+        assert.equal(api.encoder.toHex(m.finalize()), first);
+        assert.equal(md5.state.length, 0);
       });
 
       it('getHmac() and hmac()', () => {

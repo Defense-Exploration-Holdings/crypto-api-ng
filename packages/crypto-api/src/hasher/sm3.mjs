@@ -4,6 +4,7 @@
 import LegacySm3 from "../../legacy/hasher/sm3.mjs";
 import {wasmBytes} from "../../wasm/sm3.mjs";
 import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
+import {checkOptions} from "../tools/input.mjs";
 
 /*
  * SM3 with the compression and padding done in wasm, and everything else
@@ -34,6 +35,9 @@ const accel = createAccelerator({
   facade: () => Sm3
 });
 
+/** Supported `rounds`/`length` values (v2 rejects the rest). */
+const OPTIONS = {length: {values: [256]}, rounds: {min: 1, max: 64}};
+
 /**
  * Calculates SM3 hash
  */
@@ -43,6 +47,7 @@ class Sm3 extends LegacySm3 {
    */
   constructor(options) {
     // Explicit, so `Sm3.length === 1` like the original (an implicit one has length 0).
+    checkOptions('Sm3', options, OPTIONS);
     super(options);
   }
 

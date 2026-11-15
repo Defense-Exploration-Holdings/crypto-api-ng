@@ -13,6 +13,7 @@ import Hasher32be from '../packages/crypto-api/src/hasher/hasher32be.mjs';
 import Hmac from '../packages/crypto-api/src/mac/hmac.mjs';
 import { toHex } from '../packages/crypto-api/src/encoder/hex.mjs';
 import { FUZZ_ITERS, readVectors, rng, binString, hex, json, attempt, update, finalize } from './support/le32-suite.js';
+import { v2Supported } from './harness/catalog.mjs';
 
 const wasmUsed = (fn) => {
   const before = _internal.wasmCalls();
@@ -271,7 +272,7 @@ function defineCase(name, options, extra = {}) {
     }
   });
 
-  test(label('the 2^31-byte length bug is kept (setState with huge lengths)'), () => {
+  test(label('huge lengths give the 64-bit length field (setState), wasm and JS alike'), () => {
     const lengths = [(2 ** 31) - 1, 2 ** 31, 2 ** 31 + 5, 2 ** 32 - 1, 2 ** 32, 2 ** 32 + 7, 3 * 2 ** 31 + 9, 2 ** 40 + 3,
       Number.MAX_SAFE_INTEGER, -1, -(2 ** 31), -(2 ** 33) - 5, 2.5, NaN, Infinity, 1e300];
     for (const length of lengths) {
@@ -610,13 +611,12 @@ defineCase('rounds 5, length 224', { length: 224, rounds: 5 });
 defineCase('length 32', { length: 32, rounds: 3 });
 defineCase('length 64', { length: 64 });
 defineCase('length 448 (block of 8 bytes)', { length: 448 });
-defineCase('length 480 (block of 4 bytes; the original cannot finalize)', { length: 480 });
 
 // ---- options ----
 
-test('snefru: every length 32..480 and rounds 1..8 equals the original', () => {
+test('snefru: every length 32..448 and rounds 1..8 equals the original', () => {
   const rand = rng(11);
-  for (let length = 32; length <= 480; length += 32) {
+  for (let length = 32; length <= 448; length += 32) {
     for (let rounds = 1; rounds <= 8; rounds++) {
       const msg = binString(rand, (rand() * 200) | 0);
       const a = new Snefru({ length, rounds });
@@ -626,6 +626,19 @@ test('snefru: every length 32..480 and rounds 1..8 equals the original', () => {
       assert.deepEqual(attempt(() => hex(a)), attempt(() => hex(b)), `length ${length} rounds ${rounds}`);
       assert.equal(json(a), json(b));
     }
+  }
+});
+
+test('snefru: length outside 32..448 (steps of 32) or rounds outside 1..8 throw at construction (v2)', () => {
+  for (const length of [0, 1, 31, 33, 100, 129, 480, 512, 1024, 1.5, NaN, Infinity, -1, -32, 32.9]) {
+    assert.throws(() => new Snefru({ length }), RangeError, `length ${length}`);
+  }
+  for (const rounds of [0, 9, 10, 100, 2.5, 1.2, -1, NaN, Infinity, 1e10]) {
+    assert.throws(() => new Snefru({ rounds }), RangeError, `rounds ${rounds}`);
+  }
+  for (const value of ['128', true, null, [], {}]) {
+    assert.throws(() => new Snefru({ length: value }), TypeError);
+    assert.throws(() => new Snefru({ rounds: value }), TypeError);
   }
 });
 
@@ -643,6 +656,7 @@ test('snefru: options the wasm code does not model behave exactly like the origi
           return `${e.constructor.name}: ${e.message}`;
         }
       };
+      if (!v2Supported('snefru', { [key]: value })) continue;
       const a = mk(Snefru);
       const b = mk(LegacySnefru);
       const what = `${key} ${typeof value === 'bigint' ? value + 'n' : JSON.stringify(value) ?? String(value)}`;
@@ -664,7 +678,7 @@ test('snefru: options the wasm code does not model behave exactly like the origi
 });
 
 test('snefru: the options object is completed the same way (length and rounds defaults)', () => {
-  for (const given of [undefined, null, {}, { length: 0 }, { rounds: 0 }, { length: 256 }, { rounds: 4 }, { length: 0, rounds: 0 }, { other: 1 }]) {
+  for (const given of [undefined, null, {}, { length: 256 }, { rounds: 4 }, { length: 256, rounds: 2 }, { other: 1 }]) {
     const oa = given && structuredClone(given);
     const ob = given && structuredClone(given);
     const a = new Snefru(oa);
@@ -709,40 +723,25 @@ test('snefru: one fixed-size state, two instances with different options do not 
   assert.equal(hex(a2), hex(b2));
 });
 
-// ---- divergence 1: configurations where the original never returns ----
+// ---- configurations where the original never returns ----
 
-test('snefru: lengths of 512 and up throw RangeError where the original loops forever', () => {
+test('snefru: lengths of 512 and up throw RangeError at construction, where the original loops forever', () => {
   for (const length of [512, 544, 1000, 1024, 5000]) {
-    for (const input of ['abc', '', 'x'.repeat(200)]) {
-      const h = new Snefru({ length });
-      assert.throws(() => h.update(input), RangeError, `length ${length} update(${input.length})`);
-    }
-    // finalize() with nothing buffered already throws RangeError in the original (negative padding).
-    assert.deepEqual(attempt(() => new Snefru({ length }).finalize()), attempt(() => new LegacySnefru({ length }).finalize()));
-    assert.match(attempt(() => new Snefru({ length }).finalize()).error, /^RangeError/);
-    // Construction, getState(), setState() and reset() still work as before.
-    const h = new Snefru({ length });
-    assert.deepEqual(h.getState(), new LegacySnefru({ length }).getState());
-    h.reset();
-    assert.equal(h.blockSizeInBytes, new LegacySnefru({ length }).blockSizeInBytes);
+    assert.throws(() => new Snefru({ length }), RangeError, `length ${length}`);
   }
-  // process() is what loops in the original, whichever way it is reached.
-  const h = new Snefru({ length: 512 });
+  // A block size of 0 or less reached through a mutated instance still throws instead of looping.
+  const h = new Snefru();
+  h.blockSizeInBytes = 0;
   h.state.message = 'abc';
   assert.throws(() => h.process(), RangeError);
-  // The rounds that make the original throw TypeError first still do.
-  for (const rounds of [9, 12]) {
-    const a = attempt(() => new Snefru({ length: 512, rounds }).update('abc'));
-    const b = attempt(() => new LegacySnefru({ length: 512, rounds }).update('abc'));
-    assert.deepEqual(a, b, `rounds ${rounds}`);
-    assert.match(a.error, /^TypeError/);
-  }
 });
 
 test('snefru: rounds the original rejects with TypeError, and zero or negative rounds, are the original code', () => {
   for (const rounds of [9, 10, 100]) {
-    const a = new Snefru({ rounds });
-    const b = new LegacySnefru({ rounds });
+    const a = new Snefru();
+    const b = new LegacySnefru();
+    a.options.rounds = rounds;
+    b.options.rounds = rounds;
     for (const h of [a, b]) {
       assert.throws(() => h.update('x'.repeat(100)), TypeError);
     }

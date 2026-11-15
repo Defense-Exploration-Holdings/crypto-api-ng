@@ -22,9 +22,13 @@ const wasmUsed = (fn) => {
   return _internal.wasmCalls() - before;
 };
 
-test('ripemd: unlisted or odd `length` options behave exactly like the original (160 words, own options kept)', () => {
-  const odd = [0, 100, 129, 512, 161, -128, 1.5, NaN, Infinity, '128', '160', '256', ' 320', true, null, undefined, [], [128], {}, 128.0, 320n];
-  for (const length of odd) {
+test('ripemd: unlisted or odd `length` options throw at construction (v2)', () => {
+  for (const length of [0, 100, 129, 512, 161, -128, 1.5, NaN, Infinity]) assert.throws(() => new Ripemd({ length }), RangeError, String(length));
+  for (const length of ['128', '160', ' 320', true, null, [], [128], {}, 320n]) assert.throws(() => new Ripemd({ length }), TypeError, String(length));
+});
+
+test('ripemd: listed `length` options and undefined behave exactly like the original', () => {
+  for (const length of [128, 160, 256, 320, 128.0, undefined]) {
     const mk = (Class) => {
       try {
         return new Class({ length });
@@ -45,10 +49,12 @@ test('ripemd: unlisted or odd `length` options behave exactly like the original 
   }
 });
 
-test('ripemd: `length` as a string or fraction still works through the original reset(), and is accelerated when it picks a known variant', () => {
+test('ripemd: `length` set to a string after construction still works through the original reset(), and is accelerated', () => {
   const a = new Ripemd({ length: 160 });
   assert.equal(wasmUsed(() => { a.update('x'.repeat(100)); a.finalize(); }), 2);
-  const b = new Ripemd({ length: '256' }); // not === 256: the original falls to the 160 branch
+  const b = new Ripemd();
+  b.options.length = '256'; // not === 256: the original falls to the 160 branch
+  b.reset();
   assert.equal(b.getState().hash.length, 5);
   assert.equal(wasmUsed(() => { b.update('x'.repeat(100)); b.finalize(); }), 2);
 });

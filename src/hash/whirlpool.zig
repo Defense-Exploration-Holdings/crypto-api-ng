@@ -35,7 +35,7 @@ pub const State = extern struct {
     /// Rounds per block, 1..10.
     rounds: u32,
     _reserved0: u32,
-    /// Total bytes passed to `update`. Only the low 32 bits matter (`be32.lengthField`).
+    /// Total bytes passed to `update` (`be32.lengthField`).
     length: u64,
     /// Bytes currently buffered in `buf` (0..63).
     buffered: u32,
@@ -218,7 +218,7 @@ pub fn Algo(comptime v: Variant) type {
         /// Mutates `st` the way the original `finalize()` mutates `this.state`.
         pub fn final(st: *State, out: *[digest_len]u8) void {
             var buf: [2 * block_len]u8 = undefined;
-            blocks(st, finalTail(st.buf[0..st.buffered], @truncate(st.length), &buf));
+            blocks(st, finalTail(st.buf[0..st.buffered], st.length, &buf));
             st.buffered = 0;
             @memset(&st.buf, 0);
             for (st.hash, 0..) |word, i| std.mem.writeInt(u32, out[i * 4 ..][0..4], word, .big);
@@ -234,13 +234,13 @@ pub const whirlpoolT = Algo(.whirlpool_t);
 /// up to offset 56 when the buffered tail is shorter than 32 bytes, up to
 /// offset 120 otherwise, then the 8-byte length field of `be32.lengthField`.
 /// Returns the 64 or 128 bytes that remain to be compressed.
-pub fn finalTail(tail: []const u8, len_lo: u32, out: *[2 * block_len]u8) []const u8 {
+pub fn finalTail(tail: []const u8, length: u64, out: *[2 * block_len]u8) []const u8 {
     std.debug.assert(tail.len < block_len);
     @memset(out, 0);
     @memcpy(out[0..tail.len], tail);
     out[tail.len] = 0x80;
     const total: usize = if (tail.len < 32) block_len else 2 * block_len;
-    out[total - 8 ..][0..8].* = be32.lengthField(len_lo);
+    out[total - 8 ..][0..8].* = be32.lengthField(length);
     return out[0..total];
 }
 
@@ -404,9 +404,9 @@ test "padding switches to two blocks at 32 bytes" {
     try testing.expectEqual(@as(usize, 128), finalTail(zeros[0..63], 63, &buf).len);
 }
 
-test "the 2 GiB length-field bug is kept (values captured from 0.8.5)" {
+test "final writes the full bit count at and above 2 GiB" {
     const Check = struct {
-        fn run(comptime A: type, len: u64, hex: []const u8) !void {
+        fn run(comptime A: type, len: u64) !void {
             var st: State = undefined;
             A.init(&st, max_rounds);
             st.length = len;
@@ -414,16 +414,23 @@ test "the 2 GiB length-field bug is kept (values captured from 0.8.5)" {
             st.buffered = 3;
             var out: [digest_len]u8 = undefined;
             A.final(&st, &out);
-            var expected: [digest_len]u8 = undefined;
-            try testing.expectEqualSlices(u8, try std.fmt.hexToBytes(&expected, hex), &out);
+
+            // The same block built by hand: "abc", 0x80, zeros, 256-bit bit count.
+            var block: [block_len]u8 = @splat(0);
+            @memcpy(block[0..3], "abc");
+            block[3] = 0x80;
+            std.mem.writeInt(u64, block[56..64], len * 8, .big);
+            var ref: State = undefined;
+            A.init(&ref, max_rounds);
+            A.blocks(&ref, &block);
+            var want: [digest_len]u8 = undefined;
+            for (0..16) |i| std.mem.writeInt(u32, want[i * 4 ..][0..4], ref.hash[i], .big);
+            try testing.expectEqualSlices(u8, &want, &out);
         }
     };
-    try Check.run(whirlpool, 1 << 31, "d3f1c6cd9f83b6f72f1cf4949eed54acc2b5532f2814fc22f9cfc2c45071ba0f08fa8adf171a8fa61b0f0df914170997229e8f623a99753d276a855bb70ca0a2");
-    try Check.run(whirlpool, (1 << 31) + 5, "6308b95a8ff203fddf4420b4def4885b6906206ca46caf27e17381144ff34db1293d066fae1769bac38a38a036855c134272fe217ce7f377eb4ba386f544928f");
-    try Check.run(whirlpool0, 1 << 31, "9c0ced2fd596b2e9346cc34f0bc99464a8b8dd647a828a7bfc98f625ccf7c0726ed34649a9d6dcc24782fca3b4ec67047344e72517b53c4025972a1cea2c010e");
-    try Check.run(whirlpool0, (1 << 31) + 5, "d0170c32d2fdc1a9323cca323b0208786dc5d18111d851027a21273157fd9a8826b43e4ba194375789a12e61cb530048eff29d383a9fae4a9871b00a4585b123");
-    try Check.run(whirlpoolT, 1 << 31, "177d3d87592a57118d6897df75568d93d833f64700753de9e50a0850d61b79decfd297a4aa260decd781e59e852690a1975eee1460531bbb96e30002f2ecf736");
-    try Check.run(whirlpoolT, (1 << 31) + 5, "d84a8ef759267338b8742f77d4d67e586d17952f5b6fee23623c24ea35aafb23f701ce7eaa98c49eacdc4abf5e72f86898cbced0dc1e97aecc256384623ddd19");
+    inline for (.{ whirlpool, whirlpool0, whirlpoolT }) |A| {
+        for ([_]u64{ 1 << 31, (1 << 31) + 5, (1 << 32) + 7, (1 << 53) - 1 }) |len| try Check.run(A, len);
+    }
 }
 
 test "state after final matches the original (second final)" {
