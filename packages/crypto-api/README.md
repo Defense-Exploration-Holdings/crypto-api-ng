@@ -51,6 +51,19 @@ console.log(toHex(hmac.finalize()));
 
 The extensionless paths of 0.8.5 (`crypto-api-ng/src/hasher/sha256`) still resolve in bundlers that try `.mjs` (webpack's default), because the files keep their names and locations. Native Node ESM and bundlers configured without `.mjs` need the explicit `.mjs`, as in the examples above. There is no `exports` map in v1, so every deep path stays reachable. `crypto-api-ng/src/index.mjs` default-exports the `CryptoApi` object. `require('crypto-api-ng')` and the global build are a separate bundle with its own copy of the classes, so a hasher created by one is not `instanceof` the classes of the other: pick one style per program.
 
+### TypeScript
+
+The package ships its own declarations; nothing extra to install. They cover the `CryptoApi` object (`import CryptoApi = require("crypto-api-ng")` or `import CryptoApi from "crypto-api-ng/src/index.mjs"`), every hasher class, `Hmac` and the encoders, with the option ranges of each algorithm typed.
+
+```typescript
+import Sha256 from "crypto-api-ng/src/hasher/sha256.mjs";
+import { toHex } from "crypto-api-ng/src/encoder/hex.mjs";
+
+const hasher = new Sha256({ length: 224 });
+hasher.update(new Uint8Array([1, 2, 3]));
+console.log(toHex(hasher.finalize()));
+```
+
 ### Browser (ES5 global build)
 
 `crypto-api.min.js` (and the unminified `crypto-api.js`) is a UMD build in ES5 syntax that defines the global `CryptoApi`. The WebAssembly modules are embedded, so it is a single file. Load it from your own server or a CDN that mirrors npm:
@@ -83,12 +96,13 @@ Where WebAssembly is missing or blocked (a page whose Content-Security-Policy la
 * Encodings: `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64`
 * The `CryptoApi` object: `getHasher`, `hash`, `getHmac`, `hmac`, `encoder`
 
-The API documentation of 0.8.5 applies unchanged. All of them run their compression function in WebAssembly, with the original JavaScript as the fallback.
+The full API, with options, errors and examples, is in the [API reference](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/api.md). All of the algorithms run their compression function in WebAssembly, with the original JavaScript as the fallback.
 
 ## Package layout
 
 ```
 index.js                  CommonJS main (requires crypto-api.js)
+index.d.ts, types.d.ts    TypeScript declarations (each module under src/ has a .d.mts next to it)
 crypto-api.js, .min.js    UMD / global `CryptoApi` build, ES5 syntax, WebAssembly embedded
 src/                      the public modules of 0.8.5, same paths (hasher classes, hmac, encoders, tools)
 legacy/hasher/            the original 0.8.5 hasher code, used as fallback and as the base of the wasm facades
