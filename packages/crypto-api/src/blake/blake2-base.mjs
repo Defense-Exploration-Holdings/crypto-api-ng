@@ -67,6 +67,9 @@ class Blake2 extends Hasher {
   process() {
     const state = this.state;
     const block = this.constructor.spec.blockBytes;
+    if (typeof state.message !== 'string') {
+      throw new TypeError(this.constructor.spec.name + ': state.message must be a string');
+    }
     const length = state.message.length;
     if (length <= block) {
       return;

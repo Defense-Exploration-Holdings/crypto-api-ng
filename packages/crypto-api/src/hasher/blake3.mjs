@@ -145,6 +145,9 @@ class Blake3 extends Hasher {
    */
   process() {
     const state = this.state;
+    if (typeof state.message !== 'string') {
+      throw new TypeError('Blake3: state.message must be a string');
+    }
     const length = state.message.length;
     if (length <= CHUNK) {
       return;
