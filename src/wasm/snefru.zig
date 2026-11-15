@@ -17,6 +17,7 @@ comptime {
 }
 
 const core = @import("core");
+const scrubStack = @import("common.zig").scrubStack;
 const snefru = core.snefru;
 const Status = core.runtime.Status;
 
@@ -44,7 +45,8 @@ export fn snefru_update(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
     if (!st.valid()) return status(.invalid_state);
     const p: [*]const u8 = @ptrFromInt(data);
-    snefru.update(st, p[0..len]);
+    defer scrubStack(1024);
+    @call(.never_inline, snefru.update, .{ st, p[0..len] });
     return status(.ok);
 }
 
@@ -55,7 +57,8 @@ export fn snefru_blocks(state: u32, data: u32, len: u32) i32 {
     if (!st.valid()) return status(.invalid_state);
     if (len % st.blockLen() != 0) return status(.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
-    snefru.blocks(st, p[0..len]);
+    defer scrubStack(1024);
+    @call(.never_inline, snefru.blocks, .{ st, p[0..len] });
     return status(.ok);
 }
 
@@ -65,6 +68,7 @@ export fn snefru_final(state: u32, out: u32) i32 {
     const st = statePtr(state);
     if (!st.valid() or st.words > 14) return status(.invalid_state);
     const p: [*]u8 = @ptrFromInt(out);
-    snefru.final(st, p[0 .. 4 * @as(usize, st.words)]);
+    defer scrubStack(1024);
+    @call(.never_inline, snefru.final, .{ st, p[0 .. 4 * @as(usize, st.words)] });
     return status(.ok);
 }

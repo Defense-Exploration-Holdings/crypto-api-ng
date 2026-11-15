@@ -16,6 +16,7 @@ comptime {
 }
 
 const core = @import("core");
+const scrubStack = @import("common.zig").scrubStack;
 const whirlpool = core.whirlpool;
 const Status = core.runtime.Status;
 
@@ -43,7 +44,8 @@ fn Exports(comptime A: type) type {
             const st = statePtr(state);
             if (!okRounds(st) or st.buffered >= whirlpool.block_len) return @backingInt(Status.invalid_argument);
             const p: [*]const u8 = @ptrFromInt(data);
-            A.update(st, p[0..len]);
+            defer scrubStack(1024);
+            @call(.never_inline, A.update, .{ st, p[0..len] });
             return 0;
         }
 
@@ -52,7 +54,8 @@ fn Exports(comptime A: type) type {
             const st = statePtr(state);
             if (!okRounds(st) or len % whirlpool.block_len != 0) return @backingInt(Status.invalid_argument);
             const p: [*]const u8 = @ptrFromInt(data);
-            A.blocks(st, p[0..len]);
+            defer scrubStack(1024);
+            @call(.never_inline, A.blocks, .{ st, p[0..len] });
             return 0;
         }
 
@@ -60,7 +63,8 @@ fn Exports(comptime A: type) type {
         fn final(state: u32, out: u32) callconv(.c) i32 {
             const st = statePtr(state);
             if (!okRounds(st) or st.buffered >= whirlpool.block_len) return @backingInt(Status.invalid_argument);
-            A.final(st, @ptrFromInt(out));
+            defer scrubStack(1024);
+            @call(.never_inline, A.final, .{ st, @as(*[64]u8, @ptrFromInt(out)) });
             return 0;
         }
     };

@@ -10,6 +10,7 @@ comptime {
 }
 
 const core = @import("core");
+const scrubStack = @import("common.zig").scrubStack;
 const sha256 = core.sha256;
 const Status = core.runtime.Status;
 
@@ -36,7 +37,8 @@ export fn sha256_update(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
     if (!okRounds(st)) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
-    sha256.update(st, p[0..len]);
+    defer scrubStack(2048);
+    @call(.never_inline, sha256.update, .{ st, p[0..len] });
     return 0;
 }
 
@@ -45,7 +47,8 @@ export fn sha256_blocks(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
     if (!okRounds(st) or len % sha256.block_len != 0) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
-    sha256.blocks(st, p[0..len]);
+    defer scrubStack(2048);
+    @call(.never_inline, sha256.blocks, .{ st, p[0..len] });
     return 0;
 }
 
@@ -53,6 +56,7 @@ export fn sha256_blocks(state: u32, data: u32, len: u32) i32 {
 export fn sha256_final(state: u32, out: u32) i32 {
     const st = statePtr(state);
     if (!okRounds(st) or st.buffered >= sha256.block_len) return @backingInt(Status.invalid_argument);
-    sha256.final(st, @ptrFromInt(out));
+    defer scrubStack(2048);
+    @call(.never_inline, sha256.final, .{ st, @as(*[sha256.digest_len]u8, @ptrFromInt(out)) });
     return 0;
 }

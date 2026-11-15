@@ -1,7 +1,7 @@
 // crypto-api-ng:facade
 'use strict';
 
-import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * Shared wasm glue for the 32-bit big-endian hashers (SHA-0, SHA-1, SHA-224/256
@@ -128,35 +128,47 @@ export function createAccelerator(spec) {
     if (!rounds || !rt) return false;
 
     const {u8, i32, u32} = family.views();
-    const st = rt.base + STATE_OFF;
-    const input = rt.base + INPUT_OFF;
+    const base = rt.base;
+    const st = base + STATE_OFF;
+    const input = base + INPUT_OFF;
     const w = st >> 2;
-    for (let k = 0; k < words; k++) i32[w + k] = hash[k];
-    u32[(st + roundsOff) >> 2] = rounds;
-
     const total = n - n % BLOCK;
-    for (let pos = 0; pos < total;) {
-      const end = Math.min(pos + rt.cap, total);
-      let bits = 0;
-      for (let i = pos, o = input; i < end; i++, o++) {
-        const c = message.charCodeAt(i);
-        bits |= c;
-        u8[o] = c;
+    // Bytes of the input region this call wrote; wiped on every way out.
+    let used = 0;
+    let done = true;
+    try {
+      for (let k = 0; k < words; k++) i32[w + k] = hash[k];
+      u32[(st + roundsOff) >> 2] = rounds;
+
+      for (let pos = 0; pos < total;) {
+        const end = Math.min(pos + rt.cap, total);
+        if (end - pos > used) used = end - pos;
+        let bits = 0;
+        for (let i = pos, o = input; i < end; i++, o++) {
+          const c = message.charCodeAt(i);
+          bits |= c;
+          u8[o] = c;
+        }
+        if (bits > 0xff) {
+          // A code unit the wasm code cannot represent: hand over what has been
+          // consumed so far (always whole blocks) and let the original do the rest.
+          for (let k = 0; k < words; k++) hash[k] = i32[w + k];
+          state.message = message.substr(pos);
+          done = false;
+          break;
+        }
+        rt.ex[blocks](st, input, end - pos);
+        pos = end;
       }
-      if (bits > 0xff) {
-        // A code unit the wasm code cannot represent: hand over what has been
-        // consumed so far (always whole blocks) and let the original do the rest.
+      if (done) {
+        wasmCalls++;
         for (let k = 0; k < words; k++) hash[k] = i32[w + k];
-        state.message = message.substr(pos);
-        return false;
+        state.message = message.substr(total);
       }
-      rt.ex[blocks](st, input, end - pos);
-      pos = end;
+    } finally {
+      wipe(u8, base, used);
     }
-    wasmCalls++;
-    for (let k = 0; k < words; k++) hash[k] = i32[w + k];
-    state.message = message.substr(total);
-    return true;
+    return done;
   }
 
   function finalize(self) {
@@ -180,30 +192,44 @@ export function createAccelerator(spec) {
     if (!rounds || !outBytes || !rt) return null;
 
     const {u8, i32, u32} = family.views();
-    const st = rt.base + STATE_OFF;
+    const base = rt.base;
+    const st = base + STATE_OFF;
     const n = message.length;
-    // Fill the scratch State. Nothing in `self` is touched until the message is
-    // known to be representable.
-    for (let i = 0, o = st + bufOff; i < n; i++, o++) {
-      const c = message.charCodeAt(i);
-      if (c > 0xff) return null;
-      u8[o] = c;
+    const out = base + outOff;
+    let digest = null;
+    try {
+      // Fill the scratch State. Nothing in `self` is touched until the message is
+      // known to be representable.
+      let ok = true;
+      for (let i = 0, o = st + bufOff; i < n; i++, o++) {
+        const c = message.charCodeAt(i);
+        if (c > 0xff) {
+          ok = false;
+          break;
+        }
+        u8[o] = c;
+      }
+      if (ok) {
+        const w = st >> 2;
+        for (let k = 0; k < words; k++) i32[w + k] = hash[k];
+        u32[(st + roundsOff) >> 2] = rounds;
+        u32[(st + lengthOff) >> 2] = length >>> 0;
+        u32[(st + lengthOff + 4) >> 2] = Math.floor(length / 4294967296) >>> 0;
+        u32[(st + bufferedOff) >> 2] = n;
+
+        rt.ex[final](st, out);
+        wasmCalls++;
+
+        // What the original leaves behind: advanced hash words, drained buffer.
+        for (let k = 0; k < words; k++) hash[k] = i32[w + k];
+        state.message = '';
+        digest = String.fromCharCode.apply(null, u8.subarray(out, out + outBytes));
+      }
+    } finally {
+      // A digest written to the input region (SHA-512, Whirlpool) is wiped too.
+      wipe(u8, base, outOff >= INPUT_OFF ? outOff - INPUT_OFF + outBytes : 0);
     }
-    const w = st >> 2;
-    for (let k = 0; k < words; k++) i32[w + k] = hash[k];
-    u32[(st + roundsOff) >> 2] = rounds;
-    u32[(st + lengthOff) >> 2] = length >>> 0;
-    u32[(st + lengthOff + 4) >> 2] = Math.floor(length / 4294967296) >>> 0;
-    u32[(st + bufferedOff) >> 2] = n;
-
-    const out = rt.base + outOff;
-    rt.ex[final](st, out);
-    wasmCalls++;
-
-    // What the original leaves behind: advanced hash words, drained buffer.
-    for (let k = 0; k < words; k++) hash[k] = i32[w + k];
-    state.message = '';
-    return String.fromCharCode.apply(null, u8.subarray(out, out + outBytes));
+    return digest;
   }
 
   return {

@@ -1,7 +1,7 @@
 // crypto-api-ng:facade
 'use strict';
 
-import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * What the facades of every `Hasher32le` algorithm that is not MD5 (MD4,
@@ -166,38 +166,50 @@ export function accelProcess(v, state, param, replace) {
 
   const u8 = rt.u8;
   const i32 = eng.i32;
-  const st = rt.base + STATE_OFF;
-  const input = rt.base + INPUT_OFF;
+  const base = rt.base;
+  const st = base + STATE_OFF;
+  const input = base + INPUT_OFF;
   const w = st >> 2;
-  for (let k = 0; k < n; k++) i32[w + k] = hash[k];
-  eng.u32[(st + v.paramOff) >> 2] = param;
-
   const total = message.length - message.length % BLOCK;
-  for (let pos = 0; pos < total;) {
-    const end = Math.min(pos + rt.cap, total);
-    let bits = 0;
-    for (let i = pos, o = input; i < end; i++, o++) {
-      const c = message.charCodeAt(i);
-      bits |= c;
-      u8[o] = c;
-    }
-    if (bits > 0xff) {
-      // A code unit the wasm code cannot represent: apply what has been
-      // consumed so far (always whole blocks) and let the original do the rest.
-      // Nothing is touched if the very first chunk is the one that failed.
-      if (pos > 0) {
-        store(state, hash, i32, w, n, replace);
-        state.message = message.substr(pos);
+  // Bytes of the input region this call wrote; wiped on every way out.
+  let used = 0;
+  let done = true;
+  try {
+    for (let k = 0; k < n; k++) i32[w + k] = hash[k];
+    eng.u32[(st + v.paramOff) >> 2] = param;
+
+    for (let pos = 0; pos < total;) {
+      const end = Math.min(pos + rt.cap, total);
+      if (end - pos > used) used = end - pos;
+      let bits = 0;
+      for (let i = pos, o = input; i < end; i++, o++) {
+        const c = message.charCodeAt(i);
+        bits |= c;
+        u8[o] = c;
       }
-      return false;
+      if (bits > 0xff) {
+        // A code unit the wasm code cannot represent: apply what has been
+        // consumed so far (always whole blocks) and let the original do the rest.
+        // Nothing is touched if the very first chunk is the one that failed.
+        if (pos > 0) {
+          store(state, hash, i32, w, n, replace);
+          state.message = message.substr(pos);
+        }
+        done = false;
+        break;
+      }
+      v.blocks(st, input, end - pos);
+      pos = end;
     }
-    v.blocks(st, input, end - pos);
-    pos = end;
+    if (done) {
+      eng.calls++;
+      store(state, hash, i32, w, n, replace);
+      state.message = message.substr(total);
+    }
+  } finally {
+    wipe(u8, base, used);
   }
-  eng.calls++;
-  store(state, hash, i32, w, n, replace);
-  state.message = message.substr(total);
-  return true;
+  return done;
 }
 
 /**
@@ -228,26 +240,39 @@ export function accelFinalize(v, state, param, replace) {
   const u8 = rt.u8;
   const i32 = eng.i32;
   const u32 = eng.u32;
-  const st = rt.base + STATE_OFF;
+  const base = rt.base;
+  const st = base + STATE_OFF;
   const m = message.length;
-  for (let i = 0, o = st + v.bufOff; i < m; i++, o++) {
-    const c = message.charCodeAt(i);
-    if (c > 0xff) return null;
-    u8[o] = c;
+  const out = base + OUT_OFF;
+  let digest = null;
+  try {
+    let ok = true;
+    for (let i = 0, o = st + v.bufOff; i < m; i++, o++) {
+      const c = message.charCodeAt(i);
+      if (c > 0xff) {
+        ok = false;
+        break;
+      }
+      u8[o] = c;
+    }
+    if (ok) {
+      const w = st >> 2;
+      for (let k = 0; k < n; k++) i32[w + k] = hash[k];
+      u32[(st + v.lengthOff) >> 2] = length >>> 0;
+      u32[(st + v.lengthOff + 4) >> 2] = Math.floor(length / 4294967296) >>> 0;
+      u32[(st + v.bufferedOff) >> 2] = m;
+      u32[(st + v.paramOff) >> 2] = param;
+
+      v.final(st, out);
+      eng.calls++;
+
+      // What the original leaves behind: advanced hash words, drained buffer.
+      store(state, hash, i32, w, n, replace);
+      state.message = '';
+      digest = String.fromCharCode.apply(null, u8.subarray(out, out + 4 * n));
+    }
+  } finally {
+    wipe(u8, base, 0);
   }
-  const w = st >> 2;
-  for (let k = 0; k < n; k++) i32[w + k] = hash[k];
-  u32[(st + v.lengthOff) >> 2] = length >>> 0;
-  u32[(st + v.lengthOff + 4) >> 2] = Math.floor(length / 4294967296) >>> 0;
-  u32[(st + v.bufferedOff) >> 2] = m;
-  u32[(st + v.paramOff) >> 2] = param;
-
-  const out = rt.base + OUT_OFF;
-  v.final(st, out);
-  eng.calls++;
-
-  // What the original leaves behind: advanced hash words, drained buffer.
-  store(state, hash, i32, w, n, replace);
-  state.message = '';
-  return String.fromCharCode.apply(null, u8.subarray(out, out + 4 * n));
+  return digest;
 }

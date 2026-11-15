@@ -3,7 +3,7 @@
 
 import LegacyMd5 from "../../legacy/hasher/md5.mjs";
 import {wasmBytes} from "../../wasm/md.mjs";
-import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
+import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
 
 /*
  * MD5 with the compression and padding done in wasm, and everything else left
@@ -99,6 +99,51 @@ function hashOk(hash) {
 }
 
 /**
+ * Run the first `total` characters of `message` (whole blocks, `hash` the four
+ * state words) through wasm. False when a code unit above 0xFF turned up: what
+ * was consumed before it is applied to `state` and the original must do the rest.
+ */
+function feed(state, message, hash, total) {
+  const base = rt.base;
+  const st = base + STATE_OFF;
+  const input = base + INPUT_OFF;
+  const w = st >> 2;
+  i32[w] = hash[0];
+  i32[w + 1] = hash[1];
+  i32[w + 2] = hash[2];
+  i32[w + 3] = hash[3];
+
+  for (let pos = 0; pos < total;) {
+    const end = Math.min(pos + rt.cap, total);
+    let bits = 0;
+    for (let i = pos, o = input; i < end; i++, o++) {
+      const c = message.charCodeAt(i);
+      bits |= c;
+      u8[o] = c;
+    }
+    if (bits > 0xff) {
+      // A code unit the wasm code cannot represent: hand over what has been
+      // consumed so far (always whole blocks) and let the original do the rest.
+      hash[0] = i32[w];
+      hash[1] = i32[w + 1];
+      hash[2] = i32[w + 2];
+      hash[3] = i32[w + 3];
+      state.message = message.substr(pos);
+      return false;
+    }
+    rt.ex.md5_blocks(st, input, end - pos);
+    pos = end;
+  }
+  wasmCalls++;
+  hash[0] = i32[w];
+  hash[1] = i32[w + 1];
+  hash[2] = i32[w + 2];
+  hash[3] = i32[w + 3];
+  state.message = message.substr(total);
+  return true;
+}
+
+/**
  * Calculates [MD5](https://tools.ietf.org/html/rfc1321) hash. Same API,
  * output and `getState()` JSON as crypto-api 0.8.5; see legacy/hasher/md5.mjs
  * for the original documentation and examples.
@@ -121,43 +166,15 @@ class Md5 extends LegacyMd5 {
     const hash = state.hash;
     if (this.processBlock !== ORIGINAL_BLOCK || !hashOk(hash) || !runtime()) return super.process();
 
-    const base = rt.base;
-    const st = base + STATE_OFF;
-    const input = base + INPUT_OFF;
-    const w = st >> 2;
-    i32[w] = hash[0];
-    i32[w + 1] = hash[1];
-    i32[w + 2] = hash[2];
-    i32[w + 3] = hash[3];
-
     const total = n - n % BLOCK;
-    for (let pos = 0; pos < total;) {
-      const end = Math.min(pos + rt.cap, total);
-      let bits = 0;
-      for (let i = pos, o = input; i < end; i++, o++) {
-        const c = message.charCodeAt(i);
-        bits |= c;
-        u8[o] = c;
-      }
-      if (bits > 0xff) {
-        // A code unit the wasm code cannot represent: hand over what has been
-        // consumed so far (always whole blocks) and let the original do the rest.
-        hash[0] = i32[w];
-        hash[1] = i32[w + 1];
-        hash[2] = i32[w + 2];
-        hash[3] = i32[w + 3];
-        state.message = message.substr(pos);
-        return super.process();
-      }
-      rt.ex.md5_blocks(st, input, end - pos);
-      pos = end;
+    let done;
+    try {
+      done = feed(state, message, hash, total);
+    } finally {
+      // Zero what the call wrote, whatever happened.
+      wipe(u8, rt.base, Math.min(total, rt.cap));
     }
-    wasmCalls++;
-    hash[0] = i32[w];
-    hash[1] = i32[w + 1];
-    hash[2] = i32[w + 2];
-    hash[3] = i32[w + 3];
-    state.message = message.substr(total);
+    if (!done) return super.process();
   }
 
   /**
@@ -182,33 +199,45 @@ class Md5 extends LegacyMd5 {
     const base = rt.base;
     const st = base + STATE_OFF;
     const n = message.length;
-    // Fill the scratch State. Nothing in `this` is touched until the message is
-    // known to be representable.
-    for (let i = 0, o = st + O_BUF; i < n; i++, o++) {
-      const c = message.charCodeAt(i);
-      if (c > 0xff) return super.finalize();
-      u8[o] = c;
-    }
-    const w = st >> 2;
-    i32[w] = hash[0];
-    i32[w + 1] = hash[1];
-    i32[w + 2] = hash[2];
-    i32[w + 3] = hash[3];
-    u32[(st + O_LENGTH) >> 2] = length >>> 0;
-    u32[(st + O_LENGTH + 4) >> 2] = Math.floor(length / 4294967296) >>> 0;
-    u32[(st + O_BUFFERED) >> 2] = n;
-
     const out = base + OUT_OFF;
-    rt.ex.md5_final(st, out);
-    wasmCalls++;
+    let digest = null;
+    try {
+      // Fill the scratch State. Nothing in `this` is touched until the message is
+      // known to be representable.
+      let ok = true;
+      for (let i = 0, o = st + O_BUF; i < n; i++, o++) {
+        const c = message.charCodeAt(i);
+        if (c > 0xff) {
+          ok = false;
+          break;
+        }
+        u8[o] = c;
+      }
+      if (ok) {
+        const w = st >> 2;
+        i32[w] = hash[0];
+        i32[w + 1] = hash[1];
+        i32[w + 2] = hash[2];
+        i32[w + 3] = hash[3];
+        u32[(st + O_LENGTH) >> 2] = length >>> 0;
+        u32[(st + O_LENGTH + 4) >> 2] = Math.floor(length / 4294967296) >>> 0;
+        u32[(st + O_BUFFERED) >> 2] = n;
 
-    // What the original leaves behind: advanced hash words, drained buffer.
-    hash[0] = i32[w];
-    hash[1] = i32[w + 1];
-    hash[2] = i32[w + 2];
-    hash[3] = i32[w + 3];
-    state.message = '';
-    return String.fromCharCode.apply(null, u8.subarray(out, out + 16));
+        rt.ex.md5_final(st, out);
+        wasmCalls++;
+
+        // What the original leaves behind: advanced hash words, drained buffer.
+        hash[0] = i32[w];
+        hash[1] = i32[w + 1];
+        hash[2] = i32[w + 2];
+        hash[3] = i32[w + 3];
+        state.message = '';
+        digest = String.fromCharCode.apply(null, u8.subarray(out, out + 16));
+      }
+    } finally {
+      wipe(u8, base, 0);
+    }
+    return digest === null ? super.finalize() : digest;
   }
 }
 

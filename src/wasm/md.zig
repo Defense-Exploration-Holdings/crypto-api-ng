@@ -18,6 +18,7 @@ comptime {
 }
 
 const md5 = @import("core").md5;
+const scrubStack = @import("common.zig").scrubStack;
 
 fn statePtr(p: u32) *md5.State {
     return @ptrFromInt(p);
@@ -33,16 +34,19 @@ export fn md5_init(state: u32) void {
 
 export fn md5_update(state: u32, data: u32, len: u32) void {
     const p: [*]const u8 = @ptrFromInt(data);
-    md5.update(statePtr(state), p[0..len]);
+    defer scrubStack(1024);
+    @call(.never_inline, md5.update, .{ statePtr(state), p[0..len] });
 }
 
 /// Compress `len` bytes (a multiple of 64) into the four hash words at
 /// `state` (offset 0 of the State), ignoring the rest of the state.
 export fn md5_blocks(state: u32, data: u32, len: u32) void {
     const p: [*]const u8 = @ptrFromInt(data);
-    md5.blocks(&statePtr(state).hash, p[0..len]);
+    defer scrubStack(1024);
+    @call(.never_inline, md5.blocks, .{ &statePtr(state).hash, p[0..len] });
 }
 
 export fn md5_final(state: u32, out: u32) void {
-    md5.final(statePtr(state), @ptrFromInt(out));
+    defer scrubStack(1024);
+    @call(.never_inline, md5.final, .{ statePtr(state), @as(*[md5.digest_len]u8, @ptrFromInt(out)) });
 }

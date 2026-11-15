@@ -12,6 +12,8 @@
 //! scratch region (common.zig). A family root calls `exportHasher` from a
 //! `comptime` block.
 
+const scrubStack = @import("common.zig").scrubStack;
+
 pub fn exportHasher(comptime prefix: []const u8, comptime Core: type) void {
     const W = struct {
         fn statePtr(p: u32) *Core.State {
@@ -25,14 +27,17 @@ pub fn exportHasher(comptime prefix: []const u8, comptime Core: type) void {
         }
         fn update(state: u32, data: u32, len: u32) callconv(.c) void {
             const p: [*]const u8 = @ptrFromInt(data);
-            Core.update(statePtr(state), p[0..len]);
+            defer scrubStack(1024);
+            @call(.never_inline, Core.update, .{ statePtr(state), p[0..len] });
         }
         fn blocks(state: u32, data: u32, len: u32) callconv(.c) void {
             const p: [*]const u8 = @ptrFromInt(data);
-            Core.blocks(statePtr(state), p[0..len]);
+            defer scrubStack(1024);
+            @call(.never_inline, Core.blocks, .{ statePtr(state), p[0..len] });
         }
         fn final(state: u32, out: u32) callconv(.c) void {
-            Core.final(statePtr(state), @ptrFromInt(out));
+            defer scrubStack(1024);
+            @call(.never_inline, Core.final, .{ statePtr(state), @as(*[Core.digest_len]u8, @ptrFromInt(out)) });
         }
     };
     @export(&W.stateSize, .{ .name = prefix ++ "_state_size" });

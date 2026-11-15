@@ -9,6 +9,7 @@ comptime {
 }
 
 const core = @import("core");
+const scrubStack = @import("common.zig").scrubStack;
 const sha1 = core.sha1;
 const Status = core.runtime.Status;
 
@@ -34,7 +35,8 @@ fn Exports(comptime variant: sha1.Variant) type {
             const st = statePtr(state);
             if (!okRounds(st)) return @backingInt(Status.invalid_argument);
             const p: [*]const u8 = @ptrFromInt(data);
-            sha1.update(variant, st, p[0..len]);
+            defer scrubStack(2048);
+            @call(.never_inline, sha1.update, .{ variant, st, p[0..len] });
             return 0;
         }
         /// Compress `len` bytes (a multiple of 64) into the hash words at `state`.
@@ -42,13 +44,15 @@ fn Exports(comptime variant: sha1.Variant) type {
             const st = statePtr(state);
             if (!okRounds(st) or len % sha1.block_len != 0) return @backingInt(Status.invalid_argument);
             const p: [*]const u8 = @ptrFromInt(data);
-            sha1.blocks(variant, st, p[0..len]);
+            defer scrubStack(2048);
+            @call(.never_inline, sha1.blocks, .{ variant, st, p[0..len] });
             return 0;
         }
         fn final(state: u32, out: u32) i32 {
             const st = statePtr(state);
             if (!okRounds(st) or st.buffered >= sha1.block_len) return @backingInt(Status.invalid_argument);
-            sha1.final(variant, st, @ptrFromInt(out));
+            defer scrubStack(2048);
+            @call(.never_inline, sha1.final, .{ variant, st, @as(*[sha1.digest_len]u8, @ptrFromInt(out)) });
             return 0;
         }
     };

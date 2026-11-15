@@ -8,6 +8,7 @@ comptime {
 }
 
 const core = @import("core");
+const scrubStack = @import("common.zig").scrubStack;
 const sm3 = core.sm3;
 const Status = core.runtime.Status;
 
@@ -33,7 +34,8 @@ export fn sm3_update(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
     if (!okRounds(st)) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
-    sm3.update(st, p[0..len]);
+    defer scrubStack(2048);
+    @call(.never_inline, sm3.update, .{ st, p[0..len] });
     return 0;
 }
 
@@ -42,13 +44,15 @@ export fn sm3_blocks(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
     if (!okRounds(st) or len % sm3.block_len != 0) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
-    sm3.blocks(st, p[0..len]);
+    defer scrubStack(2048);
+    @call(.never_inline, sm3.blocks, .{ st, p[0..len] });
     return 0;
 }
 
 export fn sm3_final(state: u32, out: u32) i32 {
     const st = statePtr(state);
     if (!okRounds(st) or st.buffered >= sm3.block_len) return @backingInt(Status.invalid_argument);
-    sm3.final(st, @ptrFromInt(out));
+    defer scrubStack(2048);
+    @call(.never_inline, sm3.final, .{ st, @as(*[sm3.digest_len]u8, @ptrFromInt(out)) });
     return 0;
 }

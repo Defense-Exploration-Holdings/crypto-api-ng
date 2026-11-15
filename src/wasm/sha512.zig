@@ -15,6 +15,7 @@ comptime {
 }
 
 const core = @import("core");
+const scrubStack = @import("common.zig").scrubStack;
 const sha512 = core.sha512;
 const Status = core.runtime.Status;
 
@@ -41,7 +42,8 @@ export fn sha512_update(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
     if (!okRounds(st)) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
-    sha512.update(st, p[0..len]);
+    defer scrubStack(1024);
+    @call(.never_inline, sha512.update, .{ st, p[0..len] });
     return 0;
 }
 
@@ -50,7 +52,8 @@ export fn sha512_blocks(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
     if (!okRounds(st) or len % sha512.block_len != 0) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
-    sha512.blocks(st, p[0..len]);
+    defer scrubStack(1024);
+    @call(.never_inline, sha512.blocks, .{ st, p[0..len] });
     return 0;
 }
 
@@ -58,6 +61,7 @@ export fn sha512_blocks(state: u32, data: u32, len: u32) i32 {
 export fn sha512_final(state: u32, out: u32) i32 {
     const st = statePtr(state);
     if (!okRounds(st) or st.buffered >= sha512.block_len) return @backingInt(Status.invalid_argument);
-    sha512.final(st, @ptrFromInt(out));
+    defer scrubStack(1024);
+    @call(.never_inline, sha512.final, .{ st, @as(*[sha512.digest_len]u8, @ptrFromInt(out)) });
     return 0;
 }
