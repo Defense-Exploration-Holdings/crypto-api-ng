@@ -6,7 +6,7 @@
 
 A hashing library for JavaScript with no dependencies: [`crypto-api`](https://github.com/nf404/crypto-api) 0.8.5 ported to Zig, with the compression functions compiled to WebAssembly.
 
-Version 1 is a drop-in replacement for `crypto-api@0.8.5`: same classes, import paths, options, digests and `getState()` output, bugs included. Where an input or option falls outside what the WebAssembly code models exactly, or WebAssembly is unavailable, the original JavaScript runs instead, so results are identical either way. Version 1.1 fixes the 0.8.5 bugs that 1.0 keeps (see "Changes in 1.1" in the package README); new APIs follow in version 2.
+Version 1 is a drop-in replacement for `crypto-api@0.8.5`: same classes, import paths, options, digests and `getState()` output, bugs included. Where an input or option falls outside what the WebAssembly code models exactly, or WebAssembly is unavailable, the original JavaScript runs instead, so results are identical either way. Version 1.1 fixes the 0.8.5 bugs that 1.0 keeps (see "Changes in 1.1" in the package README); algorithms the original lacks are added on top of it, starting with SHA-3.
 
 ## Install
 
@@ -32,6 +32,8 @@ The full API is in the [API reference](docs/api.md). Usage for Node.js, bundlers
 ## Algorithms
 
 HAS-160, MD2, MD4, MD5, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512, SHA-512/224, SHA-512/256, SM3, Snefru v2.0 and v2.5, Whirlpool, Whirlpool-0 and Whirlpool-T, plus HMAC and the hex, base64 and UTF-8 encoders of the original.
+
+Added by this package, not in the original: SHA3-224/256/384/512, SHAKE128/256 and Keccak-224/256/384/512 (the pre-standard padding, as used by Ethereum).
 
 ## Compatibility
 

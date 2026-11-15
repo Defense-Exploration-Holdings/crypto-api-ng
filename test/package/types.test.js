@@ -21,6 +21,9 @@ import Sha512 from "crypto-api-ng/src/hasher/sha512.mjs";
 import Md5 from "crypto-api-ng/src/hasher/md5.mjs";
 import Whirlpool from "crypto-api-ng/src/hasher/whirlpool.mjs";
 import Hmac from "crypto-api-ng/src/mac/hmac.mjs";
+import Sha3 from "crypto-api-ng/src/hasher/sha3.mjs";
+import Shake from "crypto-api-ng/src/hasher/shake.mjs";
+import Keccak from "crypto-api-ng/src/hasher/keccak.mjs";
 import { toHex } from "crypto-api-ng/src/encoder/hex.mjs";
 import { toBase64 } from "crypto-api-ng/src/encoder/base64.mjs";
 import { fromUtf } from "crypto-api-ng/src/encoder/utf.mjs";
@@ -38,6 +41,10 @@ const state: Record<string, any> = hasher.getState();
 hasher.setState(state);
 new Sha512({ length: 256 });
 new Whirlpool({ type: 't' });
+new Sha3({ length: 256 }).update('abc');
+new Keccak({ length: 256 });
+new Shake({ strength: 256, length: 1024 });
+const xof: string = CryptoApi.hash('shake128', 'abc', { length: 512, strength: 128 });
 const mac = new Hmac('key', new Md5());
 mac.update(fromUtf('message'));
 const macHex: string = toHex(mac.finalize());
@@ -52,6 +59,10 @@ const encoded: string = CryptoApi.encoder.toHex(CryptoApi.encoder.fromUtf('x'));
 
 // @ts-expect-error an unsupported length for Sha256
 new Sha256({ length: 123 });
+// @ts-expect-error SHA-3 has no 160-bit variant
+new Sha3({ length: 160 });
+// @ts-expect-error SHAKE strength is 128 or 256
+new Shake({ strength: 512 });
 // @ts-expect-error update() takes a string or bytes
 hasher.update(42);
 // @ts-expect-error getHasher() of an unknown name may return undefined
