@@ -4,6 +4,7 @@
 import LegacySha1 from "../../legacy/hasher/sha1.mjs";
 import family from "../wasm/sha1-family.mjs";
 import {createAccelerator, roundsIn} from "../wasm/be32.mjs";
+import {explicitOptions} from "../tools/options.mjs";
 
 /*
  * SHA-1 with the compression and padding done in wasm, and everything else
@@ -32,6 +33,12 @@ const accel = createAccelerator({
 });
 
 /**
+ * What the original constructor assigns when an option is missing, in its order
+ * (see `explicitOptions` in tools/options.mjs).
+ */
+const DEFAULTS = {rounds: 80};
+
+/**
  * Calculates SHA-1 hash
  */
 class Sha1 extends LegacySha1 {
@@ -40,7 +47,7 @@ class Sha1 extends LegacySha1 {
    */
   constructor(options) {
     // Explicit, so `Sha1.length === 1` like the original (an implicit one has length 0).
-    super(options);
+    super(explicitOptions(options, DEFAULTS));
   }
 
   /**

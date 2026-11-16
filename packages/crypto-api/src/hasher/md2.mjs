@@ -4,6 +4,7 @@
 import LegacyMd2 from "../../legacy/hasher/md2.mjs";
 import {wasmBytes} from "../../wasm/md2.mjs";
 import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
+import {explicitOptions} from "../tools/options.mjs";
 
 /*
  * MD2 with the compression and padding done in wasm, and everything else left
@@ -110,6 +111,12 @@ function store(array, n, o) {
 }
 
 /**
+ * What the original constructor assigns when an option is missing, in its order
+ * (see `explicitOptions` in tools/options.mjs).
+ */
+const DEFAULTS = {rounds: 18};
+
+/**
  * Calculates [MD2](https://tools.ietf.org/html/rfc1319) hash
  */
 class Md2 extends LegacyMd2 {
@@ -119,7 +126,7 @@ class Md2 extends LegacyMd2 {
    */
   constructor(options) {
     // Explicit, so `Md2.length === 1` like the original (an implicit one has length 0).
-    super(options);
+    super(explicitOptions(options, DEFAULTS));
   }
 
   /**
