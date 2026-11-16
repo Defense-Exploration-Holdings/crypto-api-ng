@@ -1,0 +1,267 @@
+// crypto-api-ng:facade
+'use strict';
+
+/*
+ * Streebog (GOST R 34.11-2012, RFC 6986) in plain JavaScript: the engine used when WebAssembly
+ * is not available, and the reference the wasm engine is tested against. See
+ * src/blocks/base.mjs for how it is used and src/hash/streebog.zig for the algorithm.
+ *
+ * Engine interface (shared with src/wasm/blocks.mjs):
+ *   blocks(state, message, start, end)  compress the whole blocks message[start, end)
+ *   final(state, tail)                  the full digest of the last block `tail`
+ *
+ * `state.hash` holds the chaining value (eight 64-bit words) followed by the checksum Sigma
+ * (eight more), as 32 int32 with the low half of every word first; `state.counter` is the
+ * number of bytes compressed so far.
+ *
+ * The 16 KiB of combined S-box, permutation and linear-step tables are derived from the typed-in
+ * S-box and matrix on first use.
+ */
+
+export const BLOCK = 64;
+
+/** The S-box. */
+export const PI = [
+  0xfc, 0xee, 0xdd, 0x11, 0xcf, 0x6e, 0x31, 0x16, 0xfb, 0xc4, 0xfa, 0xda, 0x23, 0xc5, 0x04, 0x4d,
+  0xe9, 0x77, 0xf0, 0xdb, 0x93, 0x2e, 0x99, 0xba, 0x17, 0x36, 0xf1, 0xbb, 0x14, 0xcd, 0x5f, 0xc1,
+  0xf9, 0x18, 0x65, 0x5a, 0xe2, 0x5c, 0xef, 0x21, 0x81, 0x1c, 0x3c, 0x42, 0x8b, 0x01, 0x8e, 0x4f,
+  0x05, 0x84, 0x02, 0xae, 0xe3, 0x6a, 0x8f, 0xa0, 0x06, 0x0b, 0xed, 0x98, 0x7f, 0xd4, 0xd3, 0x1f,
+  0xeb, 0x34, 0x2c, 0x51, 0xea, 0xc8, 0x48, 0xab, 0xf2, 0x2a, 0x68, 0xa2, 0xfd, 0x3a, 0xce, 0xcc,
+  0xb5, 0x70, 0x0e, 0x56, 0x08, 0x0c, 0x76, 0x12, 0xbf, 0x72, 0x13, 0x47, 0x9c, 0xb7, 0x5d, 0x87,
+  0x15, 0xa1, 0x96, 0x29, 0x10, 0x7b, 0x9a, 0xc7, 0xf3, 0x91, 0x78, 0x6f, 0x9d, 0x9e, 0xb2, 0xb1,
+  0x32, 0x75, 0x19, 0x3d, 0xff, 0x35, 0x8a, 0x7e, 0x6d, 0x54, 0xc6, 0x80, 0xc3, 0xbd, 0x0d, 0x57,
+  0xdf, 0xf5, 0x24, 0xa9, 0x3e, 0xa8, 0x43, 0xc9, 0xd7, 0x79, 0xd6, 0xf6, 0x7c, 0x22, 0xb9, 0x03,
+  0xe0, 0x0f, 0xec, 0xde, 0x7a, 0x94, 0xb0, 0xbc, 0xdc, 0xe8, 0x28, 0x50, 0x4e, 0x33, 0x0a, 0x4a,
+  0xa7, 0x97, 0x60, 0x73, 0x1e, 0x00, 0x62, 0x44, 0x1a, 0xb8, 0x38, 0x82, 0x64, 0x9f, 0x26, 0x41,
+  0xad, 0x45, 0x46, 0x92, 0x27, 0x5e, 0x55, 0x2f, 0x8c, 0xa3, 0xa5, 0x7d, 0x69, 0xd5, 0x95, 0x3b,
+  0x07, 0x58, 0xb3, 0x40, 0x86, 0xac, 0x1d, 0xf7, 0x30, 0x37, 0x6b, 0xe4, 0x88, 0xd9, 0xe7, 0x89,
+  0xe1, 0x1b, 0x83, 0x49, 0x4c, 0x3f, 0xf8, 0xfe, 0x8d, 0x53, 0xaa, 0x90, 0xca, 0xd8, 0x85, 0x61,
+  0x20, 0x71, 0x67, 0xa4, 0x2d, 0x2b, 0x09, 0x5b, 0xcb, 0x9b, 0x25, 0xd0, 0xbe, 0xe5, 0x6c, 0x52,
+  0x59, 0xa6, 0x74, 0xd2, 0xe6, 0xf4, 0xb4, 0xc0, 0xd1, 0x66, 0xaf, 0xc2, 0x39, 0x4b, 0x63, 0xb6
+];
+
+/** Row `i` of the linear map (bit `i` of a word, byte 0 low): low int32, high int32. */
+export const A = [
+  0x2b8ee083, 0x641c314b, 0x5601dd1b, 0xc8386296, 0xac02a736, 0x8d70c431, 0x4504536c, 0x07e09562,
+  0x8a08a6d8, 0x0edd37c4, 0x091051ad, 0x1ca76e95, 0x1220a247, 0x3853dc37, 0x2440598e, 0x70a6a56e,
+  0x9ef5dc18, 0xa48b474f, 0x21f7a530, 0x550b8e9e, 0x42f35760, 0xaa160121, 0x84fbaec0, 0x492c0242,
+  0x15eb419d, 0x92580484, 0x2acb8227, 0x39b00815, 0x548b194e, 0x727d102a, 0xa80b329c, 0xe4fa2054,
+  0x8a327728, 0xf97d86d9, 0x0964ee50, 0xeffa11af, 0x12c8c1a0, 0xc3e92243, 0x248d9f5d, 0x9bcf4486,
+  0x480723ba, 0x2b838811, 0x900e4669, 0x561b0d22, 0x3d1c8cd2, 0xac361a44, 0x7a3805b9, 0x456c3488,
+  0x1810a89e, 0x5b068c65, 0x30204d21, 0xb60c05ca, 0x60409a42, 0x71180a89, 0xc0802984, 0xe230140f,
+  0x9d1d5215, 0xd960281e, 0x273aa42a, 0xafc0503c, 0x4e745554, 0x439da078, 0x9ce8aaa8, 0x86275df0,
+  0xba93c138, 0x0321658c, 0x693b9f70, 0x0642ca05, 0xd27623e0, 0x0c84890a, 0xb9ec46dd, 0x18150f14,
+  0x6fc58ca7, 0x302a1e28, 0xde970553, 0x60543c50, 0xa1330aa6, 0xc0a878a0, 0x5f661451, 0x9d4df05d,
+  0x328a8950, 0xaccc9ca9, 0x64090fa0, 0x4585254f, 0xc8121e5d, 0x8a174a9e, 0x8d243cba, 0x092e9421,
+  0x07487869, 0x125c3542, 0x0e90f0d2, 0x24b86a84, 0x1c3dfdb9, 0x486dd415, 0x387ae76f, 0x90dab52a,
+  0x1a83988e, 0x46b60f01, 0x341b2d01, 0x8c711e02, 0x68365a02, 0x05e23c04, 0xd06cb404, 0x0ad97808,
+  0xbdd87508, 0x14aff010, 0x67adea10, 0x2843fd20, 0xce47c920, 0x5086e740, 0x818e8f40, 0xa011d380,
+  0xb2468764, 0x83478b07, 0x798c13c8, 0x1b8e0b0e, 0xf205268d, 0x3601161c, 0xf90a4c07, 0x6c022c38,
+  0xef14980e, 0xd8045870, 0xc3282d1c, 0xad08b0e0, 0x9b505a38, 0x47107ddd, 0x2ba0b470, 0x8e20faa7
+];
+
+/** The twelve iteration constants, eight words each, as low and high int32. */
+export const C = [
+  0xf2a64507, 0xdd806559, 0xcc744d23, 0x05767436, 0xa460d315, 0xa2422a08, 0x92676901, 0x4b7ce091,
+  0x7585c4fc, 0x714eb88d, 0x2e45d016, 0x2f6a7643, 0xc0657c1f, 0xebcb2f81, 0x1ecadae9, 0xb1085bda,
+  0x21b19bb7, 0xe6790470, 0xd7cbcd56, 0x55dda21b, 0xdb0aa7ca, 0x5cb561c2, 0x12d69958, 0x9ab5176b,
+  0x16b50131, 0x61d55e0f, 0x0a232b98, 0xf3feea72, 0x0f70b5d7, 0x4fe39d46, 0xa99d2f1a, 0x6fa3b58a,
+  0x0aba0ab2, 0x991e96f5, 0x867adb31, 0xc2b6f443, 0x6062db09, 0xc1c93a37, 0x90359eb1, 0xd3e20fe4,
+  0xb1297b7b, 0xf2ea7514, 0x529c1f8b, 0x06f15e5f, 0x6a3d8435, 0x0a39fc28, 0x2bce2fc7, 0xf574dcac,
+  0x84e3d12e, 0x220cbebc, 0x93e837f1, 0x3453eaa1, 0x935203be, 0xd8b71333, 0xed03d675, 0xa9d72c82,
+  0x685e353f, 0x9d721cad, 0x335c3c7d, 0x488e857e, 0x5d71e4dd, 0xf948e1a0, 0xe81566d2, 0xef1fdfb3,
+  0x7c6cfe57, 0x601758fd, 0xa9ea63f5, 0x7a56a27e, 0x23271a16, 0xdfff00b7, 0x253af5a3, 0xbfcd1747,
+  0x800fffbd, 0x359e35d7, 0x1686104a, 0x7f151c1f, 0x6ca92363, 0x9a3f410c, 0xad474799, 0x4bea6bac,
+  0x46647d6e, 0xfa68407a, 0x36904f35, 0xbf71c572, 0xc2bec6b6, 0x0af21f66, 0x1c9ab7b4, 0xcffaa6b7,
+  0x9af08ec6, 0x187f9ab4, 0x5142a46c, 0x2d66c4f9, 0x7a3039c0, 0x6fa4c33b, 0x1d3ad3d9, 0xae4faeae,
+  0x3a14d493, 0x8886564d, 0xa23c4af3, 0x3517454c, 0x284a0504, 0x06476983, 0x2d822c37, 0x0992abc5,
+  0x197a93c9, 0xd3473e33, 0xe6bf87c9, 0x399ec6c7, 0xbf240954, 0x51ac86fe, 0xeeaac5ec, 0xf4c70e16,
+  0xbf02e71e, 0xa47f0dd4, 0x5951a8d9, 0x36acc235, 0xd1a5c42f, 0x69d18d2b, 0x929b0690, 0xf4892bcb,
+  0x4ddbc49a, 0x89b4443b, 0x9c36de1e, 0x4eb7f871, 0x0c6e4141, 0x03e7aa02, 0x4d93c9a7, 0x9b1f5b42,
+  0x83235adb, 0x72614451, 0xcb1f2a60, 0x0e38dc92, 0xa6079c54, 0x7b2b8a9a, 0xdbb2ceb1, 0x800a440b,
+  0xe00d0984, 0x3cd955b7, 0x25894224, 0x3a7d3a1b, 0xec165fde, 0x944c9ad8, 0x1631229b, 0x378f5a54,
+  0x98459ced, 0x74b4c7fb, 0x153bb6c3, 0x3698fad1, 0x3b7652f4, 0x7a1e6c30, 0xaf69334b, 0x9fe76702,
+  0x1b336103, 0x1fffe18a, 0xff8a78db, 0x8941e71c, 0xb2e4f3f3, 0x382ae548, 0x80056f52, 0xabbedea6,
+  0x81f32d1b, 0x6bcaa4cd, 0xc06fd85d, 0xdea2594a, 0x7d476e98, 0xefbacd1d, 0xea48b9ca, 0x8a1d71ef,
+  0x14846679, 0x20018021, 0xebab0761, 0xd8fa6bbb, 0x635afe94, 0x3002c6cd, 0xefc889fb, 0x7bcd9ed0,
+  0xf11bd720, 0x48bc924a, 0xd9b21b99, 0xfaf417d5, 0x88e12852, 0xe71da4aa, 0x1891cc86, 0x5d80ef9d,
+  0x30219f9b, 0xf82012d4, 0xbcdf1d77, 0xcda43c32, 0x0449b17a, 0xd21380b0, 0xf11631ba, 0x378ee767
+].map((w) => w | 0);
+
+const TWO32 = 4294967296;
+
+let tables = null;
+
+/** `tables[2 * (256 * j + b)]` and `+ 1`: S, P and L of byte `b` in word `j`, low and high int32. */
+function derive() {
+  const t = new Int32Array(8 * 256 * 2);
+  for (let j = 0; j < 8; j++) {
+    for (let b = 0; b < 256; b++) {
+      let lo = 0;
+      let hi = 0;
+      for (let bit = 0; bit < 8; bit++) {
+        if ((PI[b] >> bit) & 1) {
+          lo ^= A[2 * (8 * j + bit)];
+          hi ^= A[2 * (8 * j + bit) + 1];
+        }
+      }
+      t[2 * (256 * j + b)] = lo;
+      t[2 * (256 * j + b) + 1] = hi;
+    }
+  }
+  return t;
+}
+
+/** The combined tables (see `derive`); built on first use. */
+export function sboxTables() {
+  if (tables === null) {
+    tables = derive();
+  }
+  return tables;
+}
+
+const k = new Int32Array(16);
+const s = new Int32Array(16);
+const u = new Int32Array(16);
+const v = new Int32Array(16);
+const m = new Int32Array(16);
+const sum = new Int32Array(16);
+const h = new Int32Array(16);
+
+/** out = LPS(x), `out` and `x` distinct: output word i collects byte i of every input word. */
+function lps(t, x, out) {
+  for (let i = 0; i < 8; i++) {
+    const shift = 8 * (i & 3);
+    const half = i >> 2;
+    let lo = 0;
+    let hi = 0;
+    for (let j = 0; j < 8; j++) {
+      const at = 2 * (256 * j + ((x[2 * j + half] >>> shift) & 255));
+      lo ^= t[at];
+      hi ^= t[at + 1];
+    }
+    out[2 * i] = lo;
+    out[2 * i + 1] = hi;
+  }
+}
+
+/** h = g_N(h, mm) for the bit count N = (nlo, nhi). */
+function g(t, nlo, nhi, mm) {
+  for (let i = 0; i < 16; i++) {
+    u[i] = h[i];
+  }
+  u[0] ^= nlo;
+  u[1] ^= nhi;
+  lps(t, u, k);
+  for (let i = 0; i < 16; i++) {
+    s[i] = mm[i] ^ k[i];
+  }
+  for (let r = 0; r < 12; r++) {
+    lps(t, s, u);
+    for (let i = 0; i < 16; i++) {
+      v[i] = k[i] ^ C[16 * r + i];
+    }
+    lps(t, v, k);
+    for (let i = 0; i < 16; i++) {
+      s[i] = u[i] ^ k[i];
+    }
+  }
+  for (let i = 0; i < 16; i++) {
+    h[i] ^= s[i] ^ mm[i];
+  }
+}
+
+/** sum += mm modulo 2^512 */
+function addSum(mm) {
+  let carry = 0;
+  for (let i = 0; i < 16; i++) {
+    const r = (sum[i] >>> 0) + (mm[i] >>> 0) + carry;
+    sum[i] = r | 0;
+    carry = r > 0xffffffff ? 1 : 0;
+  }
+}
+
+/** Load the 16 little-endian int32 of `message[pos, pos + len)` into `m`, zero padded. */
+function load(message, pos, len) {
+  for (let i = 0; i < 16; i++) {
+    const p = pos + 4 * i;
+    const e = pos + len;
+    m[i] = (p < e ? message.charCodeAt(p) : 0) |
+      ((p + 1 < e ? message.charCodeAt(p + 1) : 0) << 8) |
+      ((p + 2 < e ? message.charCodeAt(p + 2) : 0) << 16) |
+      ((p + 3 < e ? message.charCodeAt(p + 3) : 0) << 24);
+  }
+}
+
+/** Hash the block in `m`, then count `bytes` of it and add it to the checksum. `t` is the byte counter before. */
+function step(t, counter, bytes) {
+  g(t, (counter * 8) % TWO32 | 0, Math.floor((counter * 8) / TWO32) | 0, m);
+  addSum(m);
+  return counter + bytes;
+}
+
+function engine(digestBytes) {
+  return {
+    name: 'js',
+
+    blocks(state, message, start, end) {
+      const t = sboxTables();
+      for (let i = 0; i < 16; i++) {
+        h[i] = state.hash[i];
+        sum[i] = state.hash[16 + i];
+      }
+      let counter = state.counter;
+      for (let pos = start; pos < end; pos += BLOCK) {
+        load(message, pos, BLOCK);
+        counter = step(t, counter, BLOCK);
+      }
+      for (let i = 0; i < 16; i++) {
+        state.hash[i] = h[i];
+        state.hash[16 + i] = sum[i];
+      }
+      state.counter = counter;
+    },
+
+    final(state, tail) {
+      const t = sboxTables();
+      for (let i = 0; i < 16; i++) {
+        h[i] = state.hash[i];
+        sum[i] = state.hash[16 + i];
+      }
+      let counter = state.counter;
+      let rest = tail;
+      if (rest.length === BLOCK) {
+        load(rest, 0, BLOCK);
+        counter = step(t, counter, BLOCK);
+        rest = '';
+      }
+      // The padded last block: the bytes left, then 0x01.
+      load(rest + '\x01', 0, rest.length + 1);
+      counter = step(t, counter, rest.length);
+      // `counter` is now the whole length in bytes; the two last steps use N = 0.
+      m.fill(0);
+      m[0] = (counter * 8) % TWO32 | 0;
+      m[1] = Math.floor((counter * 8) / TWO32) | 0;
+      g(t, 0, 0, m);
+      g(t, 0, 0, sum);
+      let out = '';
+      for (let i = 16 - digestBytes / 4; i < 16; i++) {
+        const w = h[i];
+        out += String.fromCharCode(w & 0xff, (w >>> 8) & 0xff, (w >>> 16) & 0xff, (w >>> 24) & 0xff);
+      }
+      return out;
+    }
+  };
+}
+
+/** The initial `state.hash`: the chaining value (zeros, or 0x01 bytes for Streebog-256) and a zero checksum. */
+export function iv(digestBytes) {
+  const out = new Array(32).fill(0);
+  if (digestBytes === 32) {
+    out.fill(0x01010101, 0, 16);
+  }
+  return out;
+}
+
+export const streebog256 = engine(32);
+export const streebog512 = engine(64);

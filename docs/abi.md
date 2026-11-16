@@ -17,6 +17,7 @@ Target: `wasm32-freestanding`, single-threaded, no imports. Everything the modul
 ## Versioning
 
 - `abi_version()` returns `runtime.abi_version`. The JS loader rejects a mismatch. Bump it on any incompatible change to exports or conventions.
+- Version 2: `<algo>_update`, `<algo>_blocks` and `<algo>_final` of MD4, MD5, HAS-160 and RIPEMD return an `i32` Status instead of nothing (the other families already did). Version 1 modules returned nothing and trusted `State.buffered`.
 
 ## Algorithm export shape
 
@@ -25,14 +26,14 @@ Settled by the MD5 port. Streaming primitives export:
 ```
 <algo>_state_size() -> u32                  // sizeof the Zig State; JS checks it at load
 <algo>_init(state)
-<algo>_update(state, data, len)             // buffering + counting, like the Zig reference
-<algo>_blocks(state, data, len)             // whole blocks only, hash words only; what the v1 facade calls
-<algo>_final(state, out)                    // pads, compresses, writes the digest, mutates state like the original finalize()
+<algo>_update(state, data, len) -> Status   // buffering + counting, like the Zig reference
+<algo>_blocks(state, data, len) -> Status   // whole blocks only, hash words only; what the v1 facade calls
+<algo>_final(state, out) -> Status          // pads, compresses, writes the digest, mutates state like the original finalize()
 ```
 
 `state`, `data` and `out` are absolute addresses into linear memory. There is no per-hasher allocation: the facade writes the hasher's state into one shared scratch `State`, calls, and reads the result back, so wasm memory never grows and nothing needs freeing.
 
-The 32-bit little-endian hashers other than MD5 (MD4, HAS-160, RIPEMD) share one generic implementation, `src/hash/le32.zig`, and export through `src/wasm/le32_exports.zig`. Differences from the MD5 shape: `<algo>_init(state, param)` takes one extra argument, and `State` has a `param` field (HAS-160 `rounds`; 0 elsewhere) that `<algo>_blocks` and `<algo>_final` read. `State` layout, with `n` hash words: `hash` at 0, `length` (u64) at `align8(4n)`, `buffered` (u32) at `length + 8`, `param` (u32) at `length + 12`, `buf` (64 bytes) at `length + 16`. Sizes: 96 (n=4), 104 (n=5), 112 (n=8), 120 (n=10). The JS side computes the same offsets in `packages/crypto-api/src/wasm/le32.mjs` and checks `<algo>_state_size()` at load.
+The 32-bit little-endian hashers other than MD5 (MD4, HAS-160, RIPEMD) share one generic implementation, `src/hash/le32.zig`, and export through `src/wasm/le32_exports.zig`. Differences from the MD5 shape: `<algo>_init(state, param)` takes one extra argument, and `State` has a `param` field (HAS-160 `rounds`; 0 elsewhere) that `<algo>_blocks` and `<algo>_final` read. Their `update`, `blocks` and `final` (and MD5's) refuse, with `Status.invalid_state` and without touching anything, a State whose `buffered` is not below 64 (it indexes the State's buffer, and `small` builds have no bounds checks), and `blocks` refuses a `len` that is not a multiple of 64 with `Status.invalid_argument`. The families with a `rounds` field (MD2, SHA-0, SHA-1, SHA-224/256, SM3, SHA-384/512, Whirlpool) refuse a `rounds` outside what the compression function supports in the same way. `State` layout, with `n` hash words: `hash` at 0, `length` (u64) at `align8(4n)`, `buffered` (u32) at `length + 8`, `param` (u32) at `length + 12`, `buf` (64 bytes) at `length + 16`. Sizes: 96 (n=4), 104 (n=5), 112 (n=8), 120 (n=10). The JS side computes the same offsets in `packages/crypto-api/src/wasm/le32.mjs` and checks `<algo>_state_size()` at load.
 
 Snefru is the one family whose block size depends on an option (`16 - words` words, with `words` = `length / 32`), so it has its own shape in `src/hash/snefru.zig` and `src/wasm/snefru.zig`: `snefru_init(state, words, rounds)`, `snefru_update`, `snefru_blocks`, `snefru_final`, all returning a `Status` (0 ok, 1 `invalid_argument`, 3 `invalid_state`) because the State's `words`, `rounds` and `buffered` bytes are used as indices and are validated on every call. `State` is exactly 128 bytes: `hash` (15 x u32) at 0, `words` (u8) at 60, `rounds` (u8) at 61, `buffered` (u8) at 62, `length` (u32, only `ToInt32(length)` matters) at 64, `buf` (60 bytes) at 68. `snefru_final` writes `4 * words` digest bytes at the output offset and refuses `words` = 15, which the original cannot finalize either. The S-boxes (16 KiB) are computed at compile time from `src/hash/snefru_rand.zig`, which `scripts/gen-snefru-rand.mjs` generates from the vendored original.
 
@@ -49,6 +50,12 @@ scratch_len() -> u32     // 256 + input capacity (64 KiB)
 ```
 
 Scratch layout, identical in every family (offsets from `scratch_ptr()`): algorithm `State` at +0 (up to 128 bytes), output at +128 (up to 128 bytes), input chunk at +256. A `State` larger than 128 bytes (SHA-384/512: 216, Whirlpool: 152) overlaps the output slot, so such a family tells the facade to take the digest at +256 instead (`outOff` in `createAccelerator`); `*_final` does not read the input region, and `*_blocks` only reads the head of the State. Family modules are linked with a fixed 2-page memory (`initial_memory == max_memory`), 16 KiB stack and no imports; they export no `alloc`/`free`. Only `src/wasm.zig` (the general runtime used by `js/index.js`) keeps those. Zig forbids relative imports above a module root, so family roots reach the library through `@import("core")` (`src/root.zig`).
+
+The facades treat any non-zero status as a refusal: they have not modified `this` yet (or have applied only the whole blocks an earlier chunk of the same call completed) and give the work to the original JavaScript code, so a refused call costs speed, never a wrong or stale digest. `test/wasm-status.test.js` calls the raw exports with bad values and forces refusals in every facade.
+
+The SHA-3/SHAKE/Keccak, BLAKE2 and BLAKE3 facades check every status too. A refused call is redone by their plain-JavaScript engine on the untouched state (the wasm side works on a copy in the scratch region, and the facade only reads it back after the last call of a sequence succeeded), and nothing is read from the output region of a refused call; BLAKE3 starts `blake3_xof` only after `blake3_root` succeeded in the same call. A state that no engine can work on (a `hash` of the wrong length or with non-integer words, a block size that is not a sponge rate, a BLAKE2 `counter` that is not a whole number of blocks, a BLAKE3 `stack` that does not match `chunks`, an empty last block or chunk after blocks or chunks were compressed) is refused before either engine runs, with a `TypeError` or `RangeError` that is the same with and without WebAssembly. `blake3_xof` cannot fail and trusts its `params`, which only the facade writes, in the same call.
+
+Nothing a call was given stays in the module. The facade zeroes the scratch region on every way out of a call, including the fallbacks that hand the rest of the work back to the original JavaScript: the state and output slots and the input bytes it wrote (`wipe()` in `family.mjs`), after the digest string has been built. On the wasm side, the exports clear the `tail` and padding buffers of the `final` functions and, after the call, the stack area the compression frames used (`scrubStack` in `src/wasm/common.zig`, called through `@call(.never_inline, ...)` so the callee's frames lie below the export's own). `test/memory-wipe.test.js` scans the whole linear memory of every family for message bytes, HMAC pad blocks, keys and digests. The SHA-3/SHAKE/Keccak, BLAKE2 and BLAKE3 families are covered the same way, on every exit path including a refused call: the glue zeroes the State and output slots and every input-region byte it wrote (the BLAKE2 key block, the BLAKE3 key words in the State, the stack of chaining values at +256 and the data and output at +2304, the sponge tail at +256 and its output at +512, long outputs up to the largest call), after it has built the result string, and their export roots call the core through `@call(.never_inline, ...)` and `scrubStack` afterwards. `final` of BLAKE2 clears its padded last block and the copy of the chaining value, BLAKE3 clears the chunk-end and parent blocks it builds. Copies on the JavaScript side (the `Hmac` pads and saved states, the digest string) are ordinary values and cannot be wiped.
 
 Embedded bytes for synchronous loading are written to `packages/crypto-api/wasm/<family>.mjs` by `zig build js` (gitignored). The package-internal loader is `packages/crypto-api/src/wasm/family.mjs`; its `ABI_VERSION` must equal `runtime.abi_version` (a test compares it with `js/index.js`).
 
@@ -76,6 +83,26 @@ blake3_xof(params, seek, out, out_len)             // output bytes from output b
 ```
 
 `State` is `key` (8 words) at 0, `flags` (u32) at 32 and `chunks` (u64, chunks added so far) at 40. The `stack` argument is the chaining values of the finished subtrees, 32 bytes each, `popcount(chunks)` entries, up to 54 (1728 bytes); it does not fit the 128-byte state slot, so the JS side places it at the start of the input region (+256) and the data at +2304 (leaving 62 chunks per call). `params` (the cv, the last block, its length and flags) is written to the output slot at +128. The JS hasher holds back the last chunk, so a chunk only enters the tree when more input follows.
+
+## Tiger, Streebog, CRC-32 and xxHash
+
+These have no 0.8.5 original and use the same shape as BLAKE2: the JS hashers (`src/blocks/base.mjs`) keep the buffer and hold back the last 1 to 64 (16, 32) bytes, and wasm only compresses and finishes. Their exports are produced by the same wrapper (`exportHasherScrub` in `src/wasm/blake2_exports.zig`, which also takes the size of the stack area to clear), and all return a `Status`:
+
+```
+<p>_state_size() -> u32
+<p>_blocks(state, data, len)                       // len % block == 0
+<p>_final(state, tail, tail_len, out)              // tail_len <= block; writes the whole digest to out
+```
+
+| Family module | `<p>` | block | digest | `State` (little-endian words) |
+|---|---|---|---|---|
+| `tiger` | `tiger`, `tiger2` | 64 | 24 | `t` u64 at 0, `h` 3 x u64 at 8 (32 bytes) |
+| `streebog` | `streebog256`, `streebog512` | 64 | 32, 64 | `t` u64 at 0, `h` 8 x u64 at 8, `sigma` 8 x u64 at 72 (136 bytes) |
+| `crc32` | `crc32`, `crc32c` | 64 | 4 | `t` u64 at 0, `crc` u32 at 8 (16 bytes) |
+| `xxhash` | `xxhash32` | 16 | 4 | `t` u64 at 0, `v` 4 x u32 at 8, `seed` u32 at 24 (32 bytes) |
+| `xxhash` | `xxhash64` | 32 | 8 | `t` u64 at 0, `v` 4 x u64 at 8, `seed` u64 at 40 (48 bytes) |
+
+`t` is the number of bytes compressed so far; `blocks` adds to it and `final` works on a copy, so `state` is never modified by `final`. The JS side writes `t` and the hash words of `state.hash` (int32, the 64-bit words low half first) and reads the words back after `blocks`. Streebog's 136-byte `State` does not fit the 128-byte state slot, so its digest is written behind the input region's last block (at +320) instead of the output slot at +128. Tiger derives its S-boxes at compile time; Streebog derives its 16 KiB of combined tables from the typed-in S-box and matrix. The Streebog digest is the last 32 bytes of the final value for `streebog256`, all 64 for `streebog512`; CRC-32 and xxHash write the checksum most significant byte first.
 
 ## Loading: async and sync
 

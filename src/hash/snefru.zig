@@ -226,6 +226,8 @@ pub fn final(st: *State, out: []u8) void {
     const bl = st.blockLen();
     const n: usize = st.buffered;
     var tail: [max_block]u8 = @splat(0);
+    // The zero-padded last block holds the message tail: do not leave it on the stack.
+    defer std.crypto.secureZero(u8, &tail);
 
     if (n > 0) {
         // The tail, zero-padded to a full block.

@@ -2,7 +2,7 @@
 'use strict';
 
 import Sponge from "./sponge.mjs";
-import {checkOptions} from "../tools/input.mjs";
+import {checkOptions, ownOption} from "../tools/input.mjs";
 
 /** Supported options. */
 const OPTIONS = {length: {values: [224, 256, 384, 512]}};
@@ -29,7 +29,9 @@ class Keccak extends Sponge {
    */
   constructor(options) {
     checkOptions('Keccak', options, OPTIONS);
-    const length = options && options.length !== undefined ? options.length : 512;
+    // Own property only: an inherited value is not an option.
+    const given = ownOption(options, 'length');
+    const length = given !== undefined ? given : 512;
     super(options, 200 - length / 4, 0x01, length / 8);
   }
 }

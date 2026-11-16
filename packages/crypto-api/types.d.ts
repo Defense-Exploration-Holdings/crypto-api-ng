@@ -61,6 +61,18 @@ export type Blake3Options = {
   /** The context string of the key derivation. */
   | { context: BinaryInput; key?: undefined }
 );
+export interface TigerOptions {
+  /** Digest size in bits: 8 to 192 in steps of 8 (default 192). 160 is Tiger/160, 128 is Tiger/128. */
+  length?: number;
+}
+export interface StreebogOptions {
+  /** Digest size in bits: 256 or 512 (default 512). */
+  length?: 256 | 512;
+}
+export interface XxHashOptions {
+  /** The seed: an integer from 0 to 2^32 - 1 for `XxHash32`, from 0 to 2^53 - 1 for `XxHash64` (default 0). */
+  seed?: number;
+}
 export interface Has160Options { rounds?: number }
 export interface Md2Options { rounds?: number }
 export interface RipemdOptions { length?: 128 | 160 | 256 | 320 }
@@ -99,6 +111,8 @@ export interface HasherOptions {
   context?: BinaryInput;
   /** SHAKE security strength: 128 or 256. */
   strength?: 128 | 256;
+  /** xxHash seed: 0 to 2^32 - 1 for `xxhash32`, 0 to 2^53 - 1 for `xxhash64`. */
+  seed?: number;
 }
 
 /** Algorithm names understood by `getHasher()` and `hash()`. */
@@ -114,6 +128,9 @@ export type HasherName =
   | 'keccak224' | 'keccak256' | 'keccak384' | 'keccak512'
   | 'shake128' | 'shake256'
   | 'snefru' | 'snefru128' | 'snefru128/8' | 'snefru128/2' | 'snefru256' | 'snefru256/8' | 'snefru256/4'
+  | 'tiger' | 'tiger192' | 'tiger160' | 'tiger128' | 'tiger2'
+  | 'streebog' | 'streebog256' | 'streebog512'
+  | 'crc32' | 'crc32c' | 'xxhash32' | 'xxhash64'
   | 'whirlpool' | 'whirlpool-0' | 'whirlpool-t';
 
 export interface CryptoApiEncoder {

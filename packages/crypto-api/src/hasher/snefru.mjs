@@ -3,8 +3,8 @@
 
 import LegacySnefru from "../../legacy/hasher/snefru.mjs";
 import {wasmBytes} from "../../wasm/snefru.mjs";
-import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
-import {checkOptions} from "../tools/input.mjs";
+import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
+import {prepareOptions} from "../tools/input.mjs";
 
 /*
  * Snefru with the compression and padding done in wasm, and everything else
@@ -122,6 +122,12 @@ function store(hash, w, n) {
 const OPTIONS = {length: {min: 32, max: 448, step: 32}, rounds: {min: 1, max: 8}};
 
 /**
+ * What the original constructor assigns when an option is missing, in its order
+ * (see `explicitOptions` in tools/input.mjs).
+ */
+const DEFAULTS = {length: 128, rounds: 8};
+
+/**
  * Calculates Snefru v2.0 (2 rounds 128, 4 rounds 256), Snefru v2.5 (8 rounds)
  * hash. Same API, output and `getState()` JSON as crypto-api 0.8.5; see
  * legacy/hasher/snefru.mjs for the original documentation and examples.
@@ -132,8 +138,7 @@ class Snefru extends LegacySnefru {
    */
   constructor(options) {
     // Spelled out so `Snefru.length` is 1, as in 0.8.5.
-    checkOptions('Snefru', options, OPTIONS);
-    super(options);
+    super(prepareOptions('Snefru', options, OPTIONS, DEFAULTS));
   }
 
   /**
@@ -176,35 +181,47 @@ class Snefru extends LegacySnefru {
     const st = base + STATE_OFF;
     const input = base + INPUT_OFF;
     const w = st >> 2;
-    for (let k = 0; k < n; k++) i32[w + k] = hash[k];
-    u8[st + O_WORDS] = n;
-    u8[st + O_ROUNDS] = rounds;
-    u8[st + O_BUFFERED] = 0;
-
     const total = message.length - message.length % size;
     const chunk = rt.cap - rt.cap % size;
-    for (let pos = 0; pos < total;) {
-      const end = Math.min(pos + chunk, total);
-      let bits = 0;
-      for (let i = pos, o = input; i < end; i++, o++) {
-        const c = message.charCodeAt(i);
-        bits |= c;
-        u8[o] = c;
-      }
-      if (bits > 0xff || rt.ex.snefru_blocks(st, input, end - pos) !== 0) {
-        // A code unit the wasm code cannot represent: hand over what has been
-        // consumed so far (always whole blocks) and let the original do the rest.
-        if (pos > 0) {
-          store(hash, w, n);
-          state.message = message.substr(pos);
+    // Bytes of the input region this call wrote; wiped on every way out.
+    let used = 0;
+    let fallback = false;
+    try {
+      for (let k = 0; k < n; k++) i32[w + k] = hash[k];
+      u8[st + O_WORDS] = n;
+      u8[st + O_ROUNDS] = rounds;
+      u8[st + O_BUFFERED] = 0;
+
+      for (let pos = 0; pos < total;) {
+        const end = Math.min(pos + chunk, total);
+        if (end - pos > used) used = end - pos;
+        let bits = 0;
+        for (let i = pos, o = input; i < end; i++, o++) {
+          const c = message.charCodeAt(i);
+          bits |= c;
+          u8[o] = c;
         }
-        return super.process();
+        if (bits > 0xff || rt.ex.snefru_blocks(st, input, end - pos) !== 0) {
+          // A code unit the wasm code cannot represent: hand over what has been
+          // consumed so far (always whole blocks) and let the original do the rest.
+          if (pos > 0) {
+            store(hash, w, n);
+            state.message = message.substr(pos);
+          }
+          fallback = true;
+          break;
+        }
+        pos = end;
       }
-      pos = end;
+      if (!fallback) {
+        wasmCalls++;
+        store(hash, w, n);
+        state.message = message.substr(total);
+      }
+    } finally {
+      wipe(u8, base, used);
     }
-    wasmCalls++;
-    store(hash, w, n);
-    state.message = message.substr(total);
+    if (fallback) return super.process();
   }
 
   /**
@@ -234,28 +251,41 @@ class Snefru extends LegacySnefru {
     const base = rt.base;
     const st = base + STATE_OFF;
     const m = message.length;
-    // Fill the scratch State. Nothing in `this` is touched until the message is
-    // known to be representable.
-    for (let i = 0, o = st + O_BUF; i < m; i++, o++) {
-      const c = message.charCodeAt(i);
-      if (c > 0xff) return super.finalize();
-      u8[o] = c;
-    }
-    const w = st >> 2;
-    for (let k = 0; k < n; k++) i32[w + k] = hash[k];
-    u8[st + O_WORDS] = n;
-    u8[st + O_ROUNDS] = rounds;
-    u8[st + O_BUFFERED] = m;
-    u32[(st + O_LENGTH) >> 2] = length;
-
     const out = base + OUT_OFF;
-    if (rt.ex.snefru_final(st, out) !== 0) return super.finalize();
-    wasmCalls++;
+    let digest = null;
+    try {
+      // Fill the scratch State. Nothing in `this` is touched until the message is
+      // known to be representable.
+      let ok = true;
+      for (let i = 0, o = st + O_BUF; i < m; i++, o++) {
+        const c = message.charCodeAt(i);
+        if (c > 0xff) {
+          ok = false;
+          break;
+        }
+        u8[o] = c;
+      }
+      if (ok) {
+        const w = st >> 2;
+        for (let k = 0; k < n; k++) i32[w + k] = hash[k];
+        u8[st + O_WORDS] = n;
+        u8[st + O_ROUNDS] = rounds;
+        u8[st + O_BUFFERED] = m;
+        u32[(st + O_LENGTH) >> 2] = length;
 
-    // What the original leaves behind: advanced hash words, drained buffer.
-    store(hash, w, n);
-    state.message = '';
-    return String.fromCharCode.apply(null, u8.subarray(out, out + 4 * n));
+        if (rt.ex.snefru_final(st, out) === 0) {
+          wasmCalls++;
+
+          // What the original leaves behind: advanced hash words, drained buffer.
+          store(hash, w, n);
+          state.message = '';
+          digest = String.fromCharCode.apply(null, u8.subarray(out, out + 4 * n));
+        }
+      }
+    } finally {
+      wipe(u8, base, 0);
+    }
+    return digest === null ? super.finalize() : digest;
   }
 }
 

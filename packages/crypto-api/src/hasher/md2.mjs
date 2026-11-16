@@ -3,8 +3,8 @@
 
 import LegacyMd2 from "../../legacy/hasher/md2.mjs";
 import {wasmBytes} from "../../wasm/md2.mjs";
-import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
-import {checkOptions} from "../tools/input.mjs";
+import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
+import {prepareOptions} from "../tools/input.mjs";
 
 /*
  * MD2 with the compression and padding done in wasm, and everything else left
@@ -114,6 +114,12 @@ function store(array, n, o) {
 const OPTIONS = {rounds: {min: 1, max: 255}};
 
 /**
+ * What the original constructor assigns when an option is missing, in its order
+ * (see `explicitOptions` in tools/input.mjs).
+ */
+const DEFAULTS = {rounds: 18};
+
+/**
  * Calculates [MD2](https://tools.ietf.org/html/rfc1319) hash
  */
 class Md2 extends LegacyMd2 {
@@ -123,8 +129,7 @@ class Md2 extends LegacyMd2 {
    */
   constructor(options) {
     // Explicit, so `Md2.length === 1` like the original (an implicit one has length 0).
-    checkOptions('Md2', options, OPTIONS);
-    super(options);
+    super(prepareOptions('Md2', options, OPTIONS, DEFAULTS));
   }
 
   /**
@@ -145,37 +150,53 @@ class Md2 extends LegacyMd2 {
     const rounds = roundsOf(this.options);
     if (this.processBlock !== ORIGINAL_BLOCK || !rounds || !runtime()) return super.process();
 
-    const st = rt.base + STATE_OFF;
-    if (!load(state.hash, 48, st + O_HASH) || !load(state.checksum, 16, st + O_CHECKSUM)) return super.process();
-    u32[(st + O_ROUNDS) >> 2] = rounds;
-
-    const input = rt.base + INPUT_OFF;
+    const base = rt.base;
+    const st = base + STATE_OFF;
+    const input = base + INPUT_OFF;
     const total = n - n % BLOCK;
-    for (let pos = 0; pos < total;) {
-      const end = Math.min(pos + rt.cap, total);
-      let bits = 0;
-      for (let i = pos, o = input; i < end; i++, o++) {
-        const c = message.charCodeAt(i);
-        bits |= c;
-        u8[o] = c;
-      }
-      if (bits > 0xff) {
-        // A code unit the wasm code cannot represent: hand over what has been
-        // consumed so far (always whole blocks) and let the original do the rest.
-        if (pos > 0) {
+    // Bytes of the input region this call wrote; wiped on every way out.
+    let used = 0;
+    let fallback = false;
+    try {
+      if (!load(state.hash, 48, st + O_HASH) || !load(state.checksum, 16, st + O_CHECKSUM)) {
+        fallback = true;
+      } else {
+        u32[(st + O_ROUNDS) >> 2] = rounds;
+        for (let pos = 0; pos < total;) {
+          const end = Math.min(pos + rt.cap, total);
+          if (end - pos > used) used = end - pos;
+          let bits = 0;
+          for (let i = pos, o = input; i < end; i++, o++) {
+            const c = message.charCodeAt(i);
+            bits |= c;
+            u8[o] = c;
+          }
+          // A refused call (non-zero status) leaves the scratch State as it was.
+          if (bits > 0xff || rt.ex.md2_blocks(st, input, end - pos) !== 0) {
+            // A code unit the wasm code cannot represent, or a call it refused: hand
+            // over what has been consumed so far (always whole blocks) and let the
+            // original do the rest.
+            if (pos > 0) {
+              store(state.hash, 48, st + O_HASH);
+              store(state.checksum, 16, st + O_CHECKSUM);
+            }
+            state.message = message.substr(pos);
+            fallback = true;
+            break;
+          }
+          pos = end;
+        }
+        if (!fallback) {
+          wasmCalls++;
           store(state.hash, 48, st + O_HASH);
           store(state.checksum, 16, st + O_CHECKSUM);
+          state.message = message.substr(total);
         }
-        state.message = message.substr(pos);
-        return super.process();
       }
-      rt.ex.md2_blocks(st, input, end - pos);
-      pos = end;
+    } finally {
+      wipe(u8, base, used);
     }
-    wasmCalls++;
-    store(state.hash, 48, st + O_HASH);
-    store(state.checksum, 16, st + O_CHECKSUM);
-    state.message = message.substr(total);
+    if (fallback) return super.process();
   }
 
   /**
@@ -196,28 +217,42 @@ class Md2 extends LegacyMd2 {
       return super.finalize();
     }
 
-    const st = rt.base + STATE_OFF;
+    const base = rt.base;
+    const st = base + STATE_OFF;
     const n = message.length;
-    // Fill the scratch State. Nothing in `this` is touched until everything is
-    // known to be representable.
-    for (let i = 0, o = st + O_BUF; i < n; i++, o++) {
-      const c = message.charCodeAt(i);
-      if (c > 0xff) return super.finalize();
-      u8[o] = c;
+    const out = base + OUT_OFF;
+    let digest = null;
+    try {
+      // Fill the scratch State. Nothing in `this` is touched until everything is
+      // known to be representable.
+      let ok = true;
+      for (let i = 0, o = st + O_BUF; i < n; i++, o++) {
+        const c = message.charCodeAt(i);
+        if (c > 0xff) {
+          ok = false;
+          break;
+        }
+        u8[o] = c;
+      }
+      if (ok && load(state.hash, 48, st + O_HASH) && load(state.checksum, 16, st + O_CHECKSUM)) {
+        u32[(st + O_ROUNDS) >> 2] = rounds;
+        u32[(st + O_BUFFERED) >> 2] = n;
+
+        // A refused call leaves `this` untouched and the original does the work.
+        if (rt.ex.md2_final(st, out) === 0) {
+          wasmCalls++;
+
+          // What the original leaves behind: advanced hash and checksum, drained buffer.
+          store(state.hash, 48, st + O_HASH);
+          store(state.checksum, 16, st + O_CHECKSUM);
+          state.message = '';
+          digest = String.fromCharCode.apply(null, u8.subarray(out, out + 16));
+        }
+      }
+    } finally {
+      wipe(u8, base, 0);
     }
-    if (!load(state.hash, 48, st + O_HASH) || !load(state.checksum, 16, st + O_CHECKSUM)) return super.finalize();
-    u32[(st + O_ROUNDS) >> 2] = rounds;
-    u32[(st + O_BUFFERED) >> 2] = n;
-
-    const out = rt.base + OUT_OFF;
-    rt.ex.md2_final(st, out);
-    wasmCalls++;
-
-    // What the original leaves behind: advanced hash and checksum, drained buffer.
-    store(state.hash, 48, st + O_HASH);
-    store(state.checksum, 16, st + O_CHECKSUM);
-    state.message = '';
-    return String.fromCharCode.apply(null, u8.subarray(out, out + 16));
+    return digest === null ? super.finalize() : digest;
   }
 }
 

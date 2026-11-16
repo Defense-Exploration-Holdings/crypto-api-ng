@@ -60,29 +60,36 @@ Sizes are one bundle of that import alone (esbuild, minified, ES module, the Web
 <!-- entry-sizes:start -->
 | Import | Provides | Minified | Min + gzip |
 |---|---|---:|---:|
-| `crypto-api-ng` | Everything: the `CryptoApi` object with every hasher, HMAC and the encoders | 244.3 KB | 110.1 KB |
-| `crypto-api-ng/md2` | MD2 | 8.6 KB | 4.1 KB |
-| `crypto-api-ng/md4` | MD4 | 15.3 KB | 6.2 KB |
-| `crypto-api-ng/md5` | MD5 | 15.2 KB | 6.0 KB |
-| `crypto-api-ng/has160` | HAS-160 | 11.9 KB | 5.2 KB |
-| `crypto-api-ng/ripemd` | RIPEMD-128, RIPEMD-160, RIPEMD-256, RIPEMD-320 | 23.7 KB | 9.2 KB |
-| `crypto-api-ng/sha0` | SHA-0 | 14.2 KB | 5.8 KB |
-| `crypto-api-ng/sha1` | SHA-1 | 14.2 KB | 5.8 KB |
-| `crypto-api-ng/sha256` | SHA-224, SHA-256 | 12.9 KB | 5.9 KB |
-| `crypto-api-ng/sha512` | SHA-384, SHA-512, SHA-512/224, SHA-512/256 | 17.1 KB | 8.2 KB |
-| `crypto-api-ng/sha3` | SHA3-224, SHA3-256, SHA3-384, SHA3-512 | 9.1 KB | 4.6 KB |
-| `crypto-api-ng/shake` | SHAKE128, SHAKE256 | 9.1 KB | 4.7 KB |
-| `crypto-api-ng/keccak` | Keccak-224, Keccak-256, Keccak-384, Keccak-512 | 9.1 KB | 4.6 KB |
-| `crypto-api-ng/blake2b` | BLAKE2b | 17.7 KB | 8.0 KB |
-| `crypto-api-ng/blake2s` | BLAKE2s | 15.3 KB | 7.2 KB |
-| `crypto-api-ng/blake3` | BLAKE3 | 14.9 KB | 7.0 KB |
-| `crypto-api-ng/sm3` | SM3 | 12.0 KB | 5.2 KB |
-| `crypto-api-ng/snefru` | Snefru 128/256 | 89.6 KB | 50.0 KB |
-| `crypto-api-ng/whirlpool` | Whirlpool, Whirlpool-0, Whirlpool-T | 23.4 KB | 12.6 KB |
+| `crypto-api-ng` | Everything: the `CryptoApi` object with every hasher, HMAC and the encoders | 330.2 KB | 156.4 KB |
+| `crypto-api-ng/md2` | MD2 | 9.3 KB | 4.5 KB |
+| `crypto-api-ng/md4` | MD4 | 15.9 KB | 6.6 KB |
+| `crypto-api-ng/md5` | MD5 | 15.9 KB | 6.5 KB |
+| `crypto-api-ng/has160` | HAS-160 | 12.7 KB | 5.6 KB |
+| `crypto-api-ng/ripemd` | RIPEMD-128, RIPEMD-160, RIPEMD-256, RIPEMD-320 | 25.0 KB | 9.9 KB |
+| `crypto-api-ng/sha0` | SHA-0 | 15.1 KB | 6.2 KB |
+| `crypto-api-ng/sha1` | SHA-1 | 15.1 KB | 6.2 KB |
+| `crypto-api-ng/sha256` | SHA-224, SHA-256 | 13.7 KB | 6.3 KB |
+| `crypto-api-ng/sha512` | SHA-384, SHA-512, SHA-512/224, SHA-512/256 | 18.2 KB | 8.7 KB |
+| `crypto-api-ng/sha3` | SHA3-224, SHA3-256, SHA3-384, SHA3-512 | 10.8 KB | 5.2 KB |
+| `crypto-api-ng/shake` | SHAKE128, SHAKE256 | 10.9 KB | 5.2 KB |
+| `crypto-api-ng/keccak` | Keccak-224, Keccak-256, Keccak-384, Keccak-512 | 10.8 KB | 5.2 KB |
+| `crypto-api-ng/blake2b` | BLAKE2b | 19.7 KB | 8.7 KB |
+| `crypto-api-ng/blake2s` | BLAKE2s | 17.4 KB | 7.9 KB |
+| `crypto-api-ng/blake3` | BLAKE3 | 17.6 KB | 7.9 KB |
+| `crypto-api-ng/sm3` | SM3 | 12.8 KB | 5.6 KB |
+| `crypto-api-ng/snefru` | Snefru 128/256 | 90.3 KB | 50.4 KB |
+| `crypto-api-ng/whirlpool` | Whirlpool, Whirlpool-0, Whirlpool-T | 24.4 KB | 13.0 KB |
+| `crypto-api-ng/tiger` | Tiger (192-bit, shorter with `length`) | 28.2 KB | 14.9 KB |
+| `crypto-api-ng/tiger2` | Tiger2 | 28.2 KB | 14.9 KB |
+| `crypto-api-ng/streebog` | Streebog (GOST R 34.11-2012, 256 and 512 bits) | 41.9 KB | 26.7 KB |
+| `crypto-api-ng/crc32` | CRC-32 checksum | 10.6 KB | 5.7 KB |
+| `crypto-api-ng/crc32c` | CRC-32C (Castagnoli) checksum | 10.6 KB | 5.7 KB |
+| `crypto-api-ng/xxhash32` | xxHash32 checksum | 11.4 KB | 5.3 KB |
+| `crypto-api-ng/xxhash64` | xxHash64 checksum | 12.4 KB | 5.7 KB |
 | `crypto-api-ng/hmac` | HMAC (takes any hasher object) | 2.0 KB | 0.9 KB |
 | `crypto-api-ng/encoder/hex` | toHex | 0.1 KB | 0.1 KB |
 | `crypto-api-ng/encoder/base64` | toBase64 | 0.5 KB | 0.3 KB |
-| `crypto-api-ng/encoder/utf` | fromUtf | 0.5 KB | 0.2 KB |
+| `crypto-api-ng/encoder/utf` | fromUtf | 0.6 KB | 0.3 KB |
 | `crypto-api-ng/encoder/array-buffer` | fromArrayBuffer | 0.1 KB | 0.1 KB |
 <!-- entry-sizes:end -->
 
@@ -108,10 +115,12 @@ console.log(toHex(hasher.finalize()));
 
 ### Browser (ES5 global build)
 
-`crypto-api.min.js` (and the unminified `crypto-api.js`) is a UMD build in ES5 syntax that defines the global `CryptoApi`. The WebAssembly modules are embedded, so it is a single file. Load it from your own server or a CDN that mirrors npm:
+`crypto-api.min.js` (and the unminified `crypto-api.js`) is a UMD build in ES5 syntax that defines the global `CryptoApi`. The WebAssembly modules are embedded, so it is a single file. Load it from your own server or a CDN that mirrors npm. Pin the version in the URL and add an `integrity` attribute, so that the browser rejects a file that differs from the one you checked:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng/crypto-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng@1.1.0/crypto-api.min.js"
+        integrity="sha384-HASH_OF_THE_FILE"
+        crossorigin="anonymous"></script>
 <script>
   var hasher = CryptoApi.getHasher('sha256');
   hasher.update('message');                       // update() takes a binary string
@@ -127,6 +136,12 @@ console.log(toHex(hasher.finalize()));
 </script>
 ```
 
+Compute the value for `integrity` from the file of that version, once, and replace `HASH_OF_THE_FILE` with it (update both the version and the hash when you upgrade):
+
+```sh
+openssl dgst -sha384 -binary crypto-api.min.js | openssl base64 -A
+```
+
 Where WebAssembly is missing or blocked (a page whose Content-Security-Policy lacks `'wasm-unsafe-eval'`, Cloudflare Workers, old browsers), the same file keeps working with the original JavaScript code.
 
 `example/` has runnable pages (`hasher-basic.html`, `hasher-file.html`, `unit-tests.html`) that load the global build from `..`, and `node.mjs` / `node.cjs`.
@@ -134,12 +149,29 @@ Where WebAssembly is missing or blocked (a page whose Content-Security-Policy la
 ## What is included
 
 * Hashing: HAS-160, MD2, MD4, MD5, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512, SHA-512/224, SHA-512/256, SM3, Snefru v2.0 and v2.5, WHIRLPOOL, WHIRLPOOL-0, WHIRLPOOL-T
-* Added in this package: SHA3-224/256/384/512, SHAKE128/256, Keccak-224/256/384/512, BLAKE2b, BLAKE2s, BLAKE3
+* Added in this package: SHA3-224/256/384/512, SHAKE128/256, Keccak-224/256/384/512, BLAKE2b, BLAKE2s, BLAKE3, Tiger, Tiger2, Streebog-256/512, and the checksums CRC-32, CRC-32C, XXH32, XXH64
 * MAC: HMAC (`src/mac/hmac.mjs`, works with any hasher object, including your own)
 * Encodings: `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64`
 * The `CryptoApi` object: `getHasher`, `hash`, `getHmac`, `hmac`, `encoder`
 
 The full API, with options, errors and examples, is in the [API reference](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/api.md). All of the algorithms run their compression function in WebAssembly, with the original JavaScript as the fallback.
+
+## Security notes
+
+* **Compatibility algorithms.** MD2, MD4, MD5, SHA-0, SHA-1, HAS-160, RIPEMD-128 and Snefru are provided for compatibility with existing data and protocols. They are not collision resistant. Do not use them for signatures, certificates or to check data from an untrusted source. Use SHA-256 or stronger for new designs.
+* **Reduced rounds.** The `rounds` option of a hasher can be lowered below the standard value. This weakens any algorithm. It exists for research and interoperability only.
+* **No constant-time claim.** The implementation does not claim constant-time execution. Do not use it to process secrets where timing is observable by an attacker.
+* **Compare MACs in constant time.** Do not compare MAC values with `===`. In Node.js, use `crypto.timingSafeEqual` on buffers of equal length:
+
+  ```javascript
+  const { timingSafeEqual } = require('node:crypto');
+  // expected: a Buffer with the MAC you were sent or stored
+  const actual = Buffer.from(CryptoApi.hmac(key, message, CryptoApi.getHasher('sha256')), 'hex');
+  const ok = actual.length === expected.length && timingSafeEqual(actual, expected);
+  ```
+* **Key material in memory.** An `Hmac` object keeps key-derived state in memory for as long as it exists. Drop the reference when you are done with it.
+
+To report a vulnerability, follow [SECURITY.md](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/SECURITY.md).
 
 ## Package layout
 
