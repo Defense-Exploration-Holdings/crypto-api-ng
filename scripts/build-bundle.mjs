@@ -17,14 +17,25 @@ import { build } from 'esbuild';
 import { transformAsync } from '@babel/core';
 import presetEnv from '@babel/preset-env';
 import { minify } from 'terser';
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { readFileSync, writeFileSync, renameSync, existsSync, readdirSync } from 'node:fs';
+import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pkgRoot = join(repoRoot, 'packages', 'crypto-api');
 
 const BANNER = '/*! Port of crypto-api 0.8.5 (https://github.com/nf404/crypto-api), Copyright (c) 2015 nf404, MIT */';
+
+/**
+ * Replace a generated file in one step. The packaging test files run in parallel and each one
+ * rebuilds the bundles, so a reader must never see a truncated or half-written file.
+ */
+export function writeFileAtomic(file, text) {
+  // The temporary file stays at the package root: example/ is copied whole when staging.
+  const tmp = join(pkgRoot, `.${basename(file)}.${process.pid}.tmp`);
+  writeFileSync(tmp, text);
+  renameSync(tmp, file);
+}
 
 export async function buildBundle({ write = true } = {}) {
   const wasmDir = join(pkgRoot, 'wasm');
@@ -83,7 +94,7 @@ return __cryptoApiModule.default;
     'crypto-api.min.js': min.code,
     'crypto-api.min.js.map': typeof min.map === 'string' ? min.map : JSON.stringify(min.map),
   };
-  if (write) for (const [name, text] of Object.entries(files)) writeFileSync(join(pkgRoot, name), text);
+  if (write) for (const [name, text] of Object.entries(files)) writeFileAtomic(join(pkgRoot, name), text);
   return files;
 }
 
