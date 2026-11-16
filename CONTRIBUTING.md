@@ -53,6 +53,10 @@ MD5 is the template; copy its files (`src/hash/md5.zig`, `src/wasm/md.zig`, `pac
 
 `scripts/release-gates.sh` runs the whole matrix (check, parity and package tests) in all four optimize modes. Use `FUZZ_ITERS=100000` for release-volume fuzzing. The release-gates workflow runs the same on GitHub, plus a smoke test on Node 18, 20, 22 and 24, Bun and Deno with and without WebAssembly (`test/runtimes/smoke.mjs`), and is started manually or by a `v*` tag.
 
+## Pull requests
+
+Pull requests are welcome on the GitHub repository. It is the published copy of the project's development repository, so a pull request is not merged there directly: the maintainers apply an accepted change upstream and credit the author, and it appears on GitHub with the next release. The pull request is then closed with a note pointing to that release.
+
 ## Licensing
 
 Contributions are accepted under the MIT license of the project (see [LICENSE](LICENSE)). Test vectors from standards (NIST, RFCs) can be reused freely; vectors copied from the original's tests fall under the original's license, which the repository already carries.
