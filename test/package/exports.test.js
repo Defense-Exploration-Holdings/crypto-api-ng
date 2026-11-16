@@ -60,6 +60,11 @@ describe('exports map', () => {
       .filter((n) => !bases.has(n));
     for (const h of hashers) assert.ok(names.includes(h), `src/hasher/${h}.mjs has no entry "./${h}" in exports`);
     assert.ok(names.includes('hmac'));
+    // Same for the key derivation functions.
+    for (const f of readdirSync(join(PKG_ROOT, 'src', 'kdf')).filter((f) => f.endsWith('.d.mts'))) {
+      const n = f.slice(0, -'.d.mts'.length);
+      assert.ok(names.includes(n), `src/kdf/${n}.mjs has no entry "./${n}" in exports`);
+    }
 
     const readme = readFileSync(join(PKG_ROOT, 'README.md'), 'utf8');
     const table = readme.slice(readme.indexOf('<!-- entry-sizes:start -->'), readme.indexOf('<!-- entry-sizes:end -->'));
@@ -193,6 +198,16 @@ describe('bundling a single entry', () => {
       console.log(Sha256, Blake3, Hmac);`);
     const present = Object.keys(modules).filter((n) => text.includes(modules[n]));
     assert.deepEqual(present.sort(), ['blake3', 'sha256']);
+  });
+
+  it('a key derivation entry takes no wasm of its own: the hasher you import brings the only module', async () => {
+    const modules = wasmB64();
+    const { text } = await bundle(`
+      import Sha256 from '${NAME}/sha256';
+      import Pbkdf2 from '${NAME}/pbkdf2';
+      import Hkdf from '${NAME}/hkdf';
+      console.log(new Pbkdf2('p', new Sha256(), {salt: 's', iterations: 1, length: 256}).finalize(), Hkdf);`);
+    assert.deepEqual(Object.keys(modules).filter((n) => text.includes(modules[n])), ['sha256']);
   });
 
   it('the main entry still carries every hasher, via the ES module for bundlers and the CommonJS bundle for Node', async () => {

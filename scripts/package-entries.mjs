@@ -41,6 +41,8 @@ export const ENTRY_ALGORITHMS = {
   xxhash32: 'xxHash32 checksum',
   xxhash64: 'xxHash64 checksum',
   hmac: 'HMAC (takes any hasher object)',
+  pbkdf2: 'PBKDF2 (RFC 8018) over HMAC with any hasher',
+  hkdf: 'HKDF (RFC 5869) over HMAC with any hasher',
   'encoder/hex': 'toHex',
   'encoder/base64': 'toBase64',
   'encoder/utf': 'fromUtf',

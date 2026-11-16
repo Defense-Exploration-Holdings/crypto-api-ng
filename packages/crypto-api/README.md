@@ -60,7 +60,7 @@ Sizes are one bundle of that import alone (esbuild, minified, ES module, the Web
 <!-- entry-sizes:start -->
 | Import | Provides | Minified | Min + gzip |
 |---|---|---:|---:|
-| `crypto-api-ng` | Everything: the `CryptoApi` object with every hasher, HMAC and the encoders | 330.2 KB | 156.4 KB |
+| `crypto-api-ng` | Everything: the `CryptoApi` object with every hasher, HMAC and the encoders | 333.0 KB | 157.3 KB |
 | `crypto-api-ng/md2` | MD2 | 9.3 KB | 4.5 KB |
 | `crypto-api-ng/md4` | MD4 | 15.9 KB | 6.6 KB |
 | `crypto-api-ng/md5` | MD5 | 15.9 KB | 6.5 KB |
@@ -87,6 +87,8 @@ Sizes are one bundle of that import alone (esbuild, minified, ES module, the Web
 | `crypto-api-ng/xxhash32` | xxHash32 checksum | 11.4 KB | 5.3 KB |
 | `crypto-api-ng/xxhash64` | xxHash64 checksum | 12.4 KB | 5.7 KB |
 | `crypto-api-ng/hmac` | HMAC (takes any hasher object) | 2.0 KB | 0.9 KB |
+| `crypto-api-ng/pbkdf2` | PBKDF2 (RFC 8018) over HMAC with any hasher | 3.7 KB | 1.5 KB |
+| `crypto-api-ng/hkdf` | HKDF (RFC 5869) over HMAC with any hasher | 3.6 KB | 1.5 KB |
 | `crypto-api-ng/encoder/hex` | toHex | 0.1 KB | 0.1 KB |
 | `crypto-api-ng/encoder/base64` | toBase64 | 0.5 KB | 0.3 KB |
 | `crypto-api-ng/encoder/utf` | fromUtf | 0.6 KB | 0.3 KB |
