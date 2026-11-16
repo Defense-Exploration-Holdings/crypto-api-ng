@@ -23,7 +23,8 @@
     "test:parity": "npm run test:legacy-suite && npm run test:compat",
     "build:package": "node scripts/build-package.mjs",
     "pack": "node scripts/build-package.mjs --pack",
-    "test:package": "node --test \"test/package/*.test.js\""
+    "test:package": "node --test \"test/package/*.test.js\"",
+    "test:runtimes": "node scripts/test-runtimes.mjs"
   },
   "devDependencies": {
     "@babel/core": "8.1.2",

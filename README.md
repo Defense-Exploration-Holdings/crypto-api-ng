@@ -27,7 +27,7 @@ CryptoApi.hmac('key', 'message', CryptoApi.getHasher('md5'));
 CryptoApi.hashBytes('sha256', new Uint8Array([1, 2, 3]));   // Uint8Array(32), bytes in and out
 ```
 
-Runs on Node.js 18 and newer, Bun, Deno and current browsers, and falls back to plain JavaScript where WebAssembly is unavailable. TypeScript declarations are included.
+Runs on Node.js 18 and newer, Bun 1.1 and newer, Deno 2 and newer, and current browsers, and falls back to plain JavaScript where WebAssembly is unavailable. TypeScript declarations are included.
 
 The full API is in the [API reference](docs/api.md). Usage for Node.js, bundlers and browsers is in [packages/crypto-api/README.md](packages/crypto-api/README.md).
 

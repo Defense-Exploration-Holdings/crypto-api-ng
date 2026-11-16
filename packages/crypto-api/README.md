@@ -51,6 +51,19 @@ console.log(toHex(hmac.finalize()));
 
 The paths of 0.8.5 keep working: `crypto-api-ng/src/hasher/sha256.mjs`, and also without the extension (`crypto-api-ng/src/hasher/sha256`), in Node and in every bundler that reads `exports`. `crypto-api-ng/src/index.mjs` default-exports the `CryptoApi` object. `require('crypto-api-ng')` and the global build are a separate bundle with its own copy of the classes, so a hasher created by one is not `instanceof` the classes of the other: pick one style per program.
 
+### Bun and Deno
+
+Bun installs the package from npm like Node does (`bun add crypto-api-ng`) and reads the same `exports` map; `require()` and `import` both work. Deno 2 loads it with an `npm:` specifier or from a `package.json` dependency; the main entry is an ES module with a default export, and the per-algorithm entries work the same way:
+
+```javascript
+import CryptoApi from "npm:crypto-api-ng";
+import Sha256 from "npm:crypto-api-ng/sha256";
+
+console.log(CryptoApi.hash('sha256', 'message'));
+```
+
+Both runtimes run the WebAssembly code. Continuous integration installs the packed tarball into a Bun project (1.1 and the current release) and a Deno project (2.0 and the current release), and checks every entry point and the original test vectors there, with and without WebAssembly.
+
 ### Per-algorithm entry points
 
 Each algorithm has a short import path that loads that algorithm and its WebAssembly module and nothing else. `import Sha256 from "crypto-api-ng/sha256"` in a browser app adds about 6 KB (gzipped) to the bundle, against 110 KB for the whole package, and none of the other WebAssembly modules. The default export is the same class as the one at `crypto-api-ng/src/hasher/sha256.mjs` (the same module, so `instanceof` agrees between the two paths). A family covers its variants through options, for example `new Sha256({length: 224})` is SHA-224.
