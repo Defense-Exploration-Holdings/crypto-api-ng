@@ -41,6 +41,7 @@ MD5 is the template; copy its files (`src/hash/md5.zig`, `src/wasm/md.zig`, `pac
 - `src/wasm/<family>.zig`: the wasm exports for the algorithm family (the only files with `export fn`, besides `src/wasm.zig`). Add new families to `families` in `build.zig`.
 - `packages/crypto-api/src/hasher/<algo>.mjs`: the facade. It extends the verbatim 0.8.5 class and overrides only `process()` and `finalize()`; everything else, including `this.state`, stays the original's. It falls back to the original code for any input or option the wasm code does not model exactly.
 - `test/<algo>.test.js` and `test/vectors/`: differential tests against the original class.
+- `packages/crypto-api/package.json`: the per-algorithm entry point (`exports` and `typesVersions`), plus `scripts/package-entries.mjs` and the README size table (`node scripts/size-report.mjs --write`). `test/package/exports.test.js` fails until they agree.
 - [docs/abi.md](docs/abi.md): calling conventions between JavaScript and WebAssembly.
 - [docs/test-harness.md](docs/test-harness.md): the parity tests; new algorithms and options are registered in `test/harness/catalog.mjs`.
 

@@ -3,12 +3,15 @@
 //
 //   node scripts/size-report.mjs            Markdown table on stdout
 //   node scripts/size-report.mjs --json
+//   node scripts/size-report.mjs --entries  size of every `exports` entry point of the package (no 0.8.5 needed)
+//   node scripts/size-report.mjs --write    same, and rewrite the table in packages/crypto-api/README.md
 import { build } from 'esbuild';
 import { gzipSync } from 'node:zlib';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { FAMILIES } from '../test/harness/catalog.mjs';
+import { ENTRY_ALGORITHMS, PKG_ROOT, entriesFromExports } from './package-entries.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const trees = { original: join(root, 'crypto-api', 'src'), port: join(root, 'packages', 'crypto-api', 'src') };
@@ -21,6 +24,44 @@ async function size(entry) {
   });
   const code = r.outputFiles[0].contents;
   return { min: code.length, gzip: gzipSync(code, { level: 9 }).length };
+}
+
+export const README_MARKERS = ['<!-- entry-sizes:start -->', '<!-- entry-sizes:end -->'];
+
+/** Markdown table of every per-algorithm entry point: minified and gzipped size of the bundle of that import alone. */
+export async function entryTable() {
+  const kb = (n) => (n / 1024).toFixed(1);
+  const rows = [['crypto-api-ng', 'Everything: the `CryptoApi` object with every hasher, HMAC and the encoders', './src/index.mjs']];
+  const order = Object.keys(ENTRY_ALGORITHMS);
+  const entries = entriesFromExports();
+  for (const { name } of entries) {
+    if (!(name in ENTRY_ALGORITHMS)) throw new Error(`exports has "./${name}", but scripts/package-entries.mjs has no description for it`);
+  }
+  entries.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
+  for (const { name, target } of entries) rows.push([`crypto-api-ng/${name}`, ENTRY_ALGORITHMS[name], target]);
+  const lines = ['| Import | Provides | Minified | Min + gzip |', '|---|---|---:|---:|'];
+  for (const [label, provides, target] of rows) {
+    const { min, gzip } = await size(join(PKG_ROOT, target));
+    lines.push(`| \`${label}\` | ${provides} | ${kb(min)} KB | ${kb(gzip)} KB |`);
+  }
+  return lines.join('\n');
+}
+
+if (process.argv.includes('--entries') || process.argv.includes('--write')) {
+  const table = await entryTable();
+  if (process.argv.includes('--write')) {
+    const file = join(PKG_ROOT, 'README.md');
+    const text = readFileSync(file, 'utf8');
+    const [open, close] = README_MARKERS;
+    const a = text.indexOf(open);
+    const b = text.indexOf(close);
+    if (a < 0 || b < a) throw new Error(`${file} has no ${open} ... ${close} block`);
+    writeFileSync(file, text.slice(0, a + open.length) + '\n' + table + '\n' + text.slice(b));
+    console.log(`updated ${file}`);
+  } else {
+    console.log(table);
+  }
+  process.exit(0);
 }
 
 const rows = [];

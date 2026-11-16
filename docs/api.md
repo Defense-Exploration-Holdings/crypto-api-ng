@@ -55,7 +55,7 @@ Options passed to `getHasher` or `hash` override the defaults a name implies. Na
 
 ## Hashers
 
-Every hasher is a class with a default export, for example `import Sha256 from "crypto-api-ng/src/hasher/sha256.mjs"`, and takes an optional options object.
+Every hasher is a class with a default export, for example `import Sha256 from "crypto-api-ng/src/hasher/sha256.mjs"`, and takes an optional options object. Each also has a short per-algorithm entry point that loads only that algorithm, for example `import Sha256 from "crypto-api-ng/sha256"` (the same class); the [package README](../packages/crypto-api/README.md#per-algorithm-entry-points) lists them all with their sizes.
 
 ```javascript
 import Sha256 from "crypto-api-ng/src/hasher/sha256.mjs";

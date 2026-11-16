@@ -25,12 +25,12 @@ console.log(CryptoApi.hmac('key', 'message', CryptoApi.getHasher('md5')));
 
 ### ES modules (Node.js, bundlers)
 
-The classes are importable one by one, exactly as with 0.8.5. Importing only the hashers you use keeps a bundle small: each algorithm family has its own WebAssembly module.
+The classes are importable one by one, with a short path for each algorithm (see [Per-algorithm entry points](#per-algorithm-entry-points)) or with the paths of 0.8.5. Importing only the hashers you use keeps a bundle small: each algorithm family has its own WebAssembly module.
 
 ```javascript
-import Sha256 from "crypto-api-ng/src/hasher/sha256.mjs";
-import {toHex} from "crypto-api-ng/src/encoder/hex.mjs";
-import {fromUtf} from "crypto-api-ng/src/encoder/utf.mjs";
+import Sha256 from "crypto-api-ng/sha256";
+import {toHex} from "crypto-api-ng/encoder/hex";
+import {fromUtf} from "crypto-api-ng/encoder/utf";
 
 let hasher = new Sha256();
 hasher.update(fromUtf('message'));
@@ -38,10 +38,10 @@ console.log(toHex(hasher.finalize()));
 ```
 
 ```javascript
-import Md5 from "crypto-api-ng/src/hasher/md5.mjs";
-import Hmac from "crypto-api-ng/src/mac/hmac.mjs";
-import {toHex} from "crypto-api-ng/src/encoder/hex.mjs";
-import {fromUtf} from "crypto-api-ng/src/encoder/utf.mjs";
+import Md5 from "crypto-api-ng/md5";
+import Hmac from "crypto-api-ng/hmac";
+import {toHex} from "crypto-api-ng/encoder/hex";
+import {fromUtf} from "crypto-api-ng/encoder/utf";
 
 let hasher = new Md5();
 let hmac = new Hmac(fromUtf('key'), hasher);
@@ -49,7 +49,59 @@ hmac.update(fromUtf('message'));
 console.log(toHex(hmac.finalize()));
 ```
 
-The extensionless paths of 0.8.5 (`crypto-api-ng/src/hasher/sha256`) still resolve in bundlers that try `.mjs` (webpack's default), because the files keep their names and locations. Native Node ESM and bundlers configured without `.mjs` need the explicit `.mjs`, as in the examples above. There is no `exports` map in v1, so every deep path stays reachable. `crypto-api-ng/src/index.mjs` default-exports the `CryptoApi` object. `require('crypto-api-ng')` and the global build are a separate bundle with its own copy of the classes, so a hasher created by one is not `instanceof` the classes of the other: pick one style per program.
+The paths of 0.8.5 keep working: `crypto-api-ng/src/hasher/sha256.mjs`, and also without the extension (`crypto-api-ng/src/hasher/sha256`), in Node and in every bundler that reads `exports`. `crypto-api-ng/src/index.mjs` default-exports the `CryptoApi` object. `require('crypto-api-ng')` and the global build are a separate bundle with its own copy of the classes, so a hasher created by one is not `instanceof` the classes of the other: pick one style per program.
+
+### Per-algorithm entry points
+
+Each algorithm has a short import path that loads that algorithm and its WebAssembly module and nothing else. `import Sha256 from "crypto-api-ng/sha256"` in a browser app adds about 6 KB (gzipped) to the bundle, against 110 KB for the whole package, and none of the other WebAssembly modules. The default export is the same class as the one at `crypto-api-ng/src/hasher/sha256.mjs` (the same module, so `instanceof` agrees between the two paths). A family covers its variants through options, for example `new Sha256({length: 224})` is SHA-224.
+
+Sizes are one bundle of that import alone (esbuild, minified, ES module, the WebAssembly embedded as base64). The first row is the `CryptoApi` object with all hashers.
+
+<!-- entry-sizes:start -->
+| Import | Provides | Minified | Min + gzip |
+|---|---|---:|---:|
+| `crypto-api-ng` | Everything: the `CryptoApi` object with every hasher, HMAC and the encoders | 338.8 KB | 159.4 KB |
+| `crypto-api-ng/md2` | MD2 | 11.5 KB | 5.2 KB |
+| `crypto-api-ng/md4` | MD4 | 18.1 KB | 7.4 KB |
+| `crypto-api-ng/md5` | MD5 | 18.1 KB | 7.3 KB |
+| `crypto-api-ng/has160` | HAS-160 | 14.9 KB | 6.3 KB |
+| `crypto-api-ng/ripemd` | RIPEMD-128, RIPEMD-160, RIPEMD-256, RIPEMD-320 | 27.2 KB | 10.6 KB |
+| `crypto-api-ng/sha0` | SHA-0 | 17.3 KB | 6.9 KB |
+| `crypto-api-ng/sha1` | SHA-1 | 17.3 KB | 6.9 KB |
+| `crypto-api-ng/sha256` | SHA-224, SHA-256 | 15.9 KB | 7.0 KB |
+| `crypto-api-ng/sha512` | SHA-384, SHA-512, SHA-512/224, SHA-512/256 | 20.5 KB | 9.4 KB |
+| `crypto-api-ng/sha3` | SHA3-224, SHA3-256, SHA3-384, SHA3-512 | 13.0 KB | 5.9 KB |
+| `crypto-api-ng/shake` | SHAKE128, SHAKE256 | 13.1 KB | 5.9 KB |
+| `crypto-api-ng/keccak` | Keccak-224, Keccak-256, Keccak-384, Keccak-512 | 13.0 KB | 5.9 KB |
+| `crypto-api-ng/blake2b` | BLAKE2b | 22.0 KB | 9.3 KB |
+| `crypto-api-ng/blake2s` | BLAKE2s | 19.6 KB | 8.6 KB |
+| `crypto-api-ng/blake3` | BLAKE3 | 19.8 KB | 8.5 KB |
+| `crypto-api-ng/sm3` | SM3 | 15.0 KB | 6.3 KB |
+| `crypto-api-ng/snefru` | Snefru 128/256 | 92.5 KB | 51.4 KB |
+| `crypto-api-ng/whirlpool` | Whirlpool, Whirlpool-0, Whirlpool-T | 26.7 KB | 13.7 KB |
+| `crypto-api-ng/tiger` | Tiger (192-bit, shorter with `length`) | 30.4 KB | 15.6 KB |
+| `crypto-api-ng/tiger2` | Tiger2 | 30.4 KB | 15.6 KB |
+| `crypto-api-ng/streebog` | Streebog (GOST R 34.11-2012, 256 and 512 bits) | 44.2 KB | 27.5 KB |
+| `crypto-api-ng/crc32` | CRC-32 checksum | 12.8 KB | 6.4 KB |
+| `crypto-api-ng/crc32c` | CRC-32C (Castagnoli) checksum | 12.8 KB | 6.4 KB |
+| `crypto-api-ng/xxhash32` | xxHash32 checksum | 13.6 KB | 6.0 KB |
+| `crypto-api-ng/xxhash64` | xxHash64 checksum | 14.7 KB | 6.4 KB |
+| `crypto-api-ng/hmac` | HMAC (takes any hasher object) | 4.2 KB | 1.6 KB |
+| `crypto-api-ng/pbkdf2` | PBKDF2 (RFC 8018) over HMAC with any hasher | 6.0 KB | 2.2 KB |
+| `crypto-api-ng/hkdf` | HKDF (RFC 5869) over HMAC with any hasher | 5.9 KB | 2.2 KB |
+| `crypto-api-ng/encoder/hex` | toHex | 0.1 KB | 0.1 KB |
+| `crypto-api-ng/encoder/base64` | toBase64 | 0.5 KB | 0.3 KB |
+| `crypto-api-ng/encoder/utf` | fromUtf | 0.6 KB | 0.3 KB |
+| `crypto-api-ng/encoder/bytes` | utf8ToBytes, bytesToUtf8, bytesToHex, hexToBytes, bytesToBase64, base64ToBytes | 4.6 KB | 1.9 KB |
+| `crypto-api-ng/encoder/array-buffer` | fromArrayBuffer | 0.1 KB | 0.1 KB |
+<!-- entry-sizes:end -->
+
+Notes:
+
+* The entries are ES modules. `require("crypto-api-ng/sha256")` works where Node can `require()` ES modules (22.12 and later); for older CommonJS environments use `require("crypto-api-ng")` or the global build.
+* The main entry (`crypto-api-ng`) is unchanged: `CryptoApi.getHasher()` selects an algorithm by name at run time, so importing it always includes every hasher. Use the entries above to ship only what you use.
+* The entries need a bundler or runtime that reads the `exports` field of `package.json` (Node 12.7 or later, webpack 5, esbuild, Rollup with `@rollup/plugin-node-resolve`, Vite, TypeScript with `moduleResolution` `node16`, `nodenext` or `bundler`; `node10` resolution also works through `typesVersions`). Older tools can use the 0.8.5 paths under `src/`.
+* The package sets `"sideEffects": false`, and a hasher starts its WebAssembly module only on first use, so an unused import costs nothing at run time.
 
 ### Bytes in, bytes out
 
@@ -69,8 +121,8 @@ console.log(bytesToHex(hasher.digest()));    // or hasher.digest('hex'), 'base64
 The package ships its own declarations; nothing extra to install. They cover the `CryptoApi` object (`import CryptoApi = require("crypto-api-ng")` or `import CryptoApi from "crypto-api-ng/src/index.mjs"`), every hasher class, `Hmac`, `Pbkdf2`, `Hkdf` and the encoders, with the option ranges of each algorithm typed.
 
 ```typescript
-import Sha256 from "crypto-api-ng/src/hasher/sha256.mjs";
-import { toHex } from "crypto-api-ng/src/encoder/hex.mjs";
+import Sha256 from "crypto-api-ng/sha256";
+import { toHex } from "crypto-api-ng/encoder/hex";
 
 const hasher = new Sha256({ length: 224 });
 hasher.update(new Uint8Array([1, 2, 3]));
@@ -144,7 +196,7 @@ To report a vulnerability, follow [SECURITY.md](https://github.com/Defense-Explo
 index.js                  CommonJS main (requires crypto-api.js)
 index.d.ts, types.d.ts    TypeScript declarations (each module under src/ has a .d.mts next to it)
 crypto-api.js, .min.js    UMD / global `CryptoApi` build, ES5 syntax, WebAssembly embedded
-src/                      the public modules of 0.8.5, same paths (hasher classes, hmac, encoders, tools), and the BLAKE hashers
+src/                      the public modules of 0.8.5, same paths (hasher classes, hmac, encoders, tools), and the new hashers
 legacy/hasher/            the original 0.8.5 hasher code, used as fallback and as the base of the wasm facades
 wasm/                     embedded WebAssembly, one module per algorithm family
 example/                  runnable examples
