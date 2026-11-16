@@ -20,6 +20,7 @@ zig build js                      # embed the modules for the JavaScript facades
 npm run test:parity               # the original's tests and the differential fuzzer (needs zig build js and crypto-api/)
 npm run build:package             # ES5 bundles and example vectors in packages/crypto-api
 npm run test:package              # bundles, tarball contents, TypeScript declarations, smoke imports, Chromium (needs playwright)
+npm run test:runtimes             # the packed tarball installed and imported under Node, Bun and Deno (whichever are on PATH)
 npm run pack -- --name <name>     # stage and `npm pack`; the package name is configurable on purpose
 ```
 
@@ -51,7 +52,7 @@ MD5 is the template; copy its files (`src/hash/md5.zig`, `src/wasm/md.zig`, `pac
 
 ## Release checks
 
-`scripts/release-gates.sh` runs the whole matrix (check, parity and package tests) in all four optimize modes. Use `FUZZ_ITERS=100000` for release-volume fuzzing. The release-gates workflow runs the same on GitHub, plus a smoke test on Node 18, 20, 22 and 24, Bun and Deno with and without WebAssembly (`test/runtimes/smoke.mjs`), and is started manually or by a `v*` tag.
+`scripts/release-gates.sh` runs the whole matrix (check, parity and package tests) in all four optimize modes. Use `FUZZ_ITERS=100000` for release-volume fuzzing. The release-gates workflow runs the same on GitHub, plus a smoke test on Node 18, 20, 22 and 24, Bun and Deno with and without WebAssembly (`test/runtimes/smoke.mjs`), and is started manually or by a `v*` tag. Every pull request also runs `npm run test:runtimes` (the packed tarball installed into Node, Bun and Deno projects) on the oldest supported Bun and Deno and on the current releases.
 
 ## Pull requests
 
