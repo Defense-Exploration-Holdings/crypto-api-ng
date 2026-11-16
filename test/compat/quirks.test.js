@@ -46,6 +46,7 @@ const FIXED_ANSWERS = {
   'getHasher(sm3) and getHasher(SHA256) are undefined': { sm3: false, upper: true },
   'hmac-md5 second finalize differs, first is correct': { first: '80070713463e7749b90c2dc24911e275', differs: false },
   'new Hmac(key, md5) leaves 64 bytes in the hasher': 0,
+  'fromUtf of a lone high surrogate is invalid UTF-8': '61efbfbd',
   'state.length high bits are dropped (2**29 vs 2**29 + 2**32)': { same: false },
 };
 

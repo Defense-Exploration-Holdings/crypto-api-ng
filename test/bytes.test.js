@@ -5,7 +5,7 @@
 // node:crypto (digests, HMAC) and Buffer / TextEncoder / TextDecoder (the encoders).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHash, createHmac } from 'node:crypto';
+import { createHash, createHmac, pbkdf2Sync, hkdfSync } from 'node:crypto';
 
 import CryptoApi from '../packages/crypto-api/src/index.mjs';
 import Sha256 from '../packages/crypto-api/src/hasher/sha256.mjs';
@@ -14,6 +14,8 @@ import Shake from '../packages/crypto-api/src/hasher/shake.mjs';
 import Blake3 from '../packages/crypto-api/src/hasher/blake3.mjs';
 import Hasher from '../packages/crypto-api/src/hasher/hasher.mjs';
 import Hmac from '../packages/crypto-api/src/mac/hmac.mjs';
+import Pbkdf2 from '../packages/crypto-api/src/kdf/pbkdf2.mjs';
+import Hkdf from '../packages/crypto-api/src/kdf/hkdf.mjs';
 import { toHex } from '../packages/crypto-api/src/encoder/hex.mjs';
 import { toBase64 } from '../packages/crypto-api/src/encoder/base64.mjs';
 import {
@@ -29,6 +31,7 @@ const NAMES = [
   'sha3-224', 'sha3-256', 'sha3-384', 'sha3-512', 'keccak224', 'keccak256', 'keccak384', 'keccak512',
   'shake128', 'shake256', 'snefru', 'snefru256', 'snefru128/2', 'snefru256/4',
   'whirlpool', 'whirlpool-0', 'whirlpool-t',
+  'tiger', 'tiger160', 'tiger2', 'streebog', 'streebog256', 'crc32', 'crc32c', 'xxhash32', 'xxhash64',
 ];
 
 const bytesOfHex = (hex) => Uint8Array.from(Buffer.from(hex, 'hex'));
@@ -216,6 +219,41 @@ describe('digest() on Hmac and the CryptoApi helpers', () => {
     assert.throws(() => CryptoApi.hashBytes('sha256', 42), TypeError);
     assert.throws(() => CryptoApi.hashBytes('sha256', 'abc', { length: 123 }), RangeError);
     assert.throws(() => CryptoApi.hashBytes('no-such-hash', 'abc'), TypeError);
+  });
+});
+
+describe('key derivation in bytes', () => {
+  it('Pbkdf2 digest() and CryptoApi.pbkdf2Bytes() match node:crypto', () => {
+    const password = Uint8Array.from([1, 2, 3, 0xff]);
+    const salt = Uint8Array.from([9, 8, 7]);
+    const expected = pbkdf2Sync(password, salt, 1000, 40, 'sha256');
+    const kdf = new Pbkdf2(password, new Sha256(), { salt, iterations: 1000, length: 320 });
+    same(kdf.digest(), expected);
+    assert.equal(kdf.digest('hex'), expected.toString('hex'));
+    assert.equal(kdf.digest('base64'), expected.toString('base64'));
+    assert.equal(kdf.digest('base64url'), expected.toString('base64url'));
+    assert.equal(kdf.digest('binary'), kdf.finalize());
+    same(CryptoApi.pbkdf2Bytes(password, CryptoApi.getHasher('sha256'), { salt, iterations: 1000, length: 320 }), expected);
+    assert.equal(CryptoApi.encoder.bytesToHex(CryptoApi.pbkdf2Bytes('pw', CryptoApi.getHasher('sha1'), { salt: 's', iterations: 3 })),
+      CryptoApi.pbkdf2('pw', CryptoApi.getHasher('sha1'), { salt: 's', iterations: 3 }));
+    assert.throws(() => kdf.digest('utf8'), TypeError);
+  });
+
+  it('Hkdf digest(), expandBytes() and CryptoApi.hkdfBytes() match node:crypto', () => {
+    const ikm = Uint8Array.from({ length: 22 }, () => 0x0b);
+    const salt = Uint8Array.from({ length: 13 }, (_, i) => i);
+    const info = Uint8Array.from({ length: 10 }, (_, i) => 0xf0 + i);
+    const expected = Buffer.from(hkdfSync('sha256', ikm, salt, info, 42));
+    const kdf = new Hkdf(ikm, new Sha256(), { salt, info, length: 336 });
+    same(kdf.digest(), expected);
+    assert.equal(kdf.digest('hex'), expected.toString('hex'));
+    assert.equal(kdf.digest('base64url'), expected.toString('base64url'));
+    same(kdf.expandBytes(info, 336), expected);
+    same(CryptoApi.hkdfBytes(ikm, CryptoApi.getHasher('sha256'), { salt, info, length: 336 }), expected);
+    assert.ok(kdf.expandBytes() instanceof Uint8Array);
+    assert.equal(kdf.expandBytes().length, 32);
+    assert.throws(() => kdf.digest('latin1'), TypeError);
+    assert.throws(() => kdf.expandBytes(info, 7), RangeError);
   });
 });
 

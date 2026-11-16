@@ -7,7 +7,7 @@
 // Works in Node >= 22 and evergreen browsers. No dependencies.
 
 /** Must match `runtime.abi_version` in src/runtime.zig. */
-export const EXPECTED_ABI_VERSION = 1;
+export const EXPECTED_ABI_VERSION = 2;
 
 const DEFAULT_WASM_URL = new URL('../zig-out/wasm/crypto-api.wasm', import.meta.url);
 

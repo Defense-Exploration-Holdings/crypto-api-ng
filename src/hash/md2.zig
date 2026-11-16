@@ -128,7 +128,8 @@ pub fn final(st: *State, out: *[digest_len]u8) void {
     @memset(st.buf[st.buffered..], pad);
     compress(&st.hash, &st.checksum, &st.buf, st.rounds);
 
-    const sum = st.checksum;
+    var sum = st.checksum;
+    defer std.crypto.secureZero(u8, &sum);
     compress(&st.hash, &st.checksum, &sum, st.rounds);
 
     st.buffered = 0;

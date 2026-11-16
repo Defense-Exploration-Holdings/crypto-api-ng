@@ -1,7 +1,7 @@
 // crypto-api-ng:facade
 'use strict';
 
-import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * The scratch-region plumbing of the BLAKE2 engines: the wasm `blake2{b,s}_blocks` and
@@ -46,14 +46,45 @@ export default function createEngine(getBytes, prefix, wordBytes, fallback) {
     return rt;
   }
 
-  /** The wasm runtime if `state` has the shape the wasm code models, else null. */
-  function usable(state) {
-    const r = runtime();
-    if (r === null || !Array.isArray(state.hash) || state.hash.length !== hashInts ||
-      !Number.isSafeInteger(state.counter) || state.counter < 0) {
-      return null;
+  /**
+   * Refuse a state the engines cannot work on (both of them, so that the plain-JavaScript engine
+   * never accepts what the wasm module would refuse): the hash words, the byte counter and the
+   * pending block must be what `getState()` of a BLAKE2 hasher returns.
+   */
+  function checkState(state, tail) {
+    if (state === null || typeof state !== 'object') {
+      throw new TypeError(prefix + ': state must be an object');
     }
-    return r;
+    const hash = state.hash;
+    if (!Array.isArray(hash) || hash.length !== hashInts) {
+      throw new TypeError(prefix + ': state.hash must be an array of ' + hashInts + ' integers');
+    }
+    for (let i = 0; i < hashInts; i++) {
+      if (!Number.isInteger(hash[i])) {
+        throw new TypeError(prefix + ': state.hash must be an array of ' + hashInts + ' integers');
+      }
+    }
+    const counter = state.counter;
+    if (typeof counter !== 'number') {
+      throw new TypeError(prefix + ': state.counter must be a number');
+    }
+    if (!Number.isSafeInteger(counter) || counter < 0 || counter % block !== 0) {
+      throw new RangeError(prefix + ': state.counter must be a multiple of ' + block + ' from 0, got ' + counter);
+    }
+    if (tail !== undefined) {
+      if (typeof tail !== 'string') {
+        throw new TypeError(prefix + ': the last block must be a string');
+      }
+      if (tail.length > block) {
+        throw new RangeError(prefix + ': the last block can be at most ' + block + ' bytes, got ' + tail.length);
+      }
+      if (tail.length === 0 && counter !== 0) {
+        throw new RangeError(prefix + ': state has compressed blocks but no last block');
+      }
+      if (counter + tail.length > Number.MAX_SAFE_INTEGER) {
+        throw new RangeError(prefix + ': message too long');
+      }
+    }
   }
 
   function putState(r, state) {
@@ -66,16 +97,15 @@ export default function createEngine(getBytes, prefix, wordBytes, fallback) {
     return w;
   }
 
-  return {
-    name: 'wasm',
-
-    /** Compress the whole blocks `message[start, end)`; updates `state.hash` and `state.counter`. */
-    blocks(state, message, start, end) {
-      const r = usable(state);
-      if (r === null) {
-        return fallback.blocks(state, message, start, end);
-      }
-      const u8 = r.u8;
+  /**
+   * Compress in wasm; false when the module refused a call (`state` is as it was). The scratch
+   * region (message bytes, key block, chaining value) is zeroed on every way out.
+   */
+  function wasmBlocks(r, state, message, start, end) {
+    const u8 = r.u8;
+    // Bytes of the input region this call wrote.
+    let used = 0;
+    try {
       const w = putState(r, state);
       const stateAddr = r.base + STATE_OFF;
       const inAddr = r.base + INPUT_OFF;
@@ -86,34 +116,87 @@ export default function createEngine(getBytes, prefix, wordBytes, fallback) {
         for (let i = 0; i < n; i++) {
           u8[inAddr + i] = message.charCodeAt(pos + i);
         }
-        run(stateAddr, inAddr, n);
+        if (n > used) {
+          used = n;
+        }
+        if (run(stateAddr, inAddr, n) !== 0) {
+          return false;
+        }
         calls++;
       }
       for (let i = 0; i < hashInts; i++) {
         state.hash[i] = i32[w + i];
       }
       state.counter += end - start;
-    },
+      return true;
+    } finally {
+      wipe(u8, r.base, used);
+    }
+  }
 
-    /** The full digest of the last block `tail` (0..block bytes); `state` is not modified. */
-    final(state, tail) {
-      const r = usable(state);
-      if (r === null || tail.length > block) {
-        return fallback.final(state, tail);
-      }
-      const u8 = r.u8;
+  /**
+   * The digest in wasm, or null when the module refused the call (its output is not read). The
+   * digest string is built before the scratch region (last block, chaining value, digest) is zeroed.
+   */
+  function wasmFinal(r, state, tail) {
+    const u8 = r.u8;
+    try {
       putState(r, state);
       const inAddr = r.base + INPUT_OFF;
       for (let i = 0; i < tail.length; i++) {
         u8[inAddr + i] = tail.charCodeAt(i);
       }
-      r.ex[prefix + '_final'](r.base + STATE_OFF, inAddr, tail.length, r.base + OUT_OFF);
+      if (r.ex[prefix + '_final'](r.base + STATE_OFF, inAddr, tail.length, r.base + OUT_OFF) !== 0) {
+        return null;
+      }
       calls++;
       let out = '';
       for (let i = 0; i < 8 * wordBytes; i++) {
         out += String.fromCharCode(u8[r.base + OUT_OFF + i]);
       }
       return out;
+    } finally {
+      wipe(u8, r.base, tail.length);
+    }
+  }
+
+  return {
+    name: 'wasm',
+
+    /**
+     * Compress the whole blocks `message[start, end)`; updates `state.hash` and `state.counter`.
+     * @throws {TypeError} for a state of the wrong shape
+     * @throws {RangeError} for a range that is not whole blocks of `message`, or a counter out of range
+     */
+    blocks(state, message, start, end) {
+      checkState(state);
+      if (typeof message !== 'string') {
+        throw new TypeError(prefix + ': the message must be a string');
+      }
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || end > message.length ||
+        (end - start) % block !== 0) {
+        throw new RangeError(prefix + ': blocks must be whole blocks of the message');
+      }
+      if (state.counter + (end - start) > Number.MAX_SAFE_INTEGER) {
+        throw new RangeError(prefix + ': message too long');
+      }
+      const r = runtime();
+      // A refused call leaves `state` untouched; the plain-JavaScript engine then does the whole range.
+      if (r === null || !wasmBlocks(r, state, message, start, end)) {
+        fallback.blocks(state, message, start, end);
+      }
+    },
+
+    /**
+     * The full digest of the last block `tail` (1..block bytes, or none for an empty message); `state` is not modified.
+     * @throws {TypeError} for a state of the wrong shape
+     * @throws {RangeError} for a tail of the wrong length
+     */
+    final(state, tail) {
+      checkState(state, tail);
+      const r = runtime();
+      const out = r === null ? null : wasmFinal(r, state, tail);
+      return out !== null ? out : fallback.final(state, tail);
     },
 
     /** Test-only hooks; not public API. */

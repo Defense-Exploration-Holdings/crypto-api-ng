@@ -141,6 +141,8 @@ pub fn final(st: *State, out: *[digest_len]u8) void {
     // Original: ISO7816 padding of (56 - n) bytes if n < 56, else (120 - n),
     // i.e. 0x80 then zeros up to 56 mod 64, then the 8 length bytes.
     var tail: [2 * block_len]u8 = @splat(0);
+    // The padded last block holds the message tail: do not leave it on the stack.
+    defer std.crypto.secureZero(u8, &tail);
     @memcpy(tail[0..n], st.buf[0..n]);
     tail[n] = 0x80;
     const total: usize = if (n < 56) block_len else 2 * block_len;

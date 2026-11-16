@@ -10,6 +10,7 @@ comptime {
 }
 
 const core = @import("core");
+const scrubStack = @import("common.zig").scrubStack;
 const md2 = core.md2;
 const Status = core.runtime.Status;
 
@@ -31,7 +32,8 @@ export fn md2_update(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
     if (st.rounds < 1 or st.buffered >= md2.block_len) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
-    md2.update(st, p[0..len]);
+    defer scrubStack(1024);
+    @call(.never_inline, md2.update, .{ st, p[0..len] });
     return 0;
 }
 
@@ -40,7 +42,8 @@ export fn md2_blocks(state: u32, data: u32, len: u32) i32 {
     const st = statePtr(state);
     if (st.rounds < 1 or len % md2.block_len != 0) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
-    md2.blocks(st, p[0..len]);
+    defer scrubStack(1024);
+    @call(.never_inline, md2.blocks, .{ st, p[0..len] });
     return 0;
 }
 
@@ -48,6 +51,7 @@ export fn md2_blocks(state: u32, data: u32, len: u32) i32 {
 export fn md2_final(state: u32, out: u32) i32 {
     const st = statePtr(state);
     if (st.rounds < 1 or st.buffered >= md2.block_len) return @backingInt(Status.invalid_argument);
-    md2.final(st, @ptrFromInt(out));
+    defer scrubStack(1024);
+    @call(.never_inline, md2.final, .{ st, @as(*[md2.digest_len]u8, @ptrFromInt(out)) });
     return 0;
 }

@@ -12,6 +12,6 @@ Include the affected version, the input or options that trigger the problem, and
 
 ## What is not a vulnerability
 
-MD2, MD4, MD5, SHA-0, SHA-1 and HAS-160 are included for compatibility and are broken for collision resistance, so they are unsuitable for signatures and certificates. Use SHA-256 or stronger for new designs. This library hashes data; it is not a password hashing function and does not provide constant-time comparison.
+MD2, MD4, MD5, SHA-0, SHA-1, HAS-160, RIPEMD-128 and Snefru are included for compatibility and are not collision resistant, so they are unsuitable for signatures and certificates. Use SHA-256 or stronger for new designs. This library hashes data; it is not a password hashing function and does not provide constant-time comparison or claim constant-time execution. Compare MAC values with a constant-time function such as `crypto.timingSafeEqual` in Node.js.
 
 Reduced-round variants (the `rounds` option) exist for research and compatibility and are not secure by design.

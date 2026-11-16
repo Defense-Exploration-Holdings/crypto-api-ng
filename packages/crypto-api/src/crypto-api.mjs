@@ -14,8 +14,15 @@ import Sha1 from "./hasher/sha1.mjs";
 import Sha256 from "./hasher/sha256.mjs";
 import Sha512 from "./hasher/sha512.mjs";
 import Sm3 from "./hasher/sm3.mjs";
+import Streebog from "./hasher/streebog.mjs";
 import Snefru from "./hasher/snefru.mjs";
+import Tiger from "./hasher/tiger.mjs";
+import Tiger2 from "./hasher/tiger2.mjs";
 import Whirlpool from "./hasher/whirlpool.mjs";
+import XxHash32 from "./hasher/xxhash32.mjs";
+import XxHash64 from "./hasher/xxhash64.mjs";
+import Crc32 from "./hasher/crc32.mjs";
+import Crc32c from "./hasher/crc32c.mjs";
 import Keccak from "./hasher/keccak.mjs";
 import Sha3 from "./hasher/sha3.mjs";
 import Shake from "./hasher/shake.mjs";
@@ -25,6 +32,8 @@ import {toHex} from "./encoder/hex.mjs";
 import {toBase64} from "./encoder/base64.mjs";
 import {utf8ToBytes, bytesToUtf8, bytesToHex, hexToBytes, bytesToBase64, base64ToBytes} from "./encoder/bytes.mjs";
 import Hmac from "./mac/hmac.mjs";
+import Pbkdf2 from "./kdf/pbkdf2.mjs";
+import Hkdf from "./kdf/hkdf.mjs";
 import {toBinaryString} from "./tools/input.mjs";
 
 /**
@@ -37,6 +46,27 @@ import {toBinaryString} from "./tools/input.mjs";
  */
 function utfOrBytes(value, what) {
   return typeof value === 'string' ? fromUtf(value) : toBinaryString(value, what);
+}
+
+/**
+ * A copy of own `options` in which the byte options named in `keys` that are strings
+ * are UTF-8 encoded. Anything that is not a plain options object goes through as it
+ * is, for the class to reject.
+ *
+ * @ignore
+ * @param {Object|undefined} options
+ * @param {string[]} keys
+ * @returns {Object|undefined}
+ */
+function utfOptions(options, keys) {
+  if (options === null || typeof options !== 'object') {
+    return options;
+  }
+  const copy = {};
+  for (const key of Object.keys(options)) {
+    copy[key] = keys.indexOf(key) !== -1 && typeof options[key] === 'string' ? fromUtf(options[key]) : options[key];
+  }
+  return copy;
 }
 
 /**
@@ -199,6 +229,34 @@ class CryptoApi {
       case 'blake3':
         options = Object.assign({}, {length: 256}, options);
         return new Blake3(options);
+      case 'tiger':
+      case 'tiger192':
+        options = Object.assign({}, {length: 192}, options);
+        return new Tiger(options);
+      case 'tiger160':
+        options = Object.assign({}, {length: 160}, options);
+        return new Tiger(options);
+      case 'tiger128':
+        options = Object.assign({}, {length: 128}, options);
+        return new Tiger(options);
+      case 'tiger2':
+        options = Object.assign({}, {length: 192}, options);
+        return new Tiger2(options);
+      case 'streebog':
+      case 'streebog512':
+        options = Object.assign({}, {length: 512}, options);
+        return new Streebog(options);
+      case 'streebog256':
+        options = Object.assign({}, {length: 256}, options);
+        return new Streebog(options);
+      case 'crc32':
+        return new Crc32(options);
+      case 'crc32c':
+        return new Crc32c(options);
+      case 'xxhash32':
+        return new XxHash32(options);
+      case 'xxhash64':
+        return new XxHash64(options);
       case 'whirlpool':
         return new Whirlpool(options);
       case 'whirlpool-0':
@@ -277,6 +335,59 @@ class CryptoApi {
     let mac = this.getHmac(utfOrBytes(key, 'key'), hasher);
     mac.update(utfOrBytes(message, 'message'));
     return mac.digest();
+  }
+
+  /**
+   * PBKDF2 key derivation with HMAC over `hasher`, result in hex. A string password
+   * or `options.salt` is UTF-8 encoded; bytes are used as they are. Not in 0.8.5.
+   *
+   * @param {string|ArrayBuffer|ArrayBufferView} password
+   * @param {Hasher} hasher
+   * @param {{iterations: number, salt: (string|ArrayBuffer|ArrayBufferView), length: number}} options -
+   *   `iterations` is required, `length` is in bits
+   * @returns {string}
+   */
+  pbkdf2(password, hasher, options) {
+    return toHex(new Pbkdf2(utfOrBytes(password, 'password'), hasher, utfOptions(options, ['salt'])).finalize());
+  }
+
+  /**
+   * Like {@link CryptoApi#pbkdf2}, but returns the key as bytes. Not in 0.8.5.
+   *
+   * @param {string|ArrayBuffer|ArrayBufferView} password
+   * @param {Hasher} hasher
+   * @param {{iterations: number, salt: (string|ArrayBuffer|ArrayBufferView), length: number}} options
+   * @returns {Uint8Array}
+   */
+  pbkdf2Bytes(password, hasher, options) {
+    return new Pbkdf2(utfOrBytes(password, 'password'), hasher, utfOptions(options, ['salt'])).digest();
+  }
+
+  /**
+   * HKDF key derivation with HMAC over `hasher`, result in hex. A string `ikm`,
+   * `options.salt` or `options.info` is UTF-8 encoded; bytes are used as they are.
+   * Not in 0.8.5.
+   *
+   * @param {string|ArrayBuffer|ArrayBufferView} ikm - input key material
+   * @param {Hasher} hasher
+   * @param {{salt: (string|ArrayBuffer|ArrayBufferView), info: (string|ArrayBuffer|ArrayBufferView), length: number}} [options] -
+   *   `length` is in bits
+   * @returns {string}
+   */
+  hkdf(ikm, hasher, options) {
+    return toHex(new Hkdf(utfOrBytes(ikm, 'ikm'), hasher, utfOptions(options, ['salt', 'info'])).finalize());
+  }
+
+  /**
+   * Like {@link CryptoApi#hkdf}, but returns the key as bytes. Not in 0.8.5.
+   *
+   * @param {string|ArrayBuffer|ArrayBufferView} ikm - input key material
+   * @param {Hasher} hasher
+   * @param {{salt: (string|ArrayBuffer|ArrayBufferView), info: (string|ArrayBuffer|ArrayBufferView), length: number}} [options]
+   * @returns {Uint8Array}
+   */
+  hkdfBytes(ikm, hasher, options) {
+    return new Hkdf(utfOrBytes(ikm, 'ikm'), hasher, utfOptions(options, ['salt', 'info'])).digest();
   }
 }
 

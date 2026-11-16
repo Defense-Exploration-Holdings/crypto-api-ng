@@ -157,8 +157,10 @@ fn Blake2(comptime Word: type) type {
         pub fn final(st: *const State, tail: []const u8, out: *[digest_len]u8) void {
             std.debug.assert(tail.len <= block_len);
             var block = @as([block_len]u8, @splat(0));
+            defer std.crypto.secureZero(u8, &block);
             @memcpy(block[0..tail.len], tail);
             var h = st.h;
+            defer std.crypto.secureZero(Word, &h);
             compress(&h, &block, st.t + tail.len, true);
             for (h, 0..) |w, i| std.mem.writeInt(Word, out[i * word_len ..][0..word_len], w, .little);
         }

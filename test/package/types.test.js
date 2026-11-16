@@ -24,9 +24,18 @@ import Blake2b from "crypto-api-ng/src/hasher/blake2b.mjs";
 import Blake2s from "crypto-api-ng/src/hasher/blake2s.mjs";
 import Blake3 from "crypto-api-ng/src/hasher/blake3.mjs";
 import Hmac from "crypto-api-ng/src/mac/hmac.mjs";
+import Pbkdf2 from "crypto-api-ng/src/kdf/pbkdf2.mjs";
+import Hkdf from "crypto-api-ng/src/kdf/hkdf.mjs";
 import Sha3 from "crypto-api-ng/src/hasher/sha3.mjs";
 import Shake from "crypto-api-ng/src/hasher/shake.mjs";
 import Keccak from "crypto-api-ng/src/hasher/keccak.mjs";
+import Tiger from "crypto-api-ng/src/hasher/tiger.mjs";
+import Tiger2 from "crypto-api-ng/src/hasher/tiger2.mjs";
+import Streebog from "crypto-api-ng/src/hasher/streebog.mjs";
+import Crc32 from "crypto-api-ng/src/hasher/crc32.mjs";
+import Crc32c from "crypto-api-ng/src/hasher/crc32c.mjs";
+import XxHash32 from "crypto-api-ng/src/hasher/xxhash32.mjs";
+import XxHash64 from "crypto-api-ng/src/hasher/xxhash64.mjs";
 import { toHex } from "crypto-api-ng/src/encoder/hex.mjs";
 import { toBase64 } from "crypto-api-ng/src/encoder/base64.mjs";
 import { fromUtf } from "crypto-api-ng/src/encoder/utf.mjs";
@@ -53,6 +62,14 @@ CryptoApi.hash('blake2b-256', 'abc', { key: 'k' });
 new Sha3({ length: 256 }).update('abc');
 new Keccak({ length: 256 });
 new Shake({ strength: 256, length: 1024 });
+new Tiger({ length: 128 }).update('abc');
+new Tiger2();
+new Streebog({ length: 256 }).update(new Uint8Array(3));
+new Crc32().update('abc');
+new Crc32c();
+new XxHash32({ seed: 7 });
+new XxHash64({ seed: 2 ** 40 }).update('abc');
+const sum: string = CryptoApi.hash('xxhash32', 'abc', { seed: 1 });
 const xof: string = CryptoApi.hash('shake128', 'abc', { length: 512, strength: 128 });
 const mac = new Hmac('key', new Md5());
 mac.update(fromUtf('message'));
@@ -64,8 +81,21 @@ const name: HasherName = 'sha512/256';
 const unknown = CryptoApi.getHasher('no-such-hash');
 const viaApi: string = CryptoApi.hmac('key', new Uint8Array(2), CryptoApi.getHasher(name));
 CryptoApi.getHmac('key', known).update('m');
+const derived: string = new Pbkdf2('password', new Sha256(), { salt: 'salt', iterations: 1000, length: 256 }).finalize();
+new Pbkdf2(new Uint8Array(4), known, { iterations: 1 });
+const okm: string = new Hkdf('ikm', new Sha256(), { salt: new Uint8Array(4), info: 'ctx', length: 336 }).finalize();
+const hk = new Hkdf('ikm', known);
+const prk: string = hk.extract();
+const more: string = hk.expand('ctx', 256) + hk.expand();
+const keyHex: string = CryptoApi.pbkdf2('password', known, { iterations: 10, salt: 'salt' }) + CryptoApi.hkdf('ikm', known, { info: 'ctx' });
 const encoded: string = CryptoApi.encoder.toHex(CryptoApi.encoder.fromUtf('x'));
 
+// @ts-expect-error PBKDF2 needs iterations
+new Pbkdf2('password', new Sha256(), { salt: 'salt' });
+// @ts-expect-error iterations is a number
+new Pbkdf2('password', new Sha256(), { iterations: '1000' });
+// @ts-expect-error HKDF has no iterations
+new Hkdf('ikm', new Sha256(), { iterations: 1 });
 const raw: Uint8Array = hasher.digest();
 const rawHex: string = new Sha3({ length: 256 }).digest('hex');
 const rawB64: string = new Blake3().digest('base64url');
@@ -76,6 +106,9 @@ const macOut: Uint8Array = CryptoApi.hmacBytes(utf8ToBytes('key'), new Uint8Arra
 const text: string = bytesToUtf8(utf8ToBytes('x'), { fatal: true });
 const hexText: string = bytesToHex(raw) + bytesToBase64(raw, { alphabet: 'base64url', omitPadding: true });
 const back: Uint8Array = hexToBytes(hexText).length ? base64ToBytes(rawB64, { alphabet: 'base64url' }) : CryptoApi.encoder.hexToBytes('00');
+const kdfBytes: Uint8Array = new Pbkdf2('password', new Sha256(), { iterations: 2 }).digest();
+const kdfText: string = hk.digest('base64url') + CryptoApi.encoder.bytesToHex(hk.expandBytes('ctx', 128));
+const kdfApi: Uint8Array = CryptoApi.pbkdf2Bytes('p', known, { iterations: 2 }) ?? CryptoApi.hkdfBytes('ikm', known);
 // @ts-expect-error not an encoding
 hasher.digest('latin1');
 // @ts-expect-error not an alphabet
@@ -90,13 +123,17 @@ new Blake3({ key: 'k', context: 'c' });
 new Sha3({ length: 160 });
 // @ts-expect-error SHAKE strength is 128 or 256
 new Shake({ strength: 512 });
+// @ts-expect-error Streebog has 256 and 512 bits only
+new Streebog({ length: 384 });
+// @ts-expect-error a seed is a number
+new XxHash32({ seed: 'x' });
 // @ts-expect-error update() takes a string or bytes
 hasher.update(42);
 // @ts-expect-error getHasher() of an unknown name may return undefined
 unknown.update('x');
 // @ts-expect-error digests are strings
 const notNumber: number = hex;
-export { hex, same, macHex, b64, viaApi, encoded, notNumber, rawHex, rawBin, macBytes, bytesOut, macOut, text, back };
+export { hex, same, macHex, b64, viaApi, encoded, notNumber, sum, kdfBytes, kdfText, kdfApi, rawHex, rawBin, macBytes, bytesOut, macOut, text, back };
 `;
 
 const CJS = `
@@ -132,13 +169,13 @@ describe('TypeScript declarations', () => {
   it('package.json points at declarations that are shipped', () => {
     const pkg = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'));
     assert.equal(pkg.types, 'index.d.ts');
-    for (const f of ['index.d.ts', 'types.d.ts', 'src/index.d.mts', 'src/hasher/sha256.d.mts', 'src/mac/hmac.d.mts']) {
+    for (const f of ['index.d.ts', 'types.d.ts', 'src/index.d.mts', 'src/hasher/sha256.d.mts', 'src/mac/hmac.d.mts', 'src/kdf/pbkdf2.d.mts', 'src/kdf/hkdf.d.mts']) {
       assert.ok(existsSync(join(pkgDir, f)), f);
     }
   });
 
   it('every hasher module and encoder has a declaration next to it', () => {
-    for (const dir of ['hasher', 'encoder', 'mac']) {
+    for (const dir of ['hasher', 'encoder', 'mac', 'kdf']) {
       const mjs = readdirSyncSafe(join(pkgDir, 'src', dir)).filter((f) => f.endsWith('.mjs'));
       for (const f of mjs) {
         const want = f.replace(/\.mjs$/, '.d.mts');
