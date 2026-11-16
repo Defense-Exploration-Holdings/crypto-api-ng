@@ -44,10 +44,27 @@ describe('shape', () => {
     it(`${label} exports the CryptoApi object of 0.8.5`, () => {
       const api = subjects[label];
       assert.deepEqual(Object.keys(api).sort(), Object.keys(oracle).sort());
-      assert.deepEqual(Object.keys(api.encoder).sort(), ['fromArrayBuffer', 'fromUtf', 'toBase64', 'toHex']);
+      // The four encoders of 0.8.5, then the byte encoders crypto-api-ng added.
+      assert.deepEqual(Object.keys(api.encoder).sort(), [
+        'base64ToBytes', 'bytesToBase64', 'bytesToHex', 'bytesToUtf8', 'fromArrayBuffer', 'fromUtf', 'hexToBytes', 'toBase64', 'toHex', 'utf8ToBytes',
+      ]);
       for (const m of ['getHasher', 'hash', 'getHmac', 'hmac']) assert.equal(typeof api[m], 'function', m);
       assert.equal(api.constructor.name, oracle.constructor.name);
       for (const m of ['getHasher', 'hash', 'getHmac', 'hmac']) assert.equal(api[m].length, oracle[m].length, `${m}.length`);
+    });
+  }
+
+  for (const label of LABELS) {
+    it(`${label}: bytes in, bytes out`, () => {
+      const api = subjects[label];
+      const bytes = api.hashBytes('sha256', 'abc');
+      assert.ok(bytes instanceof Uint8Array);
+      assert.equal(api.encoder.bytesToHex(bytes), api.hash('sha256', 'abc'));
+      const hasher = api.getHasher('sha3-256');
+      hasher.update(new Uint8Array([97, 98, 99]));
+      assert.equal(hasher.digest('base64url'), api.encoder.bytesToBase64(api.hashBytes('sha3-256', 'abc'), { alphabet: 'base64url', omitPadding: true }));
+      assert.equal(api.encoder.bytesToHex(api.hmacBytes('key', 'message', api.getHasher('md5'))), api.hmac('key', 'message', api.getHasher('md5')));
+      assert.equal(api.encoder.bytesToUtf8(api.encoder.utf8ToBytes('h\u00e9llo \u{1F600}')), 'h\u00e9llo \u{1F600}');
     });
   }
 

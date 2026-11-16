@@ -55,6 +55,7 @@
     "./encoder/hex": {"types": "./src/encoder/hex.d.mts", "default": "./src/encoder/hex.mjs"},
     "./encoder/base64": {"types": "./src/encoder/base64.d.mts", "default": "./src/encoder/base64.mjs"},
     "./encoder/utf": {"types": "./src/encoder/utf.d.mts", "default": "./src/encoder/utf.mjs"},
+    "./encoder/bytes": {"types": "./src/encoder/bytes.d.mts", "default": "./src/encoder/bytes.mjs"},
     "./encoder/array-buffer": {"types": "./src/encoder/array-buffer.d.mts", "default": "./src/encoder/array-buffer.mjs"},
     "./src/*.mjs": "./src/*.mjs",
     "./src/*.d.mts": "./src/*.d.mts",
@@ -95,6 +96,7 @@
       "encoder/hex": ["src/encoder/hex.d.mts"],
       "encoder/base64": ["src/encoder/base64.d.mts"],
       "encoder/utf": ["src/encoder/utf.d.mts"],
+      "encoder/bytes": ["src/encoder/bytes.d.mts"],
       "encoder/array-buffer": ["src/encoder/array-buffer.d.mts"]
     }
   },

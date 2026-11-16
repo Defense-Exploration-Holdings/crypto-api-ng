@@ -46,6 +46,7 @@ export const ENTRY_ALGORITHMS = {
   'encoder/hex': 'toHex',
   'encoder/base64': 'toBase64',
   'encoder/utf': 'fromUtf',
+  'encoder/bytes': 'utf8ToBytes, bytesToUtf8, bytesToHex, hexToBytes, bytesToBase64, base64ToBytes',
   'encoder/array-buffer': 'fromArrayBuffer',
 };
 

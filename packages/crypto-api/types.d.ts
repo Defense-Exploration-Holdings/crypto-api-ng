@@ -4,6 +4,12 @@
  */
 export type BinaryInput = string | ArrayBuffer | SharedArrayBuffer | ArrayBufferView;
 
+/** Text encodings of `digest()`. `'binary'` is the binary string `finalize()` returns. */
+export type DigestEncoding = 'hex' | 'base64' | 'base64url' | 'binary';
+
+/** Anything that holds bytes: `ArrayBuffer`, `SharedArrayBuffer` or a view such as `Uint8Array`. */
+export type Bytes = ArrayBuffer | SharedArrayBuffer | ArrayBufferView;
+
 /** What HMAC and `CryptoApi` need from a hasher. Every hasher class implements it. */
 export interface HasherLike {
   /** Options the hasher was created with. */
@@ -28,6 +34,10 @@ export interface HmacLike {
   finalize(): string;
   /** Restart with the same key. */
   reset(): void;
+  /** Like `finalize()`, but returns the MAC as bytes. */
+  digest(): Uint8Array;
+  /** Like `finalize()`, but returns the MAC as text in the given encoding. */
+  digest(encoding: DigestEncoding): string;
 }
 
 export interface Pbkdf2Options {
@@ -150,6 +160,11 @@ export type HasherName =
   | 'crc32' | 'crc32c' | 'xxhash32' | 'xxhash64'
   | 'whirlpool' | 'whirlpool-0' | 'whirlpool-t';
 
+export interface Base64Options {
+  /** `'base64'` (`+` and `/`, the default) or `'base64url'` (`-` and `_`). */
+  alphabet?: 'base64' | 'base64url';
+}
+
 export interface CryptoApiEncoder {
   /** JavaScript string to a binary string of its UTF-8 bytes. */
   fromUtf(message: string): string;
@@ -159,6 +174,18 @@ export interface CryptoApiEncoder {
   toHex(raw: string): string;
   /** Binary string to base64. */
   toBase64(raw: string): string;
+  /** Text to the bytes of its UTF-8 encoding. An unpaired surrogate becomes U+FFFD. */
+  utf8ToBytes(text: string): Uint8Array;
+  /** UTF-8 bytes to text; invalid bytes become U+FFFD, or throw with `fatal`. */
+  bytesToUtf8(bytes: Bytes, options?: { fatal?: boolean }): string;
+  /** Bytes to lowercase hex. */
+  bytesToHex(bytes: Bytes): string;
+  /** Hex to bytes. Throws `SyntaxError` for an odd length or a character that is not a hex digit. */
+  hexToBytes(hex: string): Uint8Array;
+  /** Bytes to base64, padded unless `omitPadding` is set. */
+  bytesToBase64(bytes: Bytes, options?: Base64Options & { omitPadding?: boolean }): string;
+  /** Base64 to bytes. Padding is optional. Throws `SyntaxError` for malformed input. */
+  base64ToBytes(text: string, options?: Base64Options): Uint8Array;
 }
 
 export interface CryptoApi {
@@ -168,12 +195,20 @@ export interface CryptoApi {
   getHasher(name: string, options?: HasherOptions): HasherLike | undefined;
   /** Hash a message and return the digest in hex. A string message is UTF-8 encoded. */
   hash(name: HasherName | (string & {}), message: BinaryInput, options?: HasherOptions): string;
+  /** Like `hash()`, but returns the digest as bytes. */
+  hashBytes(name: HasherName | (string & {}), message: BinaryInput, options?: HasherOptions): Uint8Array;
   /** HMAC over a hasher; `key` is a binary string or bytes. */
   getHmac(key: BinaryInput, hasher: HasherLike): HmacLike;
   /** HMAC with a UTF-8 key and message (strings are UTF-8 encoded), digest in hex. */
   hmac(key: BinaryInput, message: BinaryInput, hasher: HasherLike): string;
+  /** Like `hmac()`, but returns the MAC as bytes. */
+  hmacBytes(key: BinaryInput, message: BinaryInput, hasher: HasherLike): Uint8Array;
   /** PBKDF2 with HMAC over `hasher`; the password and `options.salt` are UTF-8 encoded if they are strings. Returns the key in hex. */
   pbkdf2(password: BinaryInput, hasher: HasherLike, options: Pbkdf2Options): string;
   /** HKDF with HMAC over `hasher`; `ikm`, `options.salt` and `options.info` are UTF-8 encoded if they are strings. Returns the key in hex. */
   hkdf(ikm: BinaryInput, hasher: HasherLike, options?: HkdfOptions): string;
+  /** Like `pbkdf2()`, but returns the key as bytes. */
+  pbkdf2Bytes(password: BinaryInput, hasher: HasherLike, options: Pbkdf2Options): Uint8Array;
+  /** Like `hkdf()`, but returns the key as bytes. */
+  hkdfBytes(ikm: BinaryInput, hasher: HasherLike, options?: HkdfOptions): Uint8Array;
 }

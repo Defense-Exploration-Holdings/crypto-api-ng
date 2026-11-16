@@ -2,6 +2,7 @@
 'use strict';
 
 import {toBinaryString} from "../tools/input.mjs";
+import {checkEncoding, encodeDigest, binaryToBytes} from "../tools/digest.mjs";
 import {Hmac, readOptions, binaryOption, integerOption, macSize} from "../tools/kdf.mjs";
 
 const MAX_BLOCKS = 0xFFFFFFFF;
@@ -82,6 +83,19 @@ class Pbkdf2 {
     }
     mac.reset();
     return result.substr(0, bytes);
+  }
+
+  /**
+   * Like `finalize()`, but returns the key as bytes, or encoded as text.
+   *
+   * @param {string} [encoding] - `'hex'`, `'base64'`, `'base64url'` or `'binary'`
+   *   (the binary string `finalize()` returns); left out, the key is bytes
+   * @returns {Uint8Array|string}
+   * @throws {TypeError} for any other `encoding`
+   */
+  digest(encoding) {
+    checkEncoding(encoding);
+    return encodeDigest(this.finalize(), encoding);
   }
 }
 
