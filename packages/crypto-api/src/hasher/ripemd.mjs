@@ -4,6 +4,7 @@
 import LegacyRipemd from "../../legacy/hasher/ripemd.mjs";
 import {wasmBytes} from "../../wasm/ripemd.mjs";
 import {Engine, BLOCK, accelProcess, accelFinalize} from "../wasm/le32.mjs";
+import {explicitOptions} from "../tools/options.mjs";
 
 /*
  * RIPEMD-128/160/256/320 with the compression and padding done in wasm, and
@@ -51,6 +52,12 @@ function variantOf(processBlock) {
 }
 
 /**
+ * What the original constructor assigns when an option is missing, in its order
+ * (see `explicitOptions` in tools/options.mjs).
+ */
+const DEFAULTS = {length: 160};
+
+/**
  * Calculates RIPEMD hash (128, 160, 256 or 320 bits). Same API, output and
  * `getState()` JSON as crypto-api 0.8.5; see legacy/hasher/ripemd.mjs for the
  * original documentation and examples.
@@ -61,7 +68,7 @@ class Ripemd extends LegacyRipemd {
    */
   constructor(options) {
     // Spelled out so `Ripemd.length` is 1, as in 0.8.5.
-    super(options);
+    super(explicitOptions(options, DEFAULTS));
   }
 
   /**
