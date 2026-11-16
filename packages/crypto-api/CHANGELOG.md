@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1 (2026-11-16)
+
+Maintenance release. The library code, the WebAssembly modules and every digest are the same as in 1.2.0.
+
+* The scripts that build the UMD bundles and the package now write their output atomically. Building the package while the package tests were running could leave an empty `crypto-api.js` behind, which made a release build fail. Only the build is affected; the published files are unchanged.
+* The GitHub Actions used by the build and release workflows are updated to their current major versions (`actions/checkout`, `setup-node`, `setup-python`, `upload-artifact`, `download-artifact`), still pinned by commit.
+* `CONTRIBUTING.md` explains how pull requests reach the project.
+
 ## 1.2.0 (2026-11-16)
 
 * Per-algorithm entry points. `package.json` now has an `exports` map with a short import path for every algorithm (`crypto-api-ng/sha256`, `crypto-api-ng/blake3`, `crypto-api-ng/hmac`, `crypto-api-ng/encoder/hex`, ...). Each is the same module as the matching `src/` path, and a bundle that imports only it contains only that algorithm and its own WebAssembly module (for example about 6 KB gzipped for SHA-256, against 110 KB for the whole package). The README lists every entry with its size. Nothing is removed: the main entry resolves as before (`require` and Node's `import` get `index.js`, bundlers get `src/index.mjs`), and every path of 0.8.5, with or without the `.mjs` extension, and every other file in the package still resolves. Tools that predate `exports` (webpack 4, TypeScript `node10` resolution without `typesVersions`) can keep using the `src/` paths.
