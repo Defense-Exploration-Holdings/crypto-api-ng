@@ -1,5 +1,5 @@
 name: Publish to JSR
-# Publishes a release of packages/crypto-api to JSR (jsr.io) as @crypto-api-ng/crypto-api-ng. Manual: Actions ->
+# Publishes a release of packages/crypto-api to JSR (jsr.io) as @defense-exploration/crypto-api-ng. Manual: Actions ->
 # Publish to JSR -> Run workflow (branch main), giving an existing release tag such as v1.2.1.
 #
 # Two jobs, like publish.yml, so that nothing that installs or runs third-party code can publish:
