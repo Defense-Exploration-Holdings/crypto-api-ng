@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.2 (2026-11-16)
+
+The package is also published on [JSR](https://jsr.io/@defense-exploration/crypto-api-ng) as `@defense-exploration/crypto-api-ng`, for Deno (`deno add jsr:@defense-exploration/crypto-api-ng`). The library code, the WebAssembly modules and every digest are the same as in 1.2.1.
+
+* Documentation comments on every module and exported class, constructor and function in the `.d.mts` declarations: what each algorithm is, its options and defaults, and a warning on the algorithms that are not collision resistant. Editors show them on hover, and JSR renders them as the API documentation.
+
 ## 1.2.1 (2026-11-16)
 
 Maintenance release. The library code, the WebAssembly modules and every digest are the same as in 1.2.0.

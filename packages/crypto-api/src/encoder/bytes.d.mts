@@ -1,3 +1,9 @@
+/**
+ * Conversions between bytes (`Uint8Array`, `ArrayBuffer` and other views) and UTF-8 text, hex and base64.
+ *
+ * @module
+ */
+
 import type { Base64Options, Bytes } from "../../types.js";
 
 /** Text to the bytes of its UTF-8 encoding. An unpaired surrogate becomes U+FFFD. */

@@ -3,6 +3,7 @@
 [![npm](https://img.shields.io/npm/v/crypto-api-ng)](https://www.npmjs.com/package/crypto-api-ng)
 [![license](https://img.shields.io/npm/l/crypto-api-ng)](LICENSE)
 [![types](https://img.shields.io/npm/types/crypto-api-ng)](docs/api.md)
+[![JSR](https://jsr.io/badges/@defense-exploration/crypto-api-ng)](https://jsr.io/@defense-exploration/crypto-api-ng)
 
 A hashing library for JavaScript with no dependencies: [`crypto-api`](https://github.com/nf404/crypto-api) 0.8.5 ported to Zig, with the compression functions compiled to WebAssembly.
 
@@ -12,6 +13,12 @@ Version 1 is a drop-in replacement for `crypto-api@0.8.5`: same classes, import 
 
 ```sh
 npm install crypto-api-ng
+```
+
+On Deno, from [JSR](https://jsr.io/@defense-exploration/crypto-api-ng):
+
+```sh
+deno add jsr:@defense-exploration/crypto-api-ng
 ```
 
 ## Quick start
