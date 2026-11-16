@@ -18,7 +18,7 @@ import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync, sta
 import { join, dirname, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { buildBundle } from './build-bundle.mjs';
+import { buildBundle, writeFileAtomic } from './build-bundle.mjs';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pkgRoot = join(repoRoot, 'packages', 'crypto-api');
@@ -56,7 +56,7 @@ export function exampleVectorsSource() {
 
 export async function buildInPlace() {
   const files = await buildBundle();
-  writeFileSync(join(pkgRoot, 'example', 'unit-tests-vectors.js'), exampleVectorsSource());
+  writeFileAtomic(join(pkgRoot, 'example', 'unit-tests-vectors.js'), exampleVectorsSource());
   return Object.keys(files);
 }
 
