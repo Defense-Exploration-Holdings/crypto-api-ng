@@ -30,6 +30,23 @@ export interface HmacLike {
   reset(): void;
 }
 
+export interface Pbkdf2Options {
+  /** Number of HMAC iterations, 1 to 4294967295. Required: there is no safe default. */
+  iterations: number;
+  /** Binary string or bytes (default empty). */
+  salt?: BinaryInput;
+  /** Size of the derived key in bits, a multiple of 8 (default: the digest size of the hasher). */
+  length?: number;
+}
+export interface HkdfOptions {
+  /** Binary string or bytes (default empty, the same as a salt of zero bytes). */
+  salt?: BinaryInput;
+  /** Context for `finalize()` (default empty). */
+  info?: BinaryInput;
+  /** Size of the output of `finalize()` in bits, a multiple of 8, up to 255 times the digest size (default: the digest size). */
+  length?: number;
+}
+
 export interface Blake2bOptions {
   /** Digest size in bits: 8 to 512 in steps of 8 (default 512). */
   length?: number;
@@ -155,4 +172,8 @@ export interface CryptoApi {
   getHmac(key: BinaryInput, hasher: HasherLike): HmacLike;
   /** HMAC with a UTF-8 key and message (strings are UTF-8 encoded), digest in hex. */
   hmac(key: BinaryInput, message: BinaryInput, hasher: HasherLike): string;
+  /** PBKDF2 with HMAC over `hasher`; the password and `options.salt` are UTF-8 encoded if they are strings. Returns the key in hex. */
+  pbkdf2(password: BinaryInput, hasher: HasherLike, options: Pbkdf2Options): string;
+  /** HKDF with HMAC over `hasher`; `ikm`, `options.salt` and `options.info` are UTF-8 encoded if they are strings. Returns the key in hex. */
+  hkdf(ikm: BinaryInput, hasher: HasherLike, options?: HkdfOptions): string;
 }
