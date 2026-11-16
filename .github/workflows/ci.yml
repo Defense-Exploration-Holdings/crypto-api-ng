@@ -28,9 +28,9 @@ jobs:
         run: zig build js --release=small
       - name: Parity harness (original suite + differential fuzz)
         run: npm run test:parity
-      - name: Package (bundles, npm pack, smoke imports, Chromium global build)
+      - name: Package (bundles, npm pack, JSR dry run, smoke imports, Chromium global build)
         run: |
-          npm install --no-save --ignore-scripts playwright@1.64.1
+          npm install --no-save --ignore-scripts playwright@1.64.1 deno@2.9.6
           npx playwright install --with-deps chromium
           npm run test:package
       - run: zig build check
