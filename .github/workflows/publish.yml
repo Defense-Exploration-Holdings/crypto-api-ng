@@ -20,7 +20,9 @@ name: Publish to npm
 # Release: set "version" in packages/crypto-api/package.json and add a CHANGELOG entry,
 # merge, then push the matching tag (version 1.2.3 -> tag v1.2.3). The build job refuses
 # a tag that does not match the package version. Versions with a pre-release part
-# (1.2.3-rc.1) are published under the `next` dist-tag instead of `latest`.
+# (1.2.3-rc.1) are published under the `next` dist-tag instead of `latest`, and 1.0.x
+# maintenance releases (tagged on the `v1` branch) under `v1-latest`, so `latest` stays on
+# the current line.
 #
 # If a publish fails after the tag exists (a tag is never moved), fix the workflow on main
 # and run it from main with Actions -> Publish to npm -> Run workflow, giving the existing
@@ -83,7 +85,7 @@ jobs:
             echo "::error::tag $RELEASE_TAG does not match packages/crypto-api/package.json version $version"
             exit 1
           fi
-          case "$version" in *-*) tag=next ;; *) tag=latest ;; esac
+          case "$version" in *-*) tag=next ;; 1.0.*) tag=v1-latest ;; *) tag=latest ;; esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "dist_tag=$tag" >> "$GITHUB_OUTPUT"
 
@@ -157,7 +159,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "::error::bad version"; exit 1; }
-          [[ "$DIST_TAG" == latest || "$DIST_TAG" == next ]] || { echo "::error::bad dist-tag"; exit 1; }
+          [[ "$DIST_TAG" == latest || "$DIST_TAG" == next || "$DIST_TAG" == v1-latest ]] || { echo "::error::bad dist-tag"; exit 1; }
           [[ "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::bad checksum from the build job"; exit 1; }
           cd release
           tarball="crypto-api-ng-$VERSION.tgz"
