@@ -29,6 +29,13 @@ import Hkdf from "crypto-api-ng/src/kdf/hkdf.mjs";
 import Sha3 from "crypto-api-ng/src/hasher/sha3.mjs";
 import Shake from "crypto-api-ng/src/hasher/shake.mjs";
 import Keccak from "crypto-api-ng/src/hasher/keccak.mjs";
+import Tiger from "crypto-api-ng/src/hasher/tiger.mjs";
+import Tiger2 from "crypto-api-ng/src/hasher/tiger2.mjs";
+import Streebog from "crypto-api-ng/src/hasher/streebog.mjs";
+import Crc32 from "crypto-api-ng/src/hasher/crc32.mjs";
+import Crc32c from "crypto-api-ng/src/hasher/crc32c.mjs";
+import XxHash32 from "crypto-api-ng/src/hasher/xxhash32.mjs";
+import XxHash64 from "crypto-api-ng/src/hasher/xxhash64.mjs";
 import { toHex } from "crypto-api-ng/src/encoder/hex.mjs";
 import { toBase64 } from "crypto-api-ng/src/encoder/base64.mjs";
 import { fromUtf } from "crypto-api-ng/src/encoder/utf.mjs";
@@ -54,6 +61,14 @@ CryptoApi.hash('blake2b-256', 'abc', { key: 'k' });
 new Sha3({ length: 256 }).update('abc');
 new Keccak({ length: 256 });
 new Shake({ strength: 256, length: 1024 });
+new Tiger({ length: 128 }).update('abc');
+new Tiger2();
+new Streebog({ length: 256 }).update(new Uint8Array(3));
+new Crc32().update('abc');
+new Crc32c();
+new XxHash32({ seed: 7 });
+new XxHash64({ seed: 2 ** 40 }).update('abc');
+const sum: string = CryptoApi.hash('xxhash32', 'abc', { seed: 1 });
 const xof: string = CryptoApi.hash('shake128', 'abc', { length: 512, strength: 128 });
 const mac = new Hmac('key', new Md5());
 mac.update(fromUtf('message'));
@@ -88,13 +103,17 @@ new Blake3({ key: 'k', context: 'c' });
 new Sha3({ length: 160 });
 // @ts-expect-error SHAKE strength is 128 or 256
 new Shake({ strength: 512 });
+// @ts-expect-error Streebog has 256 and 512 bits only
+new Streebog({ length: 384 });
+// @ts-expect-error a seed is a number
+new XxHash32({ seed: 'x' });
 // @ts-expect-error update() takes a string or bytes
 hasher.update(42);
 // @ts-expect-error getHasher() of an unknown name may return undefined
 unknown.update('x');
 // @ts-expect-error digests are strings
 const notNumber: number = hex;
-export { hex, same, macHex, b64, viaApi, encoded, notNumber };
+export { hex, same, macHex, b64, viaApi, encoded, notNumber, sum };
 `;
 
 const CJS = `

@@ -2,7 +2,7 @@
 'use strict';
 
 import Hasher from "./hasher.mjs";
-import {absorb, finish} from "../wasm/keccak.mjs";
+import {absorb, finish, checkState} from "../wasm/keccak.mjs";
 
 /**
  * Base class of the Keccak sponge hashers: {@link Sha3}, {@link Shake} and
@@ -68,12 +68,16 @@ class Sponge extends Hasher {
    * Process ready blocks
    *
    * @protected
+   * @throws {TypeError} when the state is not what `getState()` returns: `message` not a string, `hash` not 50 integers
+   * @throws {RangeError} when the block size is not a multiple of 8 from 8 to 192
    */
   process() {
     const state = this.state;
     const rate = this.blockSizeInBytes;
     const message = state.message;
+    checkMessage(message);
     if (message.length < rate) return;
+    checkState(state.hash, rate);
     const total = message.length - message.length % rate;
     absorb(state.hash, message, total, rate);
     state.message = message.substr(total);
@@ -83,11 +87,15 @@ class Sponge extends Hasher {
    * Finalize hash and return result. The state is not changed.
    *
    * @returns {string}
+   * @throws {TypeError} when the state is not what `getState()` returns: `message` not a string, `hash` not 50 integers
+   * @throws {RangeError} when the block size is not a multiple of 8 from 8 to 192
    */
   finalize() {
     const rate = this.blockSizeInBytes;
     let hash = this.state.hash;
     let message = this.state.message;
+    checkMessage(message);
+    checkState(hash, rate);
     if (message.length >= rate) {
       // Only reachable through setState() with unprocessed blocks.
       hash = hash.slice();
@@ -96,6 +104,13 @@ class Sponge extends Hasher {
       message = message.substr(total);
     }
     return finish(hash, message, rate, this.suffix, this.outputSize);
+  }
+}
+
+/** `state.message` must be a binary string. */
+function checkMessage(message) {
+  if (typeof message !== 'string') {
+    throw new TypeError('Sponge: state.message must be a string, got ' + (message === null ? 'null' : typeof message));
   }
 }
 

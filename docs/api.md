@@ -42,6 +42,11 @@ CryptoApi.hash('sha256', 'abc');
 | `keccak224`, `keccak256`, `keccak384`, `keccak512` | `Keccak` (`keccak.mjs`) | 224, 256, 384, 512 bits |
 | `snefru` (also `snefru128`, `snefru128/8`), `snefru128/2`, `snefru256` (also `snefru256/8`), `snefru256/4` | `Snefru` (`snefru.mjs`) | 128 or 256 bits |
 | `whirlpool`, `whirlpool-0`, `whirlpool-t` | `Whirlpool` (`whirlpool.mjs`) | 512 bits |
+| `tiger` (also `tiger192`), `tiger160`, `tiger128` | `Tiger` (`tiger.mjs`) | 192, 160, 128 bits |
+| `tiger2` | `Tiger2` (`tiger2.mjs`) | 192 bits (any length with the `length` option) |
+| `streebog` (also `streebog512`), `streebog256` | `Streebog` (`streebog.mjs`) | 512, 256 bits |
+| `crc32`, `crc32c` | `Crc32`, `Crc32c` (`crc32.mjs`, `crc32c.mjs`) | 32 bits (checksums) |
+| `xxhash32`, `xxhash64` | `XxHash32`, `XxHash64` (`xxhash32.mjs`, `xxhash64.mjs`) | 32, 64 bits (checksums) |
 
 Options passed to `getHasher` or `hash` override the defaults a name implies. Names that are not listed, including different capitalization, give `undefined` from `getHasher`.
 
@@ -88,6 +93,11 @@ An option that is left out (or `undefined`) takes its default. Since 1.1 a value
 | `Sha3`, `Keccak` | | 224, 256, 384 or 512 (512) | |
 | `Shake` | | 8 to 2^30 in steps of 8 (256 for strength 128, 512 for strength 256) | `strength`: 128 (SHAKE128, the default) or 256 (SHAKE256) |
 | `Snefru` | 1 to 8 (8) | 32 to 448 in steps of 32 (128) | |
+| `Tiger`, `Tiger2` | | 8 to 192 in steps of 8 (192) | |
+| `Streebog` | | 256 or 512 (512) | |
+| `Crc32`, `Crc32c` | | | |
+| `XxHash32` | | | `seed`: an integer from 0 to 2^32 - 1 (0) |
+| `XxHash64` | | | `seed`: an integer from 0 to 2^53 - 1 (0) |
 | `Whirlpool` | 1 to 10 (10) | | `type`: `'0'` (Whirlpool-0), `'t'` (Whirlpool-T), anything else is Whirlpool |
 
 The SHA-3 hashers `Sha3`, `Shake` and `Keccak` are additions of this package (the original has no SHA-3). They use the same interface with these differences:
@@ -125,6 +135,30 @@ const keys = kdf.finalize();                                 // 64 bytes of deri
 - `getState()` returns a JSON-serializable object like the other hashers'. A keyed BLAKE2 state holds the key (zero padded) until the first block is compressed, so treat it as secret material.
 - The tree modes of BLAKE2 (`blake2bp`, `blake2sp`, `blake2xb`) are not implemented.
 
+### Tiger, Streebog and the checksums
+
+`Tiger`, `Tiger2`, `Streebog`, `Crc32`, `Crc32c`, `XxHash32` and `XxHash64` are not in `crypto-api` 0.8.5. They follow the conventions of the BLAKE hashers: `length` is in bits, `finalize()` leaves the hasher as it was (call it again for the same digest, `update()` continues the message), options that are not supported throw, and `getState()` is a JSON-serializable object. Messages are limited to 2^53 - 1 bytes.
+
+```javascript
+import Streebog from "crypto-api-ng/src/hasher/streebog.mjs";
+import XxHash64 from "crypto-api-ng/src/hasher/xxhash64.mjs";
+import {toHex} from "crypto-api-ng/src/encoder/hex.mjs";
+
+const gost = new Streebog({length: 256});
+gost.update('message');
+console.log(toHex(gost.finalize()));
+
+const sum = new XxHash64({seed: 42});
+sum.update(bytes);                       // bytes or a binary string
+console.log(toHex(sum.finalize()));      // 16 hex digits
+```
+
+- **Tiger** is the 1995 design of Anderson and Biham (192-bit digest, 64-byte blocks, three passes). The digest is the three 64-bit words in little-endian byte order, which is what the reference code prints (`3293ac63...` for the empty message). `length` takes the first bytes of that digest, which gives Tiger/160 and Tiger/128. **Tiger2** is Tiger with the padding byte 0x80 instead of 0x01 (`4441be75...` for the empty message).
+- **Streebog** is the Russian standard GOST R 34.11-2012 ([RFC 6986](https://www.rfc-editor.org/rfc/rfc6986)). `length` 256 and 512 are the two variants (HMAC over either has the block size 64 bytes). The digest is the final value in memory order, the byte order that OpenSSL's gost engine, rhash and the Linux kernel print (`3f539a21...` and `8e945da2...` for the empty message). RFC 6986 prints its test vectors as big-endian integers, which is the same digest with the bytes reversed.
+- **CRC-32** (IEEE 802.3, the one in zlib, gzip and PNG) and **CRC-32C** (Castagnoli, iSCSI and ext4) are checksums. The digest is the 4 bytes of the checksum, most significant first, so `toHex()` gives the number everyone prints (`cbf43926` for `123456789`).
+- **XXH32** and **XXH64** are the xxHash functions of Yann Collet. The digest is the canonical representation of the specification, the hash as a big-endian number (`02cc5d05` and `ef46db3751d8e999` for the empty message with seed 0).
+- CRC-32 and xxHash are **not cryptographic**: they detect accidental changes and are fast, and anyone can produce input with a chosen checksum. Do not use them to authenticate or to compare secrets. Tiger is old and weakened in its reduced-round form; Streebog is the standard hash of Russian signatures; neither is a better choice than SHA-2, SHA-3 or BLAKE for new designs except where a protocol asks for it.
+
 ## HMAC
 
 ```javascript
@@ -138,6 +172,8 @@ console.log(toHex(mac.finalize()));
 ```
 
 `new Hmac(key, hasher)` takes a binary string or bytes as the key and any hasher object, including your own subclass. It uses two fresh hashers of the same class and options, so the one you pass in stays untouched. `update(message)` adds data, `finalize()` returns the MAC as a binary string and can be called again (and `update()` continues the message), and `reset()` restarts with the same key. Whether the key is a UTF-8 string is up to you: use `CryptoApi.hmac()` or `fromUtf()` for text keys.
+
+Compare MAC values in constant time (`crypto.timingSafeEqual` in Node.js), not with `===`. An `Hmac` object keeps key-derived state in memory for as long as it exists. See "Security notes" in the [package README](../packages/crypto-api/README.md) and [SECURITY.md](../SECURITY.md).
 
 ## Key derivation
 

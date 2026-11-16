@@ -1,7 +1,7 @@
 // crypto-api-ng:facade
 'use strict';
 
-import {instantiate, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * The scratch-region plumbing of the BLAKE3 engine: the wasm `blake3_update`, `blake3_root`
@@ -22,7 +22,7 @@ const TWO32 = 4294967296;
 const CHUNK = 1024;
 const STACK_OFF = INPUT_OFF;
 const DATA_OFF = INPUT_OFF + 2048;
-const MAX_CHUNKS = 9007199254740992; // 2^53, the limit the wasm side enforces
+const MAX_CHUNKS = 9007199254740992; // 2^53, the limit the wasm side enforces (`chunks` stays below it)
 // Index of the fields of State, as int32.
 const FLAGS = 8;
 const CHUNKS = 10;
@@ -57,15 +57,51 @@ export default function createEngine(getBytes, fallback) {
     return rt;
   }
 
-  /** The wasm runtime if `state` has the shape the wasm code models, else null. */
-  function usable(state) {
-    const r = runtime();
-    if (r === null || !Number.isSafeInteger(state.chunks) || state.chunks < 0 ||
-      state.chunks + 1024 > MAX_CHUNKS || !Array.isArray(state.stack) ||
-      state.stack.length !== 8 * popcount(state.chunks)) {
-      return null;
+  /**
+   * Refuse a tree state or key setup the engines cannot work on (both engines, so that the
+   * plain-JavaScript one never accepts what the wasm module would refuse): `chunks` below the
+   * limit, `stack` the chaining values of `popcount(chunks)` subtrees, `init` eight key words
+   * and the flags.
+   */
+  function checkState(state, init) {
+    if (state === null || typeof state !== 'object') {
+      throw new TypeError('Blake3: state must be an object');
     }
-    return r;
+    const chunks = state.chunks;
+    if (typeof chunks !== 'number') {
+      throw new TypeError('Blake3: state.chunks must be a number');
+    }
+    if (!Number.isSafeInteger(chunks) || chunks < 0 || chunks >= MAX_CHUNKS) {
+      throw new RangeError('Blake3: state.chunks must be an integer from 0 to 2^53 - 1, got ' + chunks);
+    }
+    const stack = state.stack;
+    const words = 8 * popcount(chunks);
+    if (!Array.isArray(stack) || stack.length !== words) {
+      throw new TypeError('Blake3: state.stack must be an array of ' + words + ' integers for ' + chunks + ' chunks');
+    }
+    for (let i = 0; i < words; i++) {
+      if (!Number.isInteger(stack[i])) {
+        throw new TypeError('Blake3: state.stack must be an array of ' + words + ' integers for ' + chunks + ' chunks');
+      }
+    }
+    if (init === null || typeof init !== 'object' || !Array.isArray(init.key) || init.key.length !== 8 ||
+      !Number.isInteger(init.flags)) {
+      throw new TypeError('Blake3: the key words must be an array of 8 integers and the flags an integer');
+    }
+    for (let i = 0; i < 8; i++) {
+      if (!Number.isInteger(init.key[i])) {
+        throw new TypeError('Blake3: the key words must be an array of 8 integers and the flags an integer');
+      }
+    }
+  }
+
+  /**
+   * Zero what a call left in scratch memory: the State and root parameters, the first `stackBytes`
+   * of the stack region and the first `dataBytes` of the data region (the rest of the stack region is never written).
+   */
+  function wipeScratch(r, stackBytes, dataBytes) {
+    wipe(r.u8, r.base, stackBytes);
+    r.u8.fill(0, r.base + DATA_OFF, r.base + DATA_OFF + dataBytes);
   }
 
   /** Copy the State and the stack into scratch memory. */
@@ -85,17 +121,18 @@ export default function createEngine(getBytes, fallback) {
     return w;
   }
 
-  return {
-    name: 'wasm',
-
-    /** Add the first `nchunks` whole chunks of `message` to the tree in `state`. */
-    update(state, init, message, nchunks) {
-      const r = usable(state);
-      if (r === null) {
-        return fallback.update(state, init, message, nchunks);
-      }
-      const u8 = r.u8;
+  /**
+   * Add the chunks in wasm; false when the module refused a call (`state` is as it was). The
+   * scratch region (key words, stack of chaining values, message bytes) is zeroed on every way out.
+   */
+  function wasmUpdate(r, state, init, message, nchunks) {
+    const u8 = r.u8;
+    // Bytes of the stack and of the data region this call wrote.
+    let stackBytes = 0;
+    let dataBytes = 0;
+    try {
       const w = putState(r, state, init);
+      stackBytes = 4 * state.stack.length;
       const dataAddr = r.base + DATA_OFF;
       const perCall = Math.floor((r.cap - (DATA_OFF - INPUT_OFF)) / CHUNK);
       const run = r.ex.blake3_update;
@@ -105,44 +142,119 @@ export default function createEngine(getBytes, fallback) {
         for (let i = 0; i < n * CHUNK; i++) {
           u8[dataAddr + i] = message.charCodeAt(from + i);
         }
-        run(r.base + STATE_OFF, r.base + STACK_OFF, dataAddr, n);
+        dataBytes = Math.max(dataBytes, n * CHUNK);
+        if (run(r.base + STATE_OFF, r.base + STACK_OFF, dataAddr, n) !== 0) {
+          return false;
+        }
         calls++;
       }
-      state.chunks = (i32[w + CHUNKS] >>> 0) + (i32[w + CHUNKS + 1] >>> 0) * TWO32;
+      const chunks = (i32[w + CHUNKS] >>> 0) + (i32[w + CHUNKS + 1] >>> 0) * TWO32;
       const s = (r.base + STACK_OFF) >> 2;
-      state.stack = [];
-      for (let i = 0; i < 8 * popcount(state.chunks); i++) {
-        state.stack.push(i32[s + i]);
+      const stack = [];
+      for (let i = 0; i < 8 * popcount(chunks); i++) {
+        stack.push(i32[s + i]);
       }
-    },
+      stackBytes = Math.max(stackBytes, 4 * stack.length);
+      state.chunks = chunks;
+      state.stack = stack;
+      return true;
+    } finally {
+      wipeScratch(r, stackBytes, dataBytes);
+    }
+  }
 
-    /** The first `bytes` output bytes of the hash whose last chunk is `tail`; `state` is not modified. */
-    finalize(state, init, tail, bytes) {
-      const r = usable(state);
-      if (r === null || tail.length > CHUNK) {
-        return fallback.finalize(state, init, tail, bytes);
-      }
-      const u8 = r.u8;
+  /**
+   * The output in wasm, or null when the module refused a call: the root parameters are
+   * only used after `blake3_root` succeeded in this call, and the output region of a
+   * refused call is not read. The output string is built before the scratch region (key
+   * words, stack, root parameters, last chunk, output) is zeroed, on every way out.
+   */
+  function wasmFinalize(r, state, init, tail, bytes) {
+    const u8 = r.u8;
+    // Bytes of the stack and of the data region (the tail, then the output) this call wrote.
+    let stackBytes = 0;
+    let dataBytes = 0;
+    try {
       putState(r, state, init);
+      stackBytes = 4 * state.stack.length;
       const dataAddr = r.base + DATA_OFF;
       const paramsAddr = r.base + OUT_OFF;
       for (let i = 0; i < tail.length; i++) {
         u8[dataAddr + i] = tail.charCodeAt(i);
       }
-      r.ex.blake3_root(r.base + STATE_OFF, r.base + STACK_OFF, dataAddr, tail.length, paramsAddr);
+      dataBytes = tail.length;
+      if (r.ex.blake3_root(r.base + STATE_OFF, r.base + STACK_OFF, dataAddr, tail.length, paramsAddr) !== 0) {
+        return null;
+      }
       calls++;
       // The tail is no longer needed: the output overwrites it.
       const perCall = Math.floor((r.cap - (DATA_OFF - INPUT_OFF)) / 64) * 64;
       let out = '';
       for (let pos = 0; pos < bytes; pos += perCall) {
         const n = Math.min(perCall, bytes - pos);
-        r.ex.blake3_xof(paramsAddr, pos / 64, dataAddr, n);
+        dataBytes = Math.max(dataBytes, n);
+        if (r.ex.blake3_xof(paramsAddr, pos / 64, dataAddr, n) !== 0) {
+          return null;
+        }
         calls++;
         for (let i = 0; i < n; i += 8192) {
           out += String.fromCharCode.apply(null, u8.subarray(dataAddr + i, dataAddr + Math.min(i + 8192, n)));
         }
       }
       return out;
+    } finally {
+      wipeScratch(r, stackBytes, dataBytes);
+    }
+  }
+
+  return {
+    name: 'wasm',
+
+    /**
+     * Add the first `nchunks` whole chunks of `message` to the tree in `state`.
+     * @throws {TypeError} for a state of the wrong shape
+     * @throws {RangeError} for more chunks than `message` holds, or a chunk count out of range
+     */
+    update(state, init, message, nchunks) {
+      checkState(state, init);
+      if (typeof message !== 'string') {
+        throw new TypeError('Blake3: the message must be a string');
+      }
+      if (!Number.isInteger(nchunks) || nchunks < 0 || nchunks * CHUNK > message.length) {
+        throw new RangeError('Blake3: cannot add ' + nchunks + ' chunks of a message of ' + message.length + ' bytes');
+      }
+      if (state.chunks + nchunks >= MAX_CHUNKS) {
+        throw new RangeError('Blake3: message too long');
+      }
+      const r = runtime();
+      // A refused call leaves `state` untouched; the plain-JavaScript engine then adds all the chunks.
+      if (r === null || !wasmUpdate(r, state, init, message, nchunks)) {
+        fallback.update(state, init, message, nchunks);
+      }
+    },
+
+    /**
+     * The first `bytes` output bytes of the hash whose last chunk is `tail`; `state` is not modified.
+     * @throws {TypeError} for a state of the wrong shape
+     * @throws {RangeError} for a tail that is not 1..1024 bytes (empty only when no chunk was added)
+     */
+    finalize(state, init, tail, bytes) {
+      checkState(state, init);
+      if (typeof tail !== 'string') {
+        throw new TypeError('Blake3: the last chunk must be a string');
+      }
+      if (tail.length > CHUNK) {
+        throw new RangeError('Blake3: the last chunk can be at most ' + CHUNK + ' bytes, got ' + tail.length);
+      }
+      if (tail.length === 0 && state.chunks !== 0) {
+        throw new RangeError('Blake3: state has finished chunks but no last chunk');
+      }
+      if (!Number.isSafeInteger(bytes) || bytes < 0) {
+        throw new RangeError('Blake3: the output length must be a non-negative integer, got ' + bytes);
+      }
+      const r = runtime();
+      const out = r === null ? null : wasmFinalize(r, state, init, tail, bytes);
+      return out !== null ? out : fallback.finalize(state, init, tail, bytes);
     },
 
     /** Test-only hooks; not public API. */

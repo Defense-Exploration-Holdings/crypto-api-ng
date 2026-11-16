@@ -1,4 +1,6 @@
-//! Export wrappers shared by BLAKE2b and BLAKE2s (see `src/hash/blake2.zig`):
+//! Export wrappers shared by BLAKE2b and BLAKE2s (see `src/hash/blake2.zig`), and by every
+//! other hasher whose core has the same shape (Tiger, Streebog, CRC-32, xxHash): a `State`,
+//! `block_len`, `digest_len`, `blocks(*State, data)` and `final(*const State, tail, *[digest_len]u8)`.
 //!
 //!     <prefix>_state_size() -> u32
 //!     <prefix>_blocks(state, data, len) -> status    len % block == 0, none final
@@ -7,8 +9,17 @@
 //! A family root calls `exportHasher` from a `comptime` block.
 
 const Status = @import("core").runtime.Status;
+const scrubStack = @import("common.zig").scrubStack;
+/// Twice the stack the deepest BLAKE2 frame leaves (about 576 bytes), measured with test/memory-wipe.test.js.
+const default_scrub_len = 1280;
 
 pub fn exportHasher(comptime prefix: []const u8, comptime Core: type) void {
+    exportHasherScrub(prefix, Core, default_scrub_len);
+}
+
+/// Like `exportHasher`, for a core whose frames are bigger: `scrub_len` is how many bytes of
+/// stack `scrubStack` clears after each call in release builds.
+pub fn exportHasherScrub(comptime prefix: []const u8, comptime Core: type, comptime scrub_len: usize) void {
     const invalid: i32 = @backingInt(Status.invalid_argument);
     const W = struct {
         fn stateSize() callconv(.c) u32 {
@@ -18,14 +29,16 @@ pub fn exportHasher(comptime prefix: []const u8, comptime Core: type) void {
             if (len % Core.block_len != 0) return invalid;
             const st: *Core.State = @ptrFromInt(state);
             const p: [*]const u8 = @ptrFromInt(data);
-            Core.blocks(st, p[0..len]);
+            defer scrubStack(scrub_len);
+            @call(.never_inline, Core.blocks, .{ st, p[0..len] });
             return 0;
         }
         fn final(state: u32, tail: u32, tail_len: u32, out: u32) callconv(.c) i32 {
             if (tail_len > Core.block_len) return invalid;
             const st: *const Core.State = @ptrFromInt(state);
             const p: [*]const u8 = @ptrFromInt(tail);
-            Core.final(st, p[0..tail_len], @ptrFromInt(out));
+            defer scrubStack(scrub_len);
+            @call(.never_inline, Core.final, .{ st, p[0..tail_len], @as(*[Core.digest_len]u8, @ptrFromInt(out)) });
             return 0;
         }
     };

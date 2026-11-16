@@ -218,6 +218,8 @@ pub fn Algo(comptime v: Variant) type {
         /// Mutates `st` the way the original `finalize()` mutates `this.state`.
         pub fn final(st: *State, out: *[digest_len]u8) void {
             var buf: [2 * block_len]u8 = undefined;
+            // The padded last block holds the message tail: do not leave it on the stack.
+            defer std.crypto.secureZero(u8, &buf);
             blocks(st, finalTail(st.buf[0..st.buffered], st.length, &buf));
             st.buffered = 0;
             @memset(&st.buf, 0);

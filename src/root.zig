@@ -22,6 +22,10 @@ pub const whirlpool = @import("hash/whirlpool.zig");
 pub const blake2 = @import("hash/blake2.zig");
 pub const blake3 = @import("hash/blake3.zig");
 pub const keccak = @import("hash/keccak.zig");
+pub const tiger = @import("hash/tiger.zig");
+pub const streebog = @import("hash/streebog.zig");
+pub const crc32 = @import("hash/crc32.zig");
+pub const xxhash = @import("hash/xxhash.zig");
 
 test {
     // Pull in tests from every module referenced above.

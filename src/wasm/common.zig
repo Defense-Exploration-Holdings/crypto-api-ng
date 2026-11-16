@@ -8,6 +8,8 @@
 //!
 //! so these exports are linked in.
 
+const std = @import("std");
+
 const runtime = @import("core").runtime;
 
 /// Fixed scratch region that the JS facade fills and drains. Layout (offsets
@@ -25,6 +27,24 @@ pub const input_off = 256;
 pub const input_cap = 64 * 1024;
 
 var scratch: [input_off + input_cap]u8 align(16) = undefined;
+
+/// Overwrite the stack area the callee's frames just used. The compression
+/// functions keep message words and working variables in their frames, which are
+/// dead but still readable after the call returns. Export wrappers `defer` this
+/// around each call that touches message bytes or hash words, so that nothing of
+/// them stays in linear memory after the call.
+///
+/// `release_len` is how many bytes below the caller to clear in release builds
+/// (twice what the deepest frame of the family needs, measured with
+/// test/memory-wipe.test.js); a debug build keeps every local in memory and
+/// clears 12 KiB. Call it from the export function itself, after the callee
+/// returned through `@call(.never_inline, ...)`, so that the callee's frames lie
+/// in the area this function's frame covers.
+pub noinline fn scrubStack(comptime release_len: usize) void {
+    const len = if (@import("builtin").mode == .debug) 12 * 1024 else release_len;
+    var pad: [len]u8 = undefined;
+    std.crypto.secureZero(u8, &pad);
+}
 
 export fn abi_version() u32 {
     return runtime.abi_version;

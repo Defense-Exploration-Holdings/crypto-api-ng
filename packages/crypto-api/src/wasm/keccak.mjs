@@ -2,7 +2,7 @@
 'use strict';
 
 import {wasmBytes} from "../../wasm/keccak.mjs";
-import {instantiate, STATE_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, STATE_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * Keccak-f[1600] for the SHA-3, SHAKE and Keccak hashers (src/hasher/sponge.mjs).
@@ -191,44 +191,71 @@ function loadState(hash, rate) {
   u32[(rt.base + STATE_OFF + POS_OFF) >> 2] = 0;
 }
 
+/**
+ * Absorb in wasm; false when the module refused a call (then `hash` is as it was). The scratch
+ * region is zeroed on every way out: it held the message bytes and the sponge.
+ */
 function wasmAbsorb(hash, message, total, rate) {
   const {u8, ex, base, cap} = rt;
   const st = base + STATE_OFF;
   const input = base + INPUT_OFF;
-  loadState(hash, rate);
-  const chunk = cap - cap % rate;
-  for (let pos = 0; pos < total;) {
-    const end = Math.min(pos + chunk, total);
-    for (let i = pos, o = input; i < end; i++, o++) u8[o] = message.charCodeAt(i);
-    ex.keccak_blocks(st, input, end - pos);
-    pos = end;
+  // Bytes of the input region this call wrote.
+  let used = 0;
+  try {
+    loadState(hash, rate);
+    const chunk = cap - cap % rate;
+    for (let pos = 0; pos < total;) {
+      const end = Math.min(pos + chunk, total);
+      for (let i = pos, o = input; i < end; i++, o++) u8[o] = message.charCodeAt(i);
+      if (end - pos > used) used = end - pos;
+      if (ex.keccak_blocks(st, input, end - pos) !== 0) return false;
+      pos = end;
+    }
+    wasmCalls++;
+    const w = st >> 2;
+    for (let k = 0; k < WORDS; k++) hash[k] = i32[w + k];
+    return true;
+  } finally {
+    wipe(u8, base, used);
   }
-  wasmCalls++;
-  const w = st >> 2;
-  for (let k = 0; k < WORDS; k++) hash[k] = i32[w + k];
 }
 
+/**
+ * Pad and squeeze in wasm; null when the module refused a call (nothing was read from its
+ * output). The result string is built before the scratch region (the sponge, the tail and the
+ * output, which is the digest) is zeroed, on every way out.
+ */
 function wasmFinish(hash, tail, rate, suffix, outBytes) {
   const {u8, ex, base, cap} = rt;
   const st = base + STATE_OFF;
   const tailPtr = base + TAIL_OFF;
   const out = base + OUT_OFF;
   const outCap = cap - 256;
-  loadState(hash, rate);
-  for (let i = 0; i < tail.length; i++) u8[tailPtr + i] = tail.charCodeAt(i);
-  let result = '';
-  for (let done = 0; done < outBytes || done === 0;) {
-    const n = Math.min(outCap, outBytes - done);
-    if (done === 0) ex.keccak_final(st, tailPtr, tail.length, suffix, out, n);
-    else ex.keccak_squeeze(st, out, n);
-    for (let i = 0; i < n; i += CHUNK) {
-      result += String.fromCharCode.apply(null, u8.subarray(out + i, out + Math.min(n, i + CHUNK)));
+  // Bytes of the input region this call wrote: the tail, then the output 256 bytes above it.
+  let used = 0;
+  try {
+    loadState(hash, rate);
+    for (let i = 0; i < tail.length; i++) u8[tailPtr + i] = tail.charCodeAt(i);
+    used = tail.length;
+    let result = '';
+    for (let done = 0; done < outBytes || done === 0;) {
+      const n = Math.min(outCap, outBytes - done);
+      used = Math.max(used, OUT_OFF - INPUT_OFF + n);
+      const status = done === 0 ?
+        ex.keccak_final(st, tailPtr, tail.length, suffix, out, n) :
+        ex.keccak_squeeze(st, out, n);
+      if (status !== 0) return null;
+      for (let i = 0; i < n; i += CHUNK) {
+        result += String.fromCharCode.apply(null, u8.subarray(out + i, out + Math.min(n, i + CHUNK)));
+      }
+      done += n;
+      if (n === 0) break;
     }
-    done += n;
-    if (n === 0) break;
+    wasmCalls++;
+    return result;
+  } finally {
+    wipe(u8, base, used);
   }
-  wasmCalls++;
-  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -236,21 +263,52 @@ function wasmFinish(hash, tail, rate, suffix, outBytes) {
 // ---------------------------------------------------------------------------
 
 /**
+ * Check what the sponge functions need of a hasher's state: a valid rate and
+ * 50 integer words. Both engines refuse the same states.
+ *
+ * @param {number[]} hash - 50 int32 words, the sponge state
+ * @param {number} rate - block size in bytes
+ * @throws {TypeError} when `rate` is not a number or `hash` is not an array of 50 integers
+ * @throws {RangeError} when `rate` is not a multiple of 8 from 8 to 192
+ */
+export function checkState(hash, rate) {
+  if (typeof rate !== 'number') {
+    throw new TypeError('Sponge: block size must be a number, got ' + typeof rate);
+  }
+  if (!Number.isInteger(rate) || rate < 8 || rate > 192 || rate % 8 !== 0) {
+    throw new RangeError('Sponge: block size must be a multiple of 8 from 8 to 192, got ' + rate);
+  }
+  if (!Array.isArray(hash) || hash.length !== WORDS) {
+    throw new TypeError('Sponge: state.hash must be an array of ' + WORDS + ' integers');
+  }
+  for (let i = 0; i < WORDS; i++) {
+    if (!Number.isInteger(hash[i])) {
+      throw new TypeError('Sponge: state.hash must be an array of ' + WORDS + ' integers');
+    }
+  }
+}
+
+/**
  * Absorb the first `total` characters of `message` (a multiple of `rate`)
- * into `hash`, in place.
+ * into `hash`, in place. The caller has run `checkState()`.
  *
  * @param {number[]} hash - 50 int32 words, the sponge state
  * @param {string} message - binary string
  * @param {number} total
  * @param {number} rate - block size in bytes
+ * @throws {RangeError} when `total` is not a multiple of `rate` within `message`
  */
 export function absorb(hash, message, total, rate) {
-  if (runtime()) wasmAbsorb(hash, message, total, rate);
-  else jsAbsorb(hash, message, total, rate);
+  if (!Number.isInteger(total) || total < 0 || total > message.length || total % rate !== 0) {
+    throw new RangeError('Sponge: the absorbed length must be a multiple of the block size within the message, got ' + total);
+  }
+  // A refused wasm call leaves `hash` as it was, and the JavaScript engine does the work.
+  if (!runtime() || !wasmAbsorb(hash, message, total, rate)) jsAbsorb(hash, message, total, rate);
 }
 
 /**
  * Pad `tail` (shorter than `rate`), permute and squeeze. Does not change `hash`.
+ * The caller has run `checkState()`.
  *
  * @param {number[]} hash - 50 int32 words, the sponge state
  * @param {string} tail - binary string, shorter than `rate`
@@ -258,11 +316,20 @@ export function absorb(hash, message, total, rate) {
  * @param {number} suffix - domain suffix byte (0x06 SHA-3, 0x1f SHAKE, 0x01 Keccak)
  * @param {number} outBytes - digest length in bytes
  * @returns {string} binary string
+ * @throws {RangeError} for a tail of `rate` bytes or more, a suffix outside 1..127 or an invalid length
  */
 export function finish(hash, tail, rate, suffix, outBytes) {
-  return runtime() ?
-    wasmFinish(hash, tail, rate, suffix, outBytes) :
-    jsFinish(hash, tail, rate, suffix, outBytes);
+  if (tail.length >= rate) {
+    throw new RangeError('Sponge: the last block must be shorter than the block size, got ' + tail.length + ' bytes');
+  }
+  if (!Number.isInteger(suffix) || suffix < 1 || suffix > 0x7f) {
+    throw new RangeError('Sponge: the domain suffix must be an integer from 1 to 127, got ' + suffix);
+  }
+  if (!Number.isSafeInteger(outBytes) || outBytes < 0) {
+    throw new RangeError('Sponge: the output length must be a non-negative integer, got ' + outBytes);
+  }
+  const wasm = runtime() ? wasmFinish(hash, tail, rate, suffix, outBytes) : null;
+  return wasm !== null ? wasm : jsFinish(hash, tail, rate, suffix, outBytes);
 }
 
 /**
