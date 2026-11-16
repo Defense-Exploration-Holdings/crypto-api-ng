@@ -1,0 +1,53 @@
+{
+  "name": "@defense-exploration/crypto-api-ng",
+  "version": "1.2.1",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./blake2b": "./src/hasher/blake2b.mjs",
+    "./blake2s": "./src/hasher/blake2s.mjs",
+    "./blake3": "./src/hasher/blake3.mjs",
+    "./has160": "./src/hasher/has160.mjs",
+    "./keccak": "./src/hasher/keccak.mjs",
+    "./md2": "./src/hasher/md2.mjs",
+    "./md4": "./src/hasher/md4.mjs",
+    "./md5": "./src/hasher/md5.mjs",
+    "./ripemd": "./src/hasher/ripemd.mjs",
+    "./sha0": "./src/hasher/sha0.mjs",
+    "./sha1": "./src/hasher/sha1.mjs",
+    "./sha256": "./src/hasher/sha256.mjs",
+    "./sha3": "./src/hasher/sha3.mjs",
+    "./sha512": "./src/hasher/sha512.mjs",
+    "./shake": "./src/hasher/shake.mjs",
+    "./sm3": "./src/hasher/sm3.mjs",
+    "./snefru": "./src/hasher/snefru.mjs",
+    "./whirlpool": "./src/hasher/whirlpool.mjs",
+    "./tiger": "./src/hasher/tiger.mjs",
+    "./tiger2": "./src/hasher/tiger2.mjs",
+    "./streebog": "./src/hasher/streebog.mjs",
+    "./crc32": "./src/hasher/crc32.mjs",
+    "./crc32c": "./src/hasher/crc32c.mjs",
+    "./xxhash32": "./src/hasher/xxhash32.mjs",
+    "./xxhash64": "./src/hasher/xxhash64.mjs",
+    "./hmac": "./src/mac/hmac.mjs",
+    "./pbkdf2": "./src/kdf/pbkdf2.mjs",
+    "./hkdf": "./src/kdf/hkdf.mjs",
+    "./encoder/hex": "./src/encoder/hex.mjs",
+    "./encoder/base64": "./src/encoder/base64.mjs",
+    "./encoder/utf": "./src/encoder/utf.mjs",
+    "./encoder/bytes": "./src/encoder/bytes.mjs",
+    "./encoder/array-buffer": "./src/encoder/array-buffer.mjs"
+  },
+  "publish": {
+    "include": [
+      "src/**/*.mjs",
+      "src/**/*.d.mts",
+      "legacy/**/*.mjs",
+      "wasm/**/*.mjs",
+      "README.md",
+      "LICENSE",
+      "CHANGELOG.md",
+      "jsr.json"
+    ]
+  }
+}

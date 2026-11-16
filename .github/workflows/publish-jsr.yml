@@ -1,0 +1,190 @@
+name: Publish to JSR
+# Publishes a release of packages/crypto-api to JSR (jsr.io) as @defense-exploration/crypto-api-ng. Manual: Actions ->
+# Publish to JSR -> Run workflow (branch main), giving an existing release tag such as v1.2.1.
+#
+# Two jobs, like publish.yml, so that nothing that installs or runs third-party code can publish:
+#
+#   build    Builds the WebAssembly modules from the tag, stages the package (scripts/build-jsr.mjs), runs
+#            `deno publish --dry-run` (which includes the slow-types check) and a smoke test, and uploads the staged
+#            directory as a tarball with its SHA-256. Read-only token, no environment, no OIDC token.
+#   publish  Downloads the tarball, verifies the SHA-256 and runs `deno publish`. This is the only job that holds the
+#            OIDC token. It does not check out the repository, build anything or run any code of the package.
+#
+# JSR trusted publishing (GitHub OIDC): no token is stored anywhere. The package on jsr.io is linked once to the
+# repository (package Settings -> GitHub Repository: Defense-Exploration-Holdings/crypto-api-ng); after that
+# `deno publish` in GitHub Actions authenticates with the job's OIDC token. The GitHub environment `jsr` is created by
+# the first run; add required reviewers or a deployment branch rule (main) there to gate the `publish` job.
+#
+# The release tag is built as it is (the tag is never moved), but the staging script and the JSR settings
+# (packages/crypto-api/jsr.json) come from the checkout this workflow runs from (main), so a release made
+# before JSR support existed can be published too. The version, the license and the entry points always come from
+# the tag's package.json. A published JSR version cannot be changed or reused.
+#
+# Pinned by hand: Deno (installed from npm, exact version). Actions are pinned by commit and updated by Dependabot.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to publish, for example v1.2.3"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jsr-publish
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Only the public repository is linked to the JSR package; elsewhere the jobs are skipped.
+    if: github.repository == 'Defense-Exploration-Holdings/crypto-api-ng' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
+    steps:
+      - name: Check the release tag format
+        run: |
+          # Strict on purpose: git allows characters such as $ ( ) ; and ` in tag names.
+          re='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+          if [[ ! "$RELEASE_TAG" =~ $re ]]; then
+            shown="${RELEASE_TAG//[^0-9A-Za-z._-]/?}" # never echo raw input into workflow commands
+            echo "::error::'$shown' is not a release tag such as v1.2.3 or v1.2.3-rc.1"
+            exit 1
+          fi
+      - name: Check out the tooling (this workflow's own commit)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: tools
+          persist-credentials: false
+      - name: Check out the release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          path: release
+          persist-credentials: false
+
+      - name: Check the tag matches the package version
+        id: version
+        run: |
+          version="$(node -p "require('./release/packages/crypto-api/package.json').version")"
+          if [ "v$version" != "$RELEASE_TAG" ]; then
+            echo "::error::tag $RELEASE_TAG does not match packages/crypto-api/package.json version $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: release/.nvmrc
+      - name: Install Zig
+        working-directory: release
+        run: |
+          scripts/install-zig.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install Deno (npm package, exact version, no install scripts)
+        run: npm install -g --ignore-scripts deno@2.9.6
+
+      - name: Build the WebAssembly modules of the tag (the shipped mode)
+        working-directory: release
+        run: zig build js --release=small
+
+      - name: Stage the package
+        run: |
+          node tools/scripts/build-jsr.mjs --out "$RUNNER_TEMP/jsr" \
+            --package-root release/packages/crypto-api --config tools/packages/crypto-api/jsr.json
+      - name: Dry run (publish checks, slow types)
+        working-directory: ${{ runner.temp }}/jsr
+        run: deno publish --dry-run
+      - name: Smoke test the staged files in Deno
+        run: |
+          cat > "$RUNNER_TEMP/smoke.mjs" <<'EOF'
+          import Sha256 from "./jsr/src/hasher/sha256.mjs";
+          import Blake3 from "./jsr/src/hasher/blake3.mjs";
+          import CryptoApi from "./jsr/src/index.mjs";
+          const want = {
+            sha256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            blake3: "6437b3ac38465133ffb63b75273a8db548c558465d79db03fd359c6cd5bd9d85",
+          };
+          const sha = new Sha256(); sha.update("abc");
+          const b3 = new Blake3(); b3.update("abc");
+          const got = { sha256: sha.digest("hex"), blake3: b3.digest("hex") };
+          for (const k of Object.keys(want)) {
+            if (got[k] !== want[k] || CryptoApi.hash(k, "abc") !== want[k]) { console.error("mismatch", k, got[k]); Deno.exit(1); }
+          }
+          console.log("ok");
+          EOF
+          cd "$RUNNER_TEMP" && deno run --no-prompt smoke.mjs
+
+      - name: Pack the staged directory
+        id: pack
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir upload
+          tar --sort=name --owner=0 --group=0 --numeric-owner --mtime=@0 -C "$RUNNER_TEMP/jsr" -cf - . | gzip -n > "upload/jsr-package-$VERSION.tgz"
+          cd upload
+          sha256sum "jsr-package-$VERSION.tgz" | tee "jsr-package-$VERSION.tgz.sha256"
+          echo "sha256=$(cut -d' ' -f1 "jsr-package-$VERSION.tgz.sha256")" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: jsr-package
+          path: upload/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: github.repository == 'Defense-Exploration-Holdings/crypto-api-ng' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: jsr
+    permissions:
+      id-token: write # OIDC token for JSR; the job has no other permission
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+      EXPECTED_SHA256: ${{ needs.build.outputs.sha256 }}
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22" # same major as .nvmrc; there is no checkout in this job
+      - name: Install Deno (npm package, exact version, no install scripts)
+        run: npm install -g --ignore-scripts deno@2.9.6
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: jsr-package
+          path: release
+
+      - name: Verify and unpack the package
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "::error::bad version"; exit 1; }
+          [[ "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "::error::bad checksum from the build job"; exit 1; }
+          cd release
+          tarball="jsr-package-$VERSION.tgz"
+          [ "$(ls | sort | tr '\n' ' ')" = "$tarball $tarball.sha256 " ] || { echo "::error::unexpected files in the artifact"; ls -la; exit 1; }
+          sha256sum -c "$tarball.sha256"
+          [ "$(sha256sum "$tarball" | cut -d' ' -f1)" = "$EXPECTED_SHA256" ] || { echo "::error::tarball differs from the checksum the build job reported"; exit 1; }
+          if tar -tzf "$tarball" | grep -E '(^/|(^|/)\.\.(/|$))'; then echo "::error::unsafe path in the tarball"; exit 1; fi
+          mkdir ../package
+          tar -xzf "$tarball" -C ../package --no-same-owner --no-same-permissions
+          cd ../package
+          node -e '
+            const j = JSON.parse(require("fs").readFileSync("jsr.json", "utf8"));
+            if (j.version !== process.env.VERSION || !/^@[a-z0-9-]+\/[a-z0-9-]+$/.test(j.name)) {
+              console.error("::error::jsr.json does not match", j.name, j.version);
+              process.exit(1);
+            }
+            console.log("publishing " + j.name + "@" + j.version);'
+
+      - name: Publish
+        working-directory: package
+        run: deno publish
