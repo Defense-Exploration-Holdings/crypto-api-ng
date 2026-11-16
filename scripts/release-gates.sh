@@ -42,8 +42,8 @@ for mode in $modes; do
   run "$mode" embed zig build js "${flag[@]}"
   run "$mode" check zig build check "${flag[@]}"
   run "$mode" parity npm run test:parity
-  # The package size budget is for the shipped wasm; debug and safe builds are several MB.
-  budget=0; case "$mode" in debug|safe) budget=1 ;; esac
+  # The package size budget is for the shipped wasm (--release=small, see publish.yml); the other modes are larger.
+  budget=0; case "$mode" in small) ;; *) budget=1 ;; esac
   run "$mode" package env CRYPTO_API_SKIP_SIZE_BUDGET=$budget npm run test:package
 done
 
