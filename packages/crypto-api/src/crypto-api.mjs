@@ -31,6 +31,8 @@ import {fromArrayBuffer} from "./encoder/array-buffer.mjs";
 import {toHex} from "./encoder/hex.mjs";
 import {toBase64} from "./encoder/base64.mjs";
 import Hmac from "./mac/hmac.mjs";
+import Pbkdf2 from "./kdf/pbkdf2.mjs";
+import Hkdf from "./kdf/hkdf.mjs";
 import {toBinaryString} from "./tools/input.mjs";
 
 /**
@@ -43,6 +45,27 @@ import {toBinaryString} from "./tools/input.mjs";
  */
 function utfOrBytes(value, what) {
   return typeof value === 'string' ? fromUtf(value) : toBinaryString(value, what);
+}
+
+/**
+ * A copy of own `options` in which the byte options named in `keys` that are strings
+ * are UTF-8 encoded. Anything that is not a plain options object goes through as it
+ * is, for the class to reject.
+ *
+ * @ignore
+ * @param {Object|undefined} options
+ * @param {string[]} keys
+ * @returns {Object|undefined}
+ */
+function utfOptions(options, keys) {
+  if (options === null || typeof options !== 'object') {
+    return options;
+  }
+  const copy = {};
+  for (const key of Object.keys(options)) {
+    copy[key] = keys.indexOf(key) !== -1 && typeof options[key] === 'string' ? fromUtf(options[key]) : options[key];
+  }
+  return copy;
 }
 
 /**
@@ -275,6 +298,35 @@ class CryptoApi {
     let mac = this.getHmac(utfOrBytes(key, 'key'), hasher);
     mac.update(utfOrBytes(message, 'message'));
     return toHex(mac.finalize());
+  }
+
+  /**
+   * PBKDF2 key derivation with HMAC over `hasher`, result in hex. A string password
+   * or `options.salt` is UTF-8 encoded; bytes are used as they are. Not in 0.8.5.
+   *
+   * @param {string|ArrayBuffer|ArrayBufferView} password
+   * @param {Hasher} hasher
+   * @param {{iterations: number, salt: (string|ArrayBuffer|ArrayBufferView), length: number}} options -
+   *   `iterations` is required, `length` is in bits
+   * @returns {string}
+   */
+  pbkdf2(password, hasher, options) {
+    return toHex(new Pbkdf2(utfOrBytes(password, 'password'), hasher, utfOptions(options, ['salt'])).finalize());
+  }
+
+  /**
+   * HKDF key derivation with HMAC over `hasher`, result in hex. A string `ikm`,
+   * `options.salt` or `options.info` is UTF-8 encoded; bytes are used as they are.
+   * Not in 0.8.5.
+   *
+   * @param {string|ArrayBuffer|ArrayBufferView} ikm - input key material
+   * @param {Hasher} hasher
+   * @param {{salt: (string|ArrayBuffer|ArrayBufferView), info: (string|ArrayBuffer|ArrayBufferView), length: number}} [options] -
+   *   `length` is in bits
+   * @returns {string}
+   */
+  hkdf(ikm, hasher, options) {
+    return toHex(new Hkdf(utfOrBytes(ikm, 'ikm'), hasher, utfOptions(options, ['salt', 'info'])).finalize());
   }
 }
 

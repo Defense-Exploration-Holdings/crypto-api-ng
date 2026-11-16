@@ -19,6 +19,8 @@ CryptoApi.hash('sha256', 'abc');
 | `getHasher(name, options?)` | a hasher | `undefined` for an unknown `name`. Names are in the table below. |
 | `hmac(key, message, hasher)` | hex string | `key` and `message` are UTF-8 encoded if they are strings, bytes otherwise. |
 | `getHmac(key, hasher)` | an `Hmac` | `key` is a binary string or bytes (not UTF-8 encoded). |
+| `pbkdf2(password, hasher, options)` | hex string | PBKDF2 key derivation, see [Key derivation](#key-derivation). Strings are UTF-8 encoded. |
+| `hkdf(ikm, hasher, options?)` | hex string | HKDF key derivation. Strings are UTF-8 encoded. |
 | `encoder` | object | `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64`. |
 
 ### Algorithm names
@@ -173,6 +175,59 @@ console.log(toHex(mac.finalize()));
 
 Compare MAC values in constant time (`crypto.timingSafeEqual` in Node.js), not with `===`. An `Hmac` object keeps key-derived state in memory for as long as it exists. See "Security notes" in the [package README](../packages/crypto-api/README.md) and [SECURITY.md](../SECURITY.md).
 
+## Key derivation
+
+PBKDF2 ([RFC 8018](https://www.rfc-editor.org/rfc/rfc8018#section-5.2)) and HKDF ([RFC 5869](https://www.rfc-editor.org/rfc/rfc5869)) are not in `crypto-api` 0.8.5. Both run HMAC over any hasher of the library, built on `Hmac`, and follow the same conventions as the rest of the package: a `new` class per use, binary strings or bytes in and a binary string out, and `length` in bits.
+
+```javascript
+import Sha256 from "crypto-api-ng/src/hasher/sha256.mjs";
+import Pbkdf2 from "crypto-api-ng/src/kdf/pbkdf2.mjs";
+import Hkdf from "crypto-api-ng/src/kdf/hkdf.mjs";
+import {toHex} from "crypto-api-ng/src/encoder/hex.mjs";
+import {fromUtf} from "crypto-api-ng/src/encoder/utf.mjs";
+
+// A key from a password: 32 bytes, 600000 iterations
+const key = new Pbkdf2(fromUtf('correct horse'), new Sha256(), {salt: salt, iterations: 600000, length: 256}).finalize();
+
+// Several keys from one secret
+const kdf = new Hkdf(sharedSecret, new Sha256(), {salt: salt});
+const encryptionKey = kdf.expand('my-app encryption', 256);
+const macKey = kdf.expand('my-app mac', 256);
+
+// Or in one call, with hex output and UTF-8 encoding of strings
+CryptoApi.pbkdf2('correct horse', CryptoApi.getHasher('sha256'), {salt: 'salt', iterations: 600000});
+CryptoApi.hkdf('secret', CryptoApi.getHasher('sha256'), {salt: 'salt', info: 'my-app', length: 512});
+```
+
+`new Pbkdf2(password, hasher, options)`
+
+| Option | Meaning |
+|---|---|
+| `iterations` | Required: an integer from 1 to 4294967295. There is no default, because no count is safe for every machine; OWASP advised 600000 for HMAC-SHA-256 and 210000 for HMAC-SHA-512 in 2023. |
+| `salt` | Binary string or bytes. Default empty; use a random salt of at least 16 bytes per password. |
+| `length` | Size of the key in bits, a multiple of 8 up to 4294967295 digests. Default: the digest size of the hasher. |
+
+`finalize()` returns the key as a binary string and can be called again. The work happens in `finalize()`, not in the constructor.
+
+`new Hkdf(ikm, hasher, options?)` runs the extract step right away.
+
+| Option or method | Meaning |
+|---|---|
+| `salt` | Binary string or bytes. Default empty, which is what RFC 5869 defines as a salt of zero bytes the size of the digest. |
+| `info` | Context for `finalize()`, binary string or bytes. Default empty. |
+| `length` | Size of the output of `finalize()` in bits, a multiple of 8 up to 255 digests. Default: the digest size of the hasher. |
+| `extract()` | The pseudorandom key (PRK) of the extract step, as a binary string. |
+| `expand(info?, length?)` | HKDF-Expand with another `info` and `length`: keys for different purposes from one extract step. |
+| `finalize()` | HKDF-Expand with the `info` and `length` options. Can be called again. |
+
+Notes:
+
+- The password, key material, salt and `info` are binary strings or bytes like the key of `Hmac`: a string with a character above `\xFF` throws, so encode text with `fromUtf()`. `CryptoApi.pbkdf2()` and `CryptoApi.hkdf()` do that for strings, like `CryptoApi.hmac()`.
+- The hasher passed in is not modified, and data already in it is ignored (`Hmac` uses fresh copies). The digest size comes from the hasher, so `new Sha512({length: 256})` gives 32-byte blocks. Any hasher works, including keyed BLAKE2 and SHAKE, but the standards only define the construction over the usual hash functions.
+- Options are read as own properties only, as for the hashers, and the object you pass is not modified. A name that is not an option of the class (for example a misspelled `salt`) throws `TypeError` instead of deriving an unsalted key.
+- Speed: every iteration is one HMAC in JavaScript around the WebAssembly compression function, about 6 microseconds for SHA-256 on a current machine (600000 iterations take a few seconds). Use [`crypto.subtle.deriveBits`](https://developer.mozilla.org/docs/Web/API/SubtleCrypto/deriveBits) or `node:crypto` where you only need SHA-1/2 and want the platform's speed; use these classes for the algorithms the platform does not have (SM3, BLAKE2, RIPEMD, Whirlpool) or when one code path must work everywhere.
+- Verified against RFC 6070, RFC 7914 and RFC 5869 and, for the digests it has, `node:crypto`.
+
 ## Encoders
 
 Each is its own module under `src/encoder/` with a named export, and also available as `CryptoApi.encoder.<name>`.
@@ -188,8 +243,8 @@ Each is its own module under `src/encoder/` with a named export, and also availa
 
 | Thrown | When |
 |---|---|
-| `TypeError` | `update()` (or an `Hmac` key or message) is not a string or bytes, or is a string with a character above `\xFF`; an option that is not a number. |
-| `RangeError` | An option value outside the supported set (table above). |
+| `TypeError` | `update()` (or an `Hmac` key or message) is not a string or bytes, or is a string with a character above `\xFF`; an option that is not a number. `Pbkdf2` and `Hkdf`: the same for the password, key material, `salt` and `info`, plus a missing `iterations`, a non-object `options` and an unknown option name. |
+| `RangeError` | An option value outside the supported set (table above). `Pbkdf2` and `Hkdf`: `iterations` or `length` outside the ranges above. |
 
 ## Compatibility notes
 

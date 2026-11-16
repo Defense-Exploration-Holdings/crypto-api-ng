@@ -53,7 +53,7 @@ The extensionless paths of 0.8.5 (`crypto-api-ng/src/hasher/sha256`) still resol
 
 ### TypeScript
 
-The package ships its own declarations; nothing extra to install. They cover the `CryptoApi` object (`import CryptoApi = require("crypto-api-ng")` or `import CryptoApi from "crypto-api-ng/src/index.mjs"`), every hasher class, `Hmac` and the encoders, with the option ranges of each algorithm typed.
+The package ships its own declarations; nothing extra to install. They cover the `CryptoApi` object (`import CryptoApi = require("crypto-api-ng")` or `import CryptoApi from "crypto-api-ng/src/index.mjs"`), every hasher class, `Hmac`, `Pbkdf2`, `Hkdf` and the encoders, with the option ranges of each algorithm typed.
 
 ```typescript
 import Sha256 from "crypto-api-ng/src/hasher/sha256.mjs";
@@ -102,8 +102,9 @@ Where WebAssembly is missing or blocked (a page whose Content-Security-Policy la
 * Hashing: HAS-160, MD2, MD4, MD5, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512, SHA-512/224, SHA-512/256, SM3, Snefru v2.0 and v2.5, WHIRLPOOL, WHIRLPOOL-0, WHIRLPOOL-T
 * Added in this package: SHA3-224/256/384/512, SHAKE128/256, Keccak-224/256/384/512, BLAKE2b, BLAKE2s, BLAKE3, Tiger, Tiger2, Streebog-256/512, and the checksums CRC-32, CRC-32C, XXH32, XXH64
 * MAC: HMAC (`src/mac/hmac.mjs`, works with any hasher object, including your own)
+* Key derivation: PBKDF2 (`src/kdf/pbkdf2.mjs`) and HKDF (`src/kdf/hkdf.mjs`), over HMAC with any hasher
 * Encodings: `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64`
-* The `CryptoApi` object: `getHasher`, `hash`, `getHmac`, `hmac`, `encoder`
+* The `CryptoApi` object: `getHasher`, `hash`, `getHmac`, `hmac`, `pbkdf2`, `hkdf`, `encoder`
 
 The full API, with options, errors and examples, is in the [API reference](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/api.md). All of the algorithms run their compression function in WebAssembly, with the original JavaScript as the fallback.
 
