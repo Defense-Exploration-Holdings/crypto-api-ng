@@ -1,6 +1,6 @@
 {
   "name": "crypto-api-ng",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Hashing library with no dependencies: maintained Zig/WebAssembly port of crypto-api",
   "private": true,
   "license": "MIT",

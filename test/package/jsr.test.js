@@ -91,6 +91,17 @@ describe('staged JSR package', () => {
     assert.ok(!/warning\[|error\[/.test(r.stderr + r.stdout), r.stderr + r.stdout);
   });
 
+  it('has a module doc on every entry point and no undocumented exported symbol', { skip: DENO ? false : 'deno is not installed' }, () => {
+    const entries = Object.values(jsr.exports).map((f) => join(out, f));
+    for (const file of entries) {
+      const decl = readFileSync(file.replace(/\.mjs$/, '.d.mts'), 'utf8');
+      assert.match(decl, /^\/\*\*[\s\S]*?@module[\s\S]*?\*\//, `${file}: no module doc`);
+    }
+    const r = spawnSync(DENO, ['doc', '--lint', ...entries], { cwd: out, encoding: 'utf8', env: { ...process.env, NO_COLOR: '1' } });
+    const missing = (r.stderr + r.stdout).match(/missing-jsdoc[\s\S]*?-->.*/g) || [];
+    assert.deepEqual(missing, []);
+  });
+
   it('hashes in Deno', { skip: DENO ? false : 'deno is not installed' }, () => {
     const code = `import S from ${JSON.stringify('file://' + join(out, 'src/hasher/sha256.mjs'))};
       const h = new S(); h.update('abc'); console.log(h.digest('hex'));`;

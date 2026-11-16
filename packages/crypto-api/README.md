@@ -10,6 +10,16 @@ Hashing library for JavaScript with no dependencies: a maintained port of [`cryp
 npm install crypto-api-ng
 ```
 
+On Deno, from [JSR](https://jsr.io/@defense-exploration/crypto-api-ng):
+
+```sh
+deno add jsr:@defense-exploration/crypto-api-ng
+```
+
+```javascript
+import Sha256 from "@defense-exploration/crypto-api-ng/sha256";
+```
+
 ## Use
 
 ### Node.js (CommonJS)
@@ -147,7 +157,7 @@ console.log(toHex(hasher.finalize()));
 `crypto-api.min.js` (and the unminified `crypto-api.js`) is a UMD build in ES5 syntax that defines the global `CryptoApi`. The WebAssembly modules are embedded, so it is a single file. Load it from your own server or a CDN that mirrors npm. Pin the version in the URL and add an `integrity` attribute, so that the browser rejects a file that differs from the one you checked:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng@1.2.1/crypto-api.min.js"
+<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng@1.2.2/crypto-api.min.js"
         integrity="sha384-HASH_OF_THE_FILE"
         crossorigin="anonymous"></script>
 <script>

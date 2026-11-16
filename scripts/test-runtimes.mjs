@@ -2,7 +2,7 @@
 //
 //   node scripts/test-runtimes.mjs                          every runtime found on PATH (node is the control)
 //   node scripts/test-runtimes.mjs --runtime bun,deno       only these
-//   node scripts/test-runtimes.mjs --tarball dist/crypto-api-ng-1.2.1.tgz --runtime deno
+//   node scripts/test-runtimes.mjs --tarball dist/crypto-api-ng-1.2.2.tgz --runtime deno
 //
 // Needs the embedded wasm (`zig build js --release=small`). Without --tarball it builds and packs the package first.
 //
