@@ -4,7 +4,7 @@
 import LegacyHas160 from "../../legacy/hasher/has160.mjs";
 import {wasmBytes} from "../../wasm/has160.mjs";
 import {Engine, BLOCK, accelProcess, accelFinalize} from "../wasm/le32.mjs";
-import {checkOptions} from "../tools/input.mjs";
+import {prepareOptions} from "../tools/input.mjs";
 
 /*
  * HAS-160 with the compression and padding done in wasm, and everything else
@@ -44,6 +44,12 @@ function roundsOf(options) {
 const OPTIONS = {rounds: {min: 1, max: 80}};
 
 /**
+ * What the original constructor assigns when an option is missing, in its order
+ * (see `explicitOptions` in tools/input.mjs).
+ */
+const DEFAULTS = {rounds: 80};
+
+/**
  * Calculates HAS-160 hash. Same API, output and `getState()` JSON as
  * crypto-api 0.8.5; see legacy/hasher/has160.mjs for the original
  * documentation and examples.
@@ -54,8 +60,7 @@ class Has160 extends LegacyHas160 {
    */
   constructor(options) {
     // Spelled out so `Has160.length` is 1, as in 0.8.5.
-    checkOptions('Has160', options, OPTIONS);
-    super(options);
+    super(prepareOptions('Has160', options, OPTIONS, DEFAULTS));
   }
 
   /**

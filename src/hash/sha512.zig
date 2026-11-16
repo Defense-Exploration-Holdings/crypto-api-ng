@@ -222,6 +222,8 @@ pub fn update(st: *State, data: []const u8) void {
 pub fn final(st: *State, out: *[digest_len]u8) void {
     std.debug.assert(st.buffered < block_len);
     var buf: [2 * block_len]u8 = undefined;
+    // The padded last block holds the message tail: do not leave it on the stack.
+    defer std.crypto.secureZero(u8, &buf);
     blocks(st, finalTail(st.buf[0..st.buffered], st.length, &buf));
     st.buffered = 0;
     @memset(&st.buf, 0);

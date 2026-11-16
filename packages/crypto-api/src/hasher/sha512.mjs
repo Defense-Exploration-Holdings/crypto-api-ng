@@ -4,7 +4,7 @@
 import LegacySha512 from "../../legacy/hasher/sha512.mjs";
 import {wasmBytes} from "../../wasm/sha512.mjs";
 import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
-import {checkOptions} from "../tools/input.mjs";
+import {prepareOptions} from "../tools/input.mjs";
 
 /*
  * SHA-384, SHA-512, SHA-512/224 and SHA-512/256 with the compression and
@@ -66,8 +66,38 @@ const IV_256 = [
 const baseReset = Object.getPrototypeOf(LegacySha512.prototype).reset;
 const ORIGINAL_RESET = LegacySha512.prototype.reset;
 
+/**
+ * The initial hash words the original `reset()` derives for any other SHA-512/t:
+ * a SHA-512 (with the IV xor 0xa5a5a5a5) of "SHA-512/<t>". The original builds
+ * that inner hasher with `new Sha512()`, which reads `rounds` and `length`
+ * through `Object.prototype`; the options are explicit here.
+ */
+function ivFor(length) {
+  const hasher = new LegacySha512({length: 512, rounds: 160});
+  for (let i = 0; i < 16; i++) {
+    hasher.state.hash[i] = hasher.state.hash[i] ^ 0xa5a5a5a5;
+  }
+  hasher.update('SHA-512/' + length);
+  const hash = hasher.finalize();
+  const words = [];
+  for (let b = 0; b < 64; b += 4) {
+    words.push(
+      hash.charCodeAt(b) << 24 |
+      hash.charCodeAt(b + 1) << 16 |
+      hash.charCodeAt(b + 2) << 8 |
+      hash.charCodeAt(b + 3));
+  }
+  return words;
+}
+
 /** Supported `rounds`/`length` values (1.1 rejects the rest). */
 const OPTIONS = {length: {min: 32, max: 512, step: 32}, rounds: {min: 1, max: 160}};
+
+/**
+ * What the original constructor assigns when an option is missing, in its order
+ * (see `explicitOptions` in tools/input.mjs).
+ */
+const DEFAULTS = {length: 512, rounds: 160};
 
 /**
  * Calculates SHA-384/512, SHA-512/224 and SHA-512/256 hash
@@ -78,8 +108,7 @@ class Sha512 extends LegacySha512 {
    */
   constructor(options) {
     // Explicit, so `Sha512.length === 1` like the original (an implicit one has length 0).
-    checkOptions('Sha512', options, OPTIONS);
-    super(options);
+    super(prepareOptions('Sha512', options, OPTIONS, DEFAULTS));
   }
 
   /**
@@ -88,13 +117,20 @@ class Sha512 extends LegacySha512 {
   reset() {
     const options = this.options;
     const length = options !== null && typeof options === 'object' ? options.length : 0;
-    if ((length === 224 || length === 256) && LegacySha512.prototype.reset === ORIGINAL_RESET) {
-      // Same state the original builds, without hashing "SHA-512/<length>" to find the IV.
-      baseReset.call(this);
-      this.state.hash = (length === 224 ? IV_224 : IV_256).slice();
-    } else {
-      super.reset();
+    if (LegacySha512.prototype.reset === ORIGINAL_RESET && options !== null && typeof options === 'object') {
+      if (length === 224 || length === 256) {
+        // Same state the original builds, without hashing "SHA-512/<length>" to find the IV.
+        baseReset.call(this);
+        this.state.hash = (length === 224 ? IV_224 : IV_256).slice();
+        return;
+      }
+      if (length !== 384 && length !== 512) {
+        baseReset.call(this);
+        this.state.hash = ivFor(length);
+        return;
+      }
     }
+    super.reset();
   }
 
   /**

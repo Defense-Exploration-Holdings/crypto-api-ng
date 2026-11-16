@@ -11,6 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import * as acorn from 'acorn';
 import { loadOracle } from '../harness/load.mjs';
+import { modelFromUtf } from '../harness/fixes-model.mjs';
 import { GET_HASHER_NAMES, UNKNOWN_HASHER_NAMES, HMAC_VARIANTS } from '../harness/catalog.mjs';
 import { PKG_ROOT, ensureBuilt } from './support.js';
 
@@ -142,7 +143,9 @@ describe('same answers as the original', () => {
         const api = subjects[label];
         const inputs = ['', 'abc', 'Привет', '\ud800 lone', 'Ā'];
         for (const s of inputs) {
-          assert.equal(api.encoder.fromUtf(s), oracle.encoder.fromUtf(s));
+          // 0.8.5 mis-encodes an unpaired surrogate; the fixed rule is in the fixes model.
+          assert.equal(api.encoder.fromUtf(s), modelFromUtf(s));
+          if (s.isWellFormed()) assert.equal(api.encoder.fromUtf(s), oracle.encoder.fromUtf(s));
           assert.equal(api.encoder.toHex(s), oracle.encoder.toHex(s));
           assert.equal(api.encoder.toBase64(s), oracle.encoder.toBase64(s));
         }

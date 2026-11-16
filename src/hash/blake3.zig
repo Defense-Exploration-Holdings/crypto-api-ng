@@ -171,7 +171,8 @@ fn parentBlock(left: *const [8]u32, right: *const [8]u32) [block_len]u8 {
 }
 
 fn parentCv(st: *const State, left: *const [8]u32, right: *const [8]u32) [8]u32 {
-    const block = parentBlock(left, right);
+    var block = parentBlock(left, right);
+    defer std.crypto.secureZero(u8, &block);
     return compress(&st.key, &block, 0, block_len, st.flags | flag_parent)[0..8].*;
 }
 
@@ -182,7 +183,10 @@ pub fn update(st: *State, stack: *Stack, data: []const u8) void {
     std.debug.assert(data.len % chunk_len == 0);
     var pos: usize = 0;
     while (pos < data.len) : (pos += chunk_len) {
-        var cv = chunkEnd(st, data[pos..][0..chunk_len], st.chunks).chainingValue();
+        var end = chunkEnd(st, data[pos..][0..chunk_len], st.chunks);
+        var cv = end.chainingValue();
+        // The last block of the chunk (message bytes) and the key words it was started from.
+        std.crypto.secureZero(u8, std.mem.asBytes(&end));
         st.chunks += 1;
         // Merge finished pairs: one parent for every trailing zero bit of the count.
         var total = st.chunks;
@@ -192,6 +196,7 @@ pub fn update(st: *State, stack: *Stack, data: []const u8) void {
             cv = parentCv(st, &stack[depth], &cv);
         }
         stack[depth] = cv;
+        std.crypto.secureZero(u32, &cv);
     }
 }
 
@@ -212,7 +217,9 @@ pub fn root(st: *const State, stack: *const Stack, tail: []const u8) RootParams 
             .counter = 0,
         };
     }
-    return .{ .cv = end.cv, .block = end.block, .block_len = end.block_len, .flags = end.flags };
+    const params: RootParams = .{ .cv = end.cv, .block = end.block, .block_len = end.block_len, .flags = end.flags };
+    std.crypto.secureZero(u8, std.mem.asBytes(&end));
+    return params;
 }
 
 /// Write output bytes `[seek * 64, seek * 64 + out.len)` of the extendable

@@ -39,6 +39,10 @@ Added by this package, not in the original: SHA3-224/256/384/512, SHAKE128/256 a
 
 Compatibility with 0.8.5 is tested, not assumed. The original's own 286 tests run unmodified against this package, and a differential fuzzer compares both implementations across every documented option, including state round trips and the `getState()` JSON. See [docs/test-harness.md](docs/test-harness.md). The few deliberate differences are listed under "Differences from crypto-api 0.8.5" in the package README.
 
+## Security
+
+Several algorithms are provided for compatibility and are not collision resistant, and the library does not claim constant-time execution. See "Security notes" in the [package README](packages/crypto-api/README.md) and [SECURITY.md](SECURITY.md), which also explains how to report a vulnerability.
+
 ## Performance
 
 Measured on Node 22 against the same public API, v1 is 3.7x to 4.1x faster than 0.8.5 on average (geometric mean over 24 algorithm variants), and no measured throughput case is slower. The SHA-384/512 family gains the most (about 15x on larger inputs), followed by Whirlpool (about 8x) and MD5 (about 6x). MD2 gains the least (about 1.2x) because its cost is a chain of dependent table lookups.

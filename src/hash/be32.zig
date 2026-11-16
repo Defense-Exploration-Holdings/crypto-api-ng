@@ -75,6 +75,8 @@ pub fn update(comptime S: type, comptime blocksFn: fn (*S, []const u8) void, st:
 /// gives what crypto-api 0.8.5 gives.
 pub fn finish(comptime S: type, comptime blocksFn: fn (*S, []const u8) void, st: *S) void {
     var buf: [2 * block_size]u8 = undefined;
+    // The padded last block holds the message tail: do not leave it on the stack.
+    defer std.crypto.secureZero(u8, &buf);
     blocksFn(st, finalTail(st.buf[0..st.buffered], st.length, &buf));
     st.buffered = 0;
     @memset(&st.buf, 0);

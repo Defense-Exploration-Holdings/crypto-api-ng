@@ -19,6 +19,10 @@ comptime {
 }
 
 const core = @import("core");
+const scrubStack = @import("common.zig").scrubStack;
+/// The permutation keeps its lanes in registers and the State (which the facade zeroes); no frame leaked
+/// at any size in test/memory-wipe.test.js, so this is a margin.
+const scrub_len = 512;
 const keccak = core.keccak;
 const Status = core.runtime.Status;
 
@@ -46,7 +50,8 @@ export fn keccak_blocks(state: u32, data: u32, len: u32) i32 {
     if (bad(st)) return @backingInt(Status.invalid_state);
     if (len % st.rate != 0) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
-    keccak.blocks(st, p[0..len]);
+    defer scrubStack(scrub_len);
+    @call(.never_inline, keccak.blocks, .{ st, p[0..len] });
     return 0;
 }
 
@@ -58,7 +63,8 @@ export fn keccak_final(state: u32, data: u32, len: u32, suffix: u32, out: u32, o
     if (len >= st.rate or suffix < 1 or suffix > 0x7f) return @backingInt(Status.invalid_argument);
     const p: [*]const u8 = @ptrFromInt(data);
     const o: [*]u8 = @ptrFromInt(out);
-    keccak.final(st, p[0..len], @intCast(suffix), o[0..out_len]);
+    defer scrubStack(scrub_len);
+    @call(.never_inline, keccak.final, .{ st, p[0..len], @as(u8, @intCast(suffix)), o[0..out_len] });
     return 0;
 }
 
@@ -67,6 +73,7 @@ export fn keccak_squeeze(state: u32, out: u32, out_len: u32) i32 {
     const st = statePtr(state);
     if (bad(st)) return @backingInt(Status.invalid_state);
     const o: [*]u8 = @ptrFromInt(out);
-    keccak.squeeze(st, o[0..out_len]);
+    defer scrubStack(scrub_len);
+    @call(.never_inline, keccak.squeeze, .{ st, o[0..out_len] });
     return 0;
 }

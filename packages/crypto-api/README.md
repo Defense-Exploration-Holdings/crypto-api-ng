@@ -66,10 +66,12 @@ console.log(toHex(hasher.finalize()));
 
 ### Browser (ES5 global build)
 
-`crypto-api.min.js` (and the unminified `crypto-api.js`) is a UMD build in ES5 syntax that defines the global `CryptoApi`. The WebAssembly modules are embedded, so it is a single file. Load it from your own server or a CDN that mirrors npm:
+`crypto-api.min.js` (and the unminified `crypto-api.js`) is a UMD build in ES5 syntax that defines the global `CryptoApi`. The WebAssembly modules are embedded, so it is a single file. Load it from your own server or a CDN that mirrors npm. Pin the version in the URL and add an `integrity` attribute, so that the browser rejects a file that differs from the one you checked:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng/crypto-api.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng@1.1.0/crypto-api.min.js"
+        integrity="sha384-HASH_OF_THE_FILE"
+        crossorigin="anonymous"></script>
 <script>
   var hasher = CryptoApi.getHasher('sha256');
   hasher.update('message');                       // update() takes a binary string
@@ -85,6 +87,12 @@ console.log(toHex(hasher.finalize()));
 </script>
 ```
 
+Compute the value for `integrity` from the file of that version, once, and replace `HASH_OF_THE_FILE` with it (update both the version and the hash when you upgrade):
+
+```sh
+openssl dgst -sha384 -binary crypto-api.min.js | openssl base64 -A
+```
+
 Where WebAssembly is missing or blocked (a page whose Content-Security-Policy lacks `'wasm-unsafe-eval'`, Cloudflare Workers, old browsers), the same file keeps working with the original JavaScript code.
 
 `example/` has runnable pages (`hasher-basic.html`, `hasher-file.html`, `unit-tests.html`) that load the global build from `..`, and `node.mjs` / `node.cjs`.
@@ -98,6 +106,23 @@ Where WebAssembly is missing or blocked (a page whose Content-Security-Policy la
 * The `CryptoApi` object: `getHasher`, `hash`, `getHmac`, `hmac`, `encoder`
 
 The full API, with options, errors and examples, is in the [API reference](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/api.md). All of the algorithms run their compression function in WebAssembly, with the original JavaScript as the fallback.
+
+## Security notes
+
+* **Compatibility algorithms.** MD2, MD4, MD5, SHA-0, SHA-1, HAS-160, RIPEMD-128 and Snefru are provided for compatibility with existing data and protocols. They are not collision resistant. Do not use them for signatures, certificates or to check data from an untrusted source. Use SHA-256 or stronger for new designs.
+* **Reduced rounds.** The `rounds` option of a hasher can be lowered below the standard value. This weakens any algorithm. It exists for research and interoperability only.
+* **No constant-time claim.** The implementation does not claim constant-time execution. Do not use it to process secrets where timing is observable by an attacker.
+* **Compare MACs in constant time.** Do not compare MAC values with `===`. In Node.js, use `crypto.timingSafeEqual` on buffers of equal length:
+
+  ```javascript
+  const { timingSafeEqual } = require('node:crypto');
+  // expected: a Buffer with the MAC you were sent or stored
+  const actual = Buffer.from(CryptoApi.hmac(key, message, CryptoApi.getHasher('sha256')), 'hex');
+  const ok = actual.length === expected.length && timingSafeEqual(actual, expected);
+  ```
+* **Key material in memory.** An `Hmac` object keeps key-derived state in memory for as long as it exists. Drop the reference when you are done with it.
+
+To report a vulnerability, follow [SECURITY.md](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/SECURITY.md).
 
 ## Package layout
 

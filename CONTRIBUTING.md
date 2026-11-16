@@ -2,7 +2,7 @@
 
 ## Setup
 
-You need Zig 0.17.1 (pinned in `.zig-version`; `scripts/install-zig.sh` installs it) and Node.js 22 or newer (`.nvmrc`). Zig 0.17 differs from most tutorials: the optimize modes are `debug|safe|fast|small`, and `std.Io` and `std.process.Init` replace the older IO APIs. When in doubt, read the toolchain's own `lib/std`.
+You need Zig 0.17.1 (pinned in `.zig-version`; `scripts/install-zig.sh` installs it from a wheel whose hash is pinned in `scripts/zig-requirements.txt`; update both files together) and Node.js 22 or newer (`.nvmrc`). Zig 0.17 differs from most tutorials: the optimize modes are `debug|safe|fast|small`, and `std.Io` and `std.process.Init` replace the older IO APIs. When in doubt, read the toolchain's own `lib/std`.
 
 ```sh
 npm ci
@@ -57,4 +57,7 @@ MD5 is the template; copy its files (`src/hash/md5.zig`, `src/wasm/md.zig`, `pac
 Contributions are accepted under the MIT license of the project (see [LICENSE](LICENSE)). Test vectors from standards (NIST, RFCs) can be reused freely; vectors copied from the original's tests fall under the original's license, which the repository already carries.
 
 ## Publishing
- go to npm from GitHub Actions (`.github/workflows/publish.yml`) with npm trusted publishing, so no npm token exists. Set `version` in `packages/crypto-api/package.json`, add a `CHANGELOG.md` entry, merge, and push the matching tag (`1.2.3` -> `v1.2.3`). The workflow runs the shipped-mode checks, parity and package tests, then publishes; a version with a pre-release part goes to the `next` dist-tag. Published versions cannot be changed, so a fix is always a new version.
+
+Releases go to npm from GitHub Actions (`.github/workflows/publish.yml`) with npm trusted publishing, so no npm token exists. Set `version` in `packages/crypto-api/package.json`, add a `CHANGELOG.md` entry, merge, and push the matching tag (`1.2.3` -> `v1.2.3`; the tag must look like `v1.2.3` or `v1.2.3-rc.1`). The `build` job runs the shipped-mode checks, parity and package tests and packs the tarball with its SHA-256. The `publish` job, which alone holds the publish permission, verifies the tarball and publishes it, without checking out or building anything. A version with a pre-release part goes to the `next` dist-tag. Published versions cannot be changed, so a fix is always a new version.
+
+Workflow actions are pinned to full commit hashes with the release in a trailing comment, and Dependabot proposes updates. The npm version in the `publish` job and the Playwright version in the `build` job are pinned by hand; keep them current.

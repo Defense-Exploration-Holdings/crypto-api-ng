@@ -9,6 +9,7 @@ import {
   VARIANTS, FAMILIES, GET_HASHER_NAMES, UNKNOWN_HASHER_NAMES, optionSupported,
 } from '../harness/catalog.mjs';
 import { Rng } from '../harness/prng.mjs';
+import { modelFromUtf } from '../harness/fixes-model.mjs';
 
 const ITERS = Number(process.env.FUZZ_ITERS ?? 200);
 const SEED = Number(process.env.FUZZ_SEED ?? 1);
@@ -115,7 +116,10 @@ describe('encoders', () => {
     const rng = new Rng(SEED, 'utf');
     const fixed = ['', '\0', 'a', 'é', '€', '\u{1F600}', 'a\ud800', '\udc00a', '\ud800\ud800', '􏿿', '\u007f\u0080߿ࠀ￿'];
     for (const s of [...fixed, ...Array.from({ length: ITERS * 5 }, () => randomText(rng))]) {
-      same(outcome(() => oracle.fromUtf(s)), outcome(() => target.fromUtf(s)), JSON.stringify(s));
+      // 1.1 encodes a surrogate that is not part of a valid pair as U+FFFD (fixes model);
+      // text without one must still equal the original byte for byte.
+      same({ ok: modelFromUtf(s) }, outcome(() => target.fromUtf(s)), JSON.stringify(s));
+      if (s.isWellFormed()) same(outcome(() => oracle.fromUtf(s)), outcome(() => target.fromUtf(s)), JSON.stringify(s));
     }
     for (const bad of [undefined, null, 5, {}, [], ['a']]) {
       same(outcome(() => oracle.fromUtf(bad)), outcome(() => target.fromUtf(bad)), String(bad));
@@ -234,10 +238,14 @@ describe('CryptoApi facade', () => {
     const rng = new Rng(SEED, 'facade-hash');
     const texts = ['', 'abc', 'Привет', '€uro', '\u{1F600}', 'a\ud800', '\0'];
     for (let i = 0; i < 20; i++) texts.push(rng.wide(rng.range(0, 100)));
-    const sm3 = (t) => { const h = new oracle.hashers.Sm3(); h.update(oracle.fromUtf(t)); return oracle.toHex(h.finalize()); };
     for (const name of [...GET_HASHER_NAMES, ...UNKNOWN_HASHER_NAMES]) {
       for (const t of texts) {
-        const expected = name === 'sm3' ? outcome(() => sm3(t)) : outcome(() => oracle.CryptoApi.hash(name, t));
+        // The original's hash() would use its own fromUtf; 1.1 differs for lone surrogates only.
+        const expected = outcome(() => {
+          const h = name === 'sm3' ? new oracle.hashers.Sm3() : oracle.CryptoApi.getHasher(name);
+          h.update(modelFromUtf(t));
+          return oracle.toHex(h.finalize());
+        });
         same(expected, outcome(() => target.CryptoApi.hash(name, t)), `${name} ${JSON.stringify(t)}`);
       }
     }
@@ -252,11 +260,18 @@ describe('CryptoApi facade', () => {
       for (let i = 0; i < 5; i++) {
         const key = rng.wide(rng.range(0, 200));
         const msg = rng.wide(rng.range(0, 200));
-        const viaHmac = (api) => outcome(() => api.CryptoApi.hmac(key, msg, api.CryptoApi.getHasher(name)));
+        const utf = (api, t) => (api === oracle ? modelFromUtf(t) : api.fromUtf(t));
+        const viaHmac = (api) => outcome(() => {
+          if (api === target) return api.CryptoApi.hmac(key, msg, api.CryptoApi.getHasher(name));
+          // The original's hmac() would use its own fromUtf; 1.1 differs for lone surrogates only.
+          const m = api.CryptoApi.getHmac(utf(api, key), api.CryptoApi.getHasher(name));
+          m.update(utf(api, msg));
+          return api.toHex(m.finalize());
+        });
         same(viaHmac(oracle), viaHmac(target), `hmac ${name}`);
         const viaGet = (api) => outcome(() => {
-          const m = api.CryptoApi.getHmac(api.fromUtf(key), api.CryptoApi.getHasher(name));
-          m.update(api.fromUtf(msg));
+          const m = api.CryptoApi.getHmac(utf(api, key), api.CryptoApi.getHasher(name));
+          m.update(utf(api, msg));
           return api.toHex(m.finalize());
         });
         same(viaGet(oracle), viaGet(target), `getHmac ${name}`);
