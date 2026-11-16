@@ -26,6 +26,13 @@ import { _internal as keccak } from '../packages/crypto-api/src/wasm/keccak.mjs'
 import Blake2b, { _internal as blake2b } from '../packages/crypto-api/src/hasher/blake2b.mjs';
 import Blake2s, { _internal as blake2s } from '../packages/crypto-api/src/hasher/blake2s.mjs';
 import Blake3, { _internal as blake3 } from '../packages/crypto-api/src/hasher/blake3.mjs';
+import Tiger, { _internal as tiger } from '../packages/crypto-api/src/hasher/tiger.mjs';
+import Tiger2, { _internal as tiger2 } from '../packages/crypto-api/src/hasher/tiger2.mjs';
+import Streebog, { _internal as streebog } from '../packages/crypto-api/src/hasher/streebog.mjs';
+import Crc32, { _internal as crc32 } from '../packages/crypto-api/src/hasher/crc32.mjs';
+import Crc32c, { _internal as crc32c } from '../packages/crypto-api/src/hasher/crc32c.mjs';
+import XxHash32, { _internal as xxhash32 } from '../packages/crypto-api/src/hasher/xxhash32.mjs';
+import XxHash64, { _internal as xxhash64 } from '../packages/crypto-api/src/hasher/xxhash64.mjs';
 import { rng } from './support/le32-suite.js';
 
 const CASES = [
@@ -63,6 +70,14 @@ const CASES = [
   ['blake2s', Blake2s, blake2s, undefined],
   ['blake2s-128', Blake2s, blake2s, { length: 128 }],
   ['blake3', Blake3, blake3, undefined],
+  ['tiger', Tiger, tiger, undefined],
+  ['tiger2-128', Tiger2, tiger2, { length: 128 }],
+  ['streebog256', Streebog, streebog, { length: 256 }],
+  ['streebog512', Streebog, streebog, undefined],
+  ['crc32', Crc32, crc32, undefined],
+  ['crc32c', Crc32c, crc32c, undefined],
+  ['xxhash32', XxHash32, xxhash32, { seed: 12345 }],
+  ['xxhash64', XxHash64, xxhash64, { seed: 12345 }],
 ];
 
 const WINDOW = 16;

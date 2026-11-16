@@ -32,6 +32,13 @@ import Shake from '../packages/crypto-api/src/hasher/shake.mjs';
 import { _internal as keccak } from '../packages/crypto-api/src/wasm/keccak.mjs';
 import Blake2b, { _internal as blake2b } from '../packages/crypto-api/src/hasher/blake2b.mjs';
 import Blake2s, { _internal as blake2s } from '../packages/crypto-api/src/hasher/blake2s.mjs';
+import Tiger, { _internal as tiger } from '../packages/crypto-api/src/hasher/tiger.mjs';
+import Tiger2, { _internal as tiger2 } from '../packages/crypto-api/src/hasher/tiger2.mjs';
+import Streebog, { _internal as streebog } from '../packages/crypto-api/src/hasher/streebog.mjs';
+import Crc32, { _internal as crc32 } from '../packages/crypto-api/src/hasher/crc32.mjs';
+import Crc32c, { _internal as crc32c } from '../packages/crypto-api/src/hasher/crc32c.mjs';
+import XxHash32, { _internal as xxhash32 } from '../packages/crypto-api/src/hasher/xxhash32.mjs';
+import XxHash64, { _internal as xxhash64 } from '../packages/crypto-api/src/hasher/xxhash64.mjs';
 import Blake3, { _internal as blake3 } from '../packages/crypto-api/src/hasher/blake3.mjs';
 
 import LHas160 from '../packages/crypto-api/legacy/hasher/has160.mjs';
@@ -307,7 +314,7 @@ describe('facades fall back to the original code when an export is refused', () 
 //  5. A state that no engine can work on is refused with the same error by both engines.
 // ===========================================================================
 
-const NEW_INTERNALS = [keccak, blake2b, blake2s, blake3];
+const NEW_INTERNALS = [keccak, blake2b, blake2s, blake3, tiger, tiger2, streebog, crc32, crc32c, xxhash32, xxhash64];
 
 const view = (rt) => new DataView(rt.u8.buffer);
 
@@ -380,7 +387,11 @@ describe('the sponge, BLAKE2 and BLAKE3 exports refuse bad values and touch noth
     });
   });
 
-  for (const [prefix, internal, block] of [['blake2b', blake2b, 128], ['blake2s', blake2s, 64]]) {
+  for (const [prefix, internal, block] of [
+    ['blake2b', blake2b, 128], ['blake2s', blake2s, 64],
+    ['tiger', tiger, 64], ['tiger2', tiger2, 64], ['streebog256', streebog, 64], ['streebog512', streebog, 64],
+    ['crc32', crc32, 64], ['crc32c', crc32c, 64], ['xxhash32', xxhash32, 16], ['xxhash64', xxhash64, 32],
+  ]) {
     test(prefix, () => {
       withScratch(internal, (rt, base) => {
         const { ex } = rt;
@@ -459,7 +470,7 @@ function withExportRefusals(plan, fn) {
     const exports = {};
     for (const key of Object.keys(real.exports)) {
       const value = real.exports[key];
-      if (typeof value === 'function' && /^(keccak|blake)/.test(key)) {
+      if (typeof value === 'function' && /^(keccak|blake|tiger|streebog|crc32|xxhash)/.test(key)) {
         exports[key] = (...args) => {
           seen[key] = (seen[key] || 0) + 1;
           if (key in plan && seen[key] >= plan[key]) {
@@ -521,17 +532,25 @@ const NEW_CASES = [
   ['blake3, keyed', Blake3, { key: 'K'.repeat(32), length: 512 }, 70000],
   ['blake3, derive key', Blake3, { context: 'a context', length: 256 }, 70000],
   ['blake3, short message', Blake3, {}, 100],
+  ['tiger', Tiger, {}, 140000],
+  ['tiger2, 128 bits', Tiger2, { length: 128 }, 3000],
+  ['streebog256', Streebog, { length: 256 }, 140000],
+  ['streebog512', Streebog, { length: 512 }, 3000],
+  ['crc32', Crc32, {}, 140000],
+  ['crc32c', Crc32c, {}, 140000],
+  ['xxhash32, seeded', XxHash32, { seed: 99 }, 140000],
+  ['xxhash64, seeded', XxHash64, { seed: 99 }, 140000],
 ];
 
 const REFUSALS = [
-  ['every compress call refused', { keccak_blocks: 1, blake2b_blocks: 1, blake2s_blocks: 1, blake3_update: 1 }],
-  ['second compress call refused after the first was applied', { keccak_blocks: 2, blake2b_blocks: 2, blake2s_blocks: 2, blake3_update: 2 }],
-  ['final refused', { keccak_final: 1, blake2b_final: 1, blake2s_final: 1, blake3_root: 1 }],
+  ['every compress call refused', { keccak_blocks: 1, blake2b_blocks: 1, blake2s_blocks: 1, blake3_update: 1, tiger_blocks: 1, tiger2_blocks: 1, streebog256_blocks: 1, streebog512_blocks: 1, crc32_blocks: 1, crc32c_blocks: 1, xxhash32_blocks: 1, xxhash64_blocks: 1 }],
+  ['second compress call refused after the first was applied', { keccak_blocks: 2, blake2b_blocks: 2, blake2s_blocks: 2, blake3_update: 2, tiger_blocks: 2, tiger2_blocks: 2, streebog256_blocks: 2, streebog512_blocks: 2, crc32_blocks: 2, crc32c_blocks: 2, xxhash32_blocks: 2, xxhash64_blocks: 2 }],
+  ['final refused', { keccak_final: 1, blake2b_final: 1, blake2s_final: 1, blake3_root: 1, tiger_final: 1, tiger2_final: 1, streebog256_final: 1, streebog512_final: 1, crc32_final: 1, crc32c_final: 1, xxhash32_final: 1, xxhash64_final: 1 }],
   ['squeeze and the second xof call refused', { keccak_squeeze: 1, blake3_xof: 2 }],
   ['xof refused at once', { blake3_xof: 1 }],
   ['everything refused', {
     keccak_blocks: 1, keccak_final: 1, keccak_squeeze: 1, blake2b_blocks: 1, blake2b_final: 1, blake2s_blocks: 1, blake2s_final: 1,
-    blake3_update: 1, blake3_root: 1, blake3_xof: 1,
+    blake3_update: 1, blake3_root: 1, blake3_xof: 1, tiger_blocks: 1, tiger2_blocks: 1, streebog256_blocks: 1, streebog512_blocks: 1, crc32_blocks: 1, crc32c_blocks: 1, xxhash32_blocks: 1, xxhash64_blocks: 1, tiger_final: 1, tiger2_final: 1, streebog256_final: 1, streebog512_final: 1, crc32_final: 1, crc32c_final: 1, xxhash32_final: 1, xxhash64_final: 1,
   }],
 ];
 
@@ -589,14 +608,15 @@ describe('the facades redo a refused call in JavaScript, on the untouched state'
   });
 
   test('a refused final call does not change the hasher', () => {
-    for (const [C, options] of [[Blake2b, {}], [Blake2s, { key: 'k' }], [Sha3, { length: 256 }], [Shake, { length: 4096 }], [Blake3, {}]]) {
+    for (const [C, options] of [[Blake2b, {}], [Blake2s, { key: 'k' }], [Sha3, { length: 256 }], [Shake, { length: 4096 }], [Blake3, {}],
+      [Tiger, {}], [Streebog, { length: 256 }], [Crc32, {}], [XxHash32, { seed: 3 }], [XxHash64, {}]]) {
       const message = binary(1000, 5);
       const h = new C({ ...options });
       h.update(message);
       const state = JSON.stringify(h.getState());
       const want = onJavaScript(() => toHex(h.finalize()));
       let got;
-      withExportRefusals({ keccak_final: 1, blake2b_final: 1, blake2s_final: 1, blake3_root: 1 }, () => {
+      withExportRefusals({ keccak_final: 1, blake2b_final: 1, blake2s_final: 1, blake3_root: 1, tiger_final: 1, tiger2_final: 1, streebog256_final: 1, streebog512_final: 1, crc32_final: 1, crc32c_final: 1, xxhash32_final: 1, xxhash64_final: 1 }, () => {
         got = toHex(h.finalize());
       });
       assert.equal(got, want);
@@ -726,8 +746,8 @@ describe('a state no engine can work on is refused, by both engines alike', () =
     assert.equal(results.wasm, results.js, 'both engines give the same outcomes');
   });
 
-  test('BLAKE2: hash, counter and last block are validated', () => {
-    for (const [C, hashInts, block] of [[Blake2b, 16, 128], [Blake2s, 8, 64]]) {
+  test('BLAKE2, Tiger, Streebog, CRC-32 and xxHash: hash, counter and last block are validated', () => {
+    for (const [C, hashInts, block] of [[Blake2b, 16, 128], [Blake2s, 8, 64], [Tiger, 6, 64], [Tiger2, 6, 64], [Streebog, 32, 64], [Crc32, 1, 64], [Crc32c, 1, 64], [XxHash32, 5, 16], [XxHash64, 10, 32]]) {
       const results = {};
       onBothEngines((engine) => {
         const seen = [];
@@ -737,8 +757,8 @@ describe('a state no engine can work on is refused, by both engines alike', () =
           ['hash missing', { ...base(), hash: undefined }],
           ['hash short', { ...base(), hash: hash().slice(1) }],
           ['hash long', { ...base(), hash: hash().concat([0]) }],
-          ['hash string word', { ...base(), hash: hash().fill('1', 2, 3) }],
-          ['hash fraction', { ...base(), hash: hash().fill(0.5, 1, 2) }],
+          ['hash string word', { ...base(), hash: hash().fill('1', 2 % hashInts, 2 % hashInts + 1) }],
+          ['hash fraction', { ...base(), hash: hash().fill(0.5, 1 % hashInts, 1 % hashInts + 1) }],
           ['hash NaN', { ...base(), hash: hash().fill(NaN, 0, 1) }],
           ['counter missing', { ...base(), counter: undefined }],
           ['counter string', { ...base(), counter: '0' }],
