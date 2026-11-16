@@ -140,7 +140,7 @@ describe('consuming the extracted tarball', () => {
           const C = require(${JSON.stringify(name)});
           console.log(C.hash('sha256', 'abc'), C.hash('md5', 'abc'), typeof C.getHasher, Object.keys(C.encoder).join());
         `]).trim();
-        assert.equal(out, `${SHA256_ABC} ${MD5_ABC} function fromUtf,fromArrayBuffer,toHex,toBase64`);
+        assert.equal(out, `${SHA256_ABC} ${MD5_ABC} function fromUtf,fromArrayBuffer,toHex,toBase64,utf8ToBytes,bytesToUtf8,bytesToHex,hexToBytes,bytesToBase64,base64ToBytes`);
       });
 
       it('native ESM deep imports work, and the default import is CryptoApi', () => {

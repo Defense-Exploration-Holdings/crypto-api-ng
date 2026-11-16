@@ -2,6 +2,7 @@
 'use strict';
 
 import {toBinaryString} from "../tools/input.mjs";
+import {checkEncoding, encodeDigest, binaryToBytes} from "../tools/digest.mjs";
 import {Hmac, readOptions, binaryOption, integerOption, macSize} from "../tools/kdf.mjs";
 
 /**
@@ -79,6 +80,20 @@ class Hkdf {
   }
 
   /**
+   * Like `expand()`, but returns the key as a `Uint8Array`.
+   *
+   * @param {string|ArrayBuffer|ArrayBufferView} [info] - default empty
+   * @param {number} [length] - size of the output in bits, a multiple of 8, up to 255 times
+   *   the digest size (default: the digest size of the hasher)
+   * @returns {Uint8Array}
+   * @throws {TypeError} when `info` or `length` has the wrong type
+   * @throws {RangeError} when `length` is outside the supported set
+   */
+  expandBytes(info, length) {
+    return binaryToBytes(this.expand(info, length));
+  }
+
+  /**
    * HKDF-Expand with the `info` and `length` options. Can be called again and
    * gives the same value.
    *
@@ -86,6 +101,19 @@ class Hkdf {
    */
   finalize() {
     return expand(this.hasher, this.prk, this.options.info, this.options.length / 8, this.size);
+  }
+
+  /**
+   * Like `finalize()`, but returns the key as bytes, or encoded as text.
+   *
+   * @param {string} [encoding] - `'hex'`, `'base64'`, `'base64url'` or `'binary'`
+   *   (the binary string `finalize()` returns); left out, the key is bytes
+   * @returns {Uint8Array|string}
+   * @throws {TypeError} for any other `encoding`
+   */
+  digest(encoding) {
+    checkEncoding(encoding);
+    return encodeDigest(this.finalize(), encoding);
   }
 }
 

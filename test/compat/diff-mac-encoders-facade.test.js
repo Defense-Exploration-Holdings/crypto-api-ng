@@ -280,9 +280,10 @@ describe('CryptoApi facade', () => {
   });
 
   it('exposes the same encoder members', () => {
-    same(Object.keys(oracle.CryptoApi.encoder).sort(), Object.keys(target.CryptoApi.encoder).sort());
-    // Methods that crypto-api-ng added on top of 0.8.5 (documented in the CHANGELOG); nothing else may differ.
-    const ADDED = ['hkdf', 'pbkdf2'];
+    // Members that crypto-api-ng added on top of 0.8.5 (documented in the CHANGELOG); nothing else may differ.
+    const ADDED_ENCODERS = ['base64ToBytes', 'bytesToBase64', 'bytesToHex', 'bytesToUtf8', 'hexToBytes', 'utf8ToBytes'];
+    same(Object.keys(oracle.CryptoApi.encoder).sort(), Object.keys(target.CryptoApi.encoder).filter((n) => !ADDED_ENCODERS.includes(n)).sort());
+    const ADDED = ['hashBytes', 'hkdf', 'hkdfBytes', 'hmacBytes', 'pbkdf2', 'pbkdf2Bytes'];
     same(Object.getOwnPropertyNames(Object.getPrototypeOf(oracle.CryptoApi)).sort(),
       Object.getOwnPropertyNames(Object.getPrototypeOf(target.CryptoApi)).filter((n) => !ADDED.includes(n)).sort());
   });

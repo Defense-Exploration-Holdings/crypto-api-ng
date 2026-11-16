@@ -1,4 +1,4 @@
-import type { HasherLike, BinaryInput } from "../../types.js";
+import type { HasherLike, BinaryInput, DigestEncoding } from "../../types.js";
 
 /** Base class of every hasher. */
 export default class Hasher implements HasherLike {
@@ -12,6 +12,10 @@ export default class Hasher implements HasherLike {
   reset(): void;
   update(message: BinaryInput): void;
   finalize(): string;
+  /** Finalizes like `finalize()` and returns the digest as bytes. */
+  digest(): Uint8Array;
+  /** Finalizes like `finalize()` and returns the digest as text in the given encoding. */
+  digest(encoding: DigestEncoding): string;
   getState(): Record<string, any>;
   setState(state: Record<string, any>): void;
 }

@@ -51,6 +51,19 @@ console.log(toHex(hmac.finalize()));
 
 The extensionless paths of 0.8.5 (`crypto-api-ng/src/hasher/sha256`) still resolve in bundlers that try `.mjs` (webpack's default), because the files keep their names and locations. Native Node ESM and bundlers configured without `.mjs` need the explicit `.mjs`, as in the examples above. There is no `exports` map in v1, so every deep path stays reachable. `crypto-api-ng/src/index.mjs` default-exports the `CryptoApi` object. `require('crypto-api-ng')` and the global build are a separate bundle with its own copy of the classes, so a hasher created by one is not `instanceof` the classes of the other: pick one style per program.
 
+### Bytes in, bytes out
+
+Hashers and HMAC take `Uint8Array` and give `Uint8Array` back through `digest()`, and `src/encoder/bytes.mjs` converts between bytes, UTF-8 text, hex and base64, so no binary strings are involved. The binary-string interface above stays as it is.
+
+```javascript
+import Sha256 from "crypto-api-ng/src/hasher/sha256.mjs";
+import {utf8ToBytes, bytesToHex} from "crypto-api-ng/src/encoder/bytes.mjs";
+
+const hasher = new Sha256();
+hasher.update(utf8ToBytes('message'));
+console.log(bytesToHex(hasher.digest()));    // or hasher.digest('hex'), 'base64', 'base64url'
+```
+
 ### TypeScript
 
 The package ships its own declarations; nothing extra to install. They cover the `CryptoApi` object (`import CryptoApi = require("crypto-api-ng")` or `import CryptoApi from "crypto-api-ng/src/index.mjs"`), every hasher class, `Hmac`, `Pbkdf2`, `Hkdf` and the encoders, with the option ranges of each algorithm typed.
@@ -103,8 +116,8 @@ Where WebAssembly is missing or blocked (a page whose Content-Security-Policy la
 * Added in this package: SHA3-224/256/384/512, SHAKE128/256, Keccak-224/256/384/512, BLAKE2b, BLAKE2s, BLAKE3, Tiger, Tiger2, Streebog-256/512, and the checksums CRC-32, CRC-32C, XXH32, XXH64
 * MAC: HMAC (`src/mac/hmac.mjs`, works with any hasher object, including your own)
 * Key derivation: PBKDF2 (`src/kdf/pbkdf2.mjs`) and HKDF (`src/kdf/hkdf.mjs`), over HMAC with any hasher
-* Encodings: `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64`
-* The `CryptoApi` object: `getHasher`, `hash`, `getHmac`, `hmac`, `pbkdf2`, `hkdf`, `encoder`
+* Encodings: `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64` (binary strings) and, added in this package, `utf8ToBytes`, `bytesToUtf8`, `bytesToHex`, `hexToBytes`, `bytesToBase64`, `base64ToBytes` (bytes)
+* The `CryptoApi` object: `getHasher`, `hash`, `hashBytes`, `getHmac`, `hmac`, `hmacBytes`, `pbkdf2`, `hkdf`, `encoder`
 
 The full API, with options, errors and examples, is in the [API reference](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/api.md). All of the algorithms run their compression function in WebAssembly, with the original JavaScript as the fallback.
 
