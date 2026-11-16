@@ -1,8 +1,12 @@
 # Changelog
 
-## 1.0.2 (unreleased)
+## 1.0.2 (2026-11-16)
 
 * Hashers only use `rounds`, `length` and `type` values that are own properties of the options object. A value inherited through the prototype chain, for example one added to `Object.prototype` by other code on the page, is ignored and the default is used. Previously such a value silently replaced the default (a one-round SHA-256, for instance). Own values behave exactly as before, and the options object you pass in still receives the defaults.
+
+## 1.0.1
+
+* README: remove the outdated pre-release notice. No code changes.
 
 ## 1.0.0
 
