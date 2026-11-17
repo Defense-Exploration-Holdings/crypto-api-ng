@@ -68,7 +68,7 @@ fn Blake2(comptime Word: type) type {
             /// Bytes compressed so far, including the key block. BLAKE2 has a
             /// 128-bit counter; messages are limited to 2^64 bytes here, far
             /// above what JS can hold.
-            t: u64,
+            t: u64 align(8),
 
             comptime {
                 std.debug.assert(@sizeOf(State) == 8 * word_len + 8);

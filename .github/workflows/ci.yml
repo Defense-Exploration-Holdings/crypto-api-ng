@@ -37,6 +37,55 @@ jobs:
       - run: zig build check --release=small
       - run: zig build wasm --release=small
 
+  # The Zig package: the public API's tests and the shared JSON vectors, natively on each OS,
+  # then the example project, which consumes the package the way a dependent project does.
+  zig-package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    name: zig package (${{ matrix.os }})
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Zig (the ziglang wheel pinned by hash in scripts/zig-requirements.txt)
+        run: |
+          venv="$RUNNER_TEMP/zig-venv"
+          python3 -m venv "$venv" 2>/dev/null || python -m venv "$venv"
+          py="$venv/bin/python"; [ -x "$py" ] || py="$venv/Scripts/python.exe"
+          "$py" -m pip install --disable-pip-version-check --quiet \
+            --require-hashes --only-binary=:all: --no-deps -r scripts/zig-requirements.txt
+          "$py" -c 'import ziglang, pathlib; print(pathlib.Path(ziglang.__file__).parent)' | tr -d '\r' >> "$GITHUB_PATH"
+      - run: zig version
+      - run: zig build test --summary all
+      - run: zig build test --release=fast --summary all
+      - name: Example project (depends on the package by path)
+        working-directory: examples/zig
+        run: zig build test run
+
+  # The same tests on a 32-bit target and on a big-endian one, under QEMU.
+  zig-cross:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86-linux, aarch64-linux, s390x-linux]
+    name: zig package (${{ matrix.target }})
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Zig
+        run: |
+          scripts/install-zig.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install QEMU user mode
+        run: sudo apt-get update && sudo apt-get install -y qemu-user
+      - run: zig build test -fqemu -Dtarget=${{ matrix.target }} --summary all
+
   # The packed tarball installed the way Bun and Deno users install it: exports map, per-algorithm entries,
   # require(), an npm: specifier and wasm loading. Oldest supported release of each, and the current one.
   runtimes:

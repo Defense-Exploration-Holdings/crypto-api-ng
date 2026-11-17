@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 (2026-11-17)
+
+The repository is now also a Zig package. The npm package, its JavaScript code, the WebAssembly modules and every digest are the same as in 1.2.2.
+
+* A native Zig API, `src/lib.zig`, exported as the module `crypto_api_ng`. Add it with `zig fetch --save git+https://github.com/Defense-Exploration-Holdings/crypto-api-ng#v1.3.0`. Every algorithm of the library is a type with the interface of `std.crypto.hash` (`init`, `update`, `final`, `hash`), and `Hmac`, `pbkdf2` and `Hkdf` accept any of them. The algorithms Zig's standard library lacks are the main addition: MD2, MD4, SHA-0, RIPEMD-128/160/256/320, HAS-160, SM3, Whirlpool, Whirlpool-0, Whirlpool-T, Snefru, Tiger, Tiger2 and Streebog. See [docs/zig.md](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/zig.md).
+* `zig build test` runs the shared JSON test vectors against the Zig API, and CI runs it on Linux, macOS and Windows, on 32-bit x86, and on aarch64 and big-endian s390x under QEMU.
+* The algorithm cores now have the same memory layout on 32-bit targets as on wasm32 (64-bit fields are 8-byte aligned). Nothing changes on wasm32.
+
 ## 1.2.2 (2026-11-16)
 
 The package is also published on [JSR](https://jsr.io/@defense-exploration/crypto-api-ng) as `@defense-exploration/crypto-api-ng`, for Deno (`deno add jsr:@defense-exploration/crypto-api-ng`). The library code, the WebAssembly modules and every digest are the same as in 1.2.1.

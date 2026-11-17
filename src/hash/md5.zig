@@ -29,7 +29,7 @@ pub const State = extern struct {
     hash: [4]u32,
     /// Total bytes passed to `update`. The original keeps a JS Number (exact
     /// below 2^53), see `lengthField`.
-    length: u64,
+    length: u64 align(8),
     /// Bytes currently buffered in `buf` (0..63).
     buffered: u32,
     _reserved: u32,
