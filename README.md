@@ -126,6 +126,14 @@ examples/zig/              a Zig project that depends on the package
 docs/                      ABI, porting guide, test harness, benchmark results
 ```
 
+## Sponsors
+
+<a href="https://appliku.com/"><img src="assets/sponsors/appliku.png" alt="Appliku" height="64"></a>
+&nbsp;&nbsp;
+<a href="https://github.com/speedpy/speedpy"><img src="assets/sponsors/speedpy.png" alt="SpeedPy" height="64"></a>
+
+[Appliku](https://appliku.com/) and [SpeedPy](https://github.com/speedpy/speedpy) support this project.
+
 ## License
 
 MIT, see [LICENSE](LICENSE). Copyright (c) 2015 nf404 (the original `crypto-api`) and (c) 2026 Defense Exploration Holdings LLC (the Zig/WebAssembly port). The WebAssembly modules are built with Zig's standard library, which is MIT-licensed.
