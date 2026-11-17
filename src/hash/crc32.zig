@@ -37,7 +37,7 @@ fn Impl(comptime poly: u32) type {
         /// these offsets); a change bumps `runtime.abi_version`.
         pub const State = extern struct {
             /// Bytes processed so far.
-            t: u64,
+            t: u64 align(8),
             /// The running register: starts as 0xFFFFFFFF, the checksum is its complement.
             crc: u32,
 

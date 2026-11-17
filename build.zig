@@ -4,7 +4,7 @@
 //!   zig build wasm         same as above, explicit
 //!   zig build families     build zig-out/wasm/<family>.wasm (one module per algorithm family)
 //!   zig build js           generate embedded wasm byte modules (js/generated/, packages/crypto-api/wasm/)
-//!   zig build test         run Zig unit tests on the native target
+//!   zig build test         run Zig unit tests and the shared test vectors on the native target
 //!   zig build test-js      build the wasm, then run the Node test suite against it
 //!   zig build check        run every test suite (Zig + JS)
 //!
@@ -15,7 +15,18 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
+    const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+
+    // ---- the Zig package ----------------------------------------------------
+    // The public Zig API, for projects that depend on this package:
+    //   const dep = b.dependency("crypto_api_ng", .{ .target = target, .optimize = optimize });
+    //   exe.root_module.addImport("crypto_api_ng", dep.module("crypto_api_ng"));
+    const lib_mod = b.addModule("crypto_api_ng", .{
+        .root_source_file = b.path("src/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
     // ---- wasm module ------------------------------------------------------
     // wasm32-freestanding: no libc, no OS. All I/O happens in the JS loader.
@@ -112,7 +123,7 @@ pub fn build(b: *std.Build) void {
     // natively (fast, debuggable). wasm.zig itself is exercised by the JS tests.
     const test_mod = b.createModule(.{
         .root_source_file = b.path("src/root.zig"),
-        .target = b.standardTargetOptions(.{}),
+        .target = target,
         .optimize = optimize,
     });
     const unit_tests = b.addTest(.{ .root_module = test_mod });
@@ -120,6 +131,35 @@ pub fn build(b: *std.Build) void {
 
     const test_step = b.step("test", "Run Zig unit tests (native target)");
     test_step.dependOn(&run_unit_tests.step);
+
+    // The public API: its own tests, then the JSON vectors the JS suite uses,
+    // embedded under their path relative to test/vectors.
+    const lib_tests = b.addTest(.{ .root_module = lib_mod });
+    test_step.dependOn(&b.addRunArtifact(lib_tests).step);
+
+    const vectors_mod = b.createModule(.{
+        .root_source_file = b.path("test/zig/vectors.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "crypto_api_ng", .module = lib_mod }},
+    });
+    const vector_files = [_][]const u8{
+        "md2.json",                 "md4.json",                "md5.json",          "has160.json",
+        "ripemd128.json",           "ripemd160.json",          "ripemd256.json",    "ripemd320.json",
+        "sha0.json",                "sha1.json",               "sha224.json",       "sha256.json",
+        "sha384.json",              "sha512.json",             "sha512-224.json",   "sha512-256.json",
+        "sm3.json",                 "snefru128-2.json",        "snefru128-8.json",  "snefru256-4.json",
+        "snefru256-8.json",         "whirlpool.json",          "whirlpool-0.json",  "whirlpool-t.json",
+        "hmac-has160.json",         "hmac-md5.json",           "hmac-sha1.json",    "hmac-sha224.json",
+        "hmac-sha256.json",         "hmac-sha384.json",        "hmac-sha512.json",  "sha3.json",
+        "blake/blake2-kat.json",    "blake/blake2-params.json", "blake/blake3.json", "blocks/tiger.json",
+        "blocks/tiger2.json",       "blocks/streebog256.json", "blocks/streebog512.json",
+    };
+    for (vector_files) |name| {
+        vectors_mod.addAnonymousImport(name, .{ .root_source_file = b.path(b.fmt("test/vectors/{s}", .{name})) });
+    }
+    const vector_tests = b.addTest(.{ .name = "vectors", .root_module = vectors_mod });
+    test_step.dependOn(&b.addRunArtifact(vector_tests).step);
 
     // ---- JS tests against the built wasm ---------------------------------
     const node_tests = b.addSystemCommand(&.{ "node", "--test", "test/*.test.js" });

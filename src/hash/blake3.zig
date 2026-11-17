@@ -49,7 +49,7 @@ pub const State = extern struct {
     flags: u32,
     _reserved: u32,
     /// Complete chunks added to the tree so far.
-    chunks: u64,
+    chunks: u64 align(8),
 
     comptime {
         std.debug.assert(@sizeOf(State) == 48);

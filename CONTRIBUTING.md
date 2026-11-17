@@ -39,6 +39,7 @@ The declarations are hand-written: `packages/crypto-api/types.d.ts` and `index.d
 MD5 is the template; copy its files (`src/hash/md5.zig`, `src/wasm/md.zig`, `packages/crypto-api/src/hasher/md5.mjs`, `test/md5.test.js`) and change what the algorithm needs.
 
 - `src/hash/<algo>.zig`: the core. Target-agnostic, no wasm or OS code, with `test` blocks. Re-export it from `src/root.zig`.
+- `src/lib.zig`: the public Zig API. Add a type with the `std.crypto.hash` interface (most cores fit one of the generic wrappers there), list it in `docs/zig.md`, add it to the tests in `src/lib_test.zig`, and run its JSON vectors from `test/zig/vectors.zig` (embedded files are listed in `vector_files` in `build.zig`). Extern `State` structs use `align(8)` on 64-bit fields so the layout is the same on 32-bit targets as on wasm32.
 - `src/wasm/<family>.zig`: the wasm exports for the algorithm family (the only files with `export fn`, besides `src/wasm.zig`). Add new families to `families` in `build.zig`.
 - `packages/crypto-api/src/hasher/<algo>.mjs`: the facade. It extends the verbatim 0.8.5 class and overrides only `process()` and `finalize()`; everything else, including `this.state`, stays the original's. It falls back to the original code for any input or option the wasm code does not model exactly.
 - `test/<algo>.test.js` and `test/vectors/`: differential tests against the original class.

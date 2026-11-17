@@ -24,7 +24,7 @@ pub const Xxh32 = struct {
     /// offsets); a change bumps `runtime.abi_version`.
     pub const State = extern struct {
         /// Bytes processed so far (whole stripes).
-        t: u64,
+        t: u64 align(8),
         /// The four accumulators.
         v: [4]u32,
         /// The seed, kept for messages shorter than one stripe.
@@ -100,11 +100,11 @@ pub const Xxh64 = struct {
     /// Layout is part of the wasm ABI; a change bumps `runtime.abi_version`.
     pub const State = extern struct {
         /// Bytes processed so far (whole stripes).
-        t: u64,
+        t: u64 align(8),
         /// The four accumulators.
-        v: [4]u64,
+        v: [4]u64 align(8),
         /// The seed, kept for messages shorter than one stripe.
-        seed: u64,
+        seed: u64 align(8),
 
         comptime {
             std.debug.assert(@sizeOf(State) == 48);

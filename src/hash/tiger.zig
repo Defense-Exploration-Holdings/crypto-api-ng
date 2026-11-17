@@ -140,9 +140,9 @@ fn TigerImpl(comptime pad: u8) type {
         /// little-endian in memory.
         pub const State = extern struct {
             /// Bytes compressed so far.
-            t: u64,
+            t: u64 align(8),
             /// The chaining value (`a`, `b`, `c`).
-            h: [3]u64,
+            h: [3]u64 align(8),
 
             comptime {
                 std.debug.assert(@sizeOf(State) == 32);

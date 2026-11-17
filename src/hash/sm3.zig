@@ -22,7 +22,7 @@ pub const State = extern struct {
     /// Steps per block, 1..64.
     rounds: u32,
     /// Total bytes passed to `update` (`be32.lengthField`).
-    length: u64,
+    length: u64 align(8),
     /// Bytes currently buffered in `buf` (0..63).
     buffered: u32,
     _reserved: u32,

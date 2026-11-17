@@ -36,7 +36,7 @@ pub const suffix_keccak: u8 = 0x01;
 /// the facade puts the tail and the output above the input offset.
 pub const State = extern struct {
     /// The sponge state, 1600 bits.
-    lanes: [lane_count]u64,
+    lanes: [lane_count]u64 align(8),
     /// Block size in bytes: 200 minus twice the security level. A multiple of 8.
     rate: u32,
     /// Bytes of the current block already squeezed (0..rate); only used after `final`.

@@ -168,11 +168,11 @@ fn StreebogImpl(comptime digest_bytes: usize) type {
         /// digest behind the input chunk instead of in the output slot.
         pub const State = extern struct {
             /// Bytes compressed so far (the counter N of the specification is `8 * t`).
-            t: u64,
+            t: u64 align(8),
             /// The chaining value.
-            h: Words,
+            h: Words align(8),
             /// The checksum: the sum of all blocks, modulo 2^512.
-            sigma: Words,
+            sigma: Words align(8),
 
             comptime {
                 std.debug.assert(@sizeOf(State) == 136);
