@@ -152,12 +152,64 @@ hasher.update(new Uint8Array([1, 2, 3]));
 console.log(toHex(hasher.finalize()));
 ```
 
+### Browser (ES module)
+
+`crypto-api.min.mjs` is a single ES module with every algorithm and its WebAssembly module embedded (about 345 KB, 165 KB gzipped). The `CryptoApi` object is the default export, and the hasher classes, `Hmac`, `Pbkdf2`, `Hkdf` and the encoders are named exports. Load it with `<script type="module">` from your own server or a CDN that mirrors npm, with the version pinned in the URL:
+
+```html
+<script type="module">
+  import CryptoApi, {Sha256, bytesToHex, utf8ToBytes} from "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.4.0/crypto-api.min.mjs";
+
+  console.log(CryptoApi.hash('sha256', 'message'));  // UTF string in, hex out
+
+  const hasher = new Sha256();
+  hasher.update(utf8ToBytes('message'));
+  console.log(bytesToHex(hasher.digest()));
+</script>
+```
+
+The same file is at `https://unpkg.com/crypto-api-ng@1.4.0/crypto-api.min.mjs`. Because it is one file, one hash covers all of the code. An `import` statement cannot carry the hash itself, so declare it in an import map, which current browsers check before they run the module:
+
+```html
+<script type="importmap">
+{
+  "imports": {
+    "crypto-api-ng": "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.4.0/crypto-api.min.mjs"
+  },
+  "integrity": {
+    "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.4.0/crypto-api.min.mjs": "sha384-HASH_OF_THE_FILE"
+  }
+}
+</script>
+<script type="module">
+  import CryptoApi from "crypto-api-ng";
+
+  console.log(CryptoApi.hash('sha256', 'message'));
+</script>
+```
+
+Compute the hash with `openssl dgst -sha384 -binary crypto-api.min.mjs | openssl base64 -A`, from the file of the version you pin.
+
+To load only the algorithms you use, import the modules under `src/` directly. Every module in the package imports its dependencies by relative path, so the browser fetches them from the CDN without a bundler:
+
+```html
+<script type="module">
+  import Blake3 from "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.4.0/src/hasher/blake3.mjs";
+
+  console.log(new Blake3().digest('hex'));
+</script>
+```
+
+CDNs that build packages for the browser, such as esm.sh, also serve the entries of the `exports` map: `https://esm.sh/crypto-api-ng@1.4.0` and `https://esm.sh/crypto-api-ng@1.4.0/sha256`.
+
+As with the global build below, the code runs without WebAssembly where it is missing or blocked by the page's Content-Security-Policy. To allow WebAssembly under a CSP, add `'wasm-unsafe-eval'` to `script-src`.
+
 ### Browser (ES5 global build)
 
 `crypto-api.min.js` (and the unminified `crypto-api.js`) is a UMD build in ES5 syntax that defines the global `CryptoApi`. The WebAssembly modules are embedded, so it is a single file. Load it from your own server or a CDN that mirrors npm. Pin the version in the URL and add an `integrity` attribute, so that the browser rejects a file that differs from the one you checked:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng@1.3.0/crypto-api.min.js"
+<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng@1.4.0/crypto-api.min.js"
         integrity="sha384-HASH_OF_THE_FILE"
         crossorigin="anonymous"></script>
 <script>

@@ -42,8 +42,12 @@ import { fromUtf } from "crypto-api-ng/src/encoder/utf.mjs";
 import { fromArrayBuffer } from "crypto-api-ng/src/encoder/array-buffer.mjs";
 import { utf8ToBytes, bytesToUtf8, bytesToHex, hexToBytes, bytesToBase64, base64ToBytes } from "crypto-api-ng/src/encoder/bytes.mjs";
 import type { HasherLike, HasherName } from "crypto-api-ng/types.js";
+import Bundled, { Sha256 as BundledSha256, Hmac as BundledHmac, bytesToHex as bundledHex } from "crypto-api-ng/crypto-api.min.mjs";
 
 const hex: string = CryptoApi.hash('sha256', 'abc');
+const fromBundle: string = Bundled.hash('sha256', 'abc') + bundledHex(new BundledHmac('k', new BundledSha256()).digest());
+// @ts-expect-error the ES module build has no such export
+import("crypto-api-ng/crypto-api.min.mjs").then((m) => m.NoSuchHasher);
 const same: string = Direct.hash('md5', new Uint8Array(3), { rounds: 10 });
 const hasher = new Sha256({ length: 224, rounds: 64 });
 hasher.update('a');

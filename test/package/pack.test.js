@@ -54,8 +54,8 @@ describe('tarball contents', () => {
     const { files } = packed['crypto-api-ng'];
     const top = new Set(files.map((f) => f.split('/')[0]));
     assert.deepEqual([...top].sort(), [
-      'CHANGELOG.md', 'LICENSE', 'README.md', 'crypto-api.js', 'crypto-api.min.js', 'crypto-api.min.js.map',
-      'example', 'index.d.ts', 'index.js', 'legacy', 'package.json', 'src', 'types.d.ts', 'wasm',
+      'CHANGELOG.md', 'LICENSE', 'README.md', 'crypto-api.js', 'crypto-api.min.d.mts', 'crypto-api.min.js', 'crypto-api.min.js.map',
+      'crypto-api.min.mjs', 'crypto-api.min.mjs.map', 'example', 'index.d.ts', 'index.js', 'legacy', 'package.json', 'src', 'types.d.ts', 'wasm',
     ]);
   });
 

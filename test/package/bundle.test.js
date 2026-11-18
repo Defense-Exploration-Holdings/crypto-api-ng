@@ -26,6 +26,7 @@ before(async () => {
   subjects['index.js'] = require(join(PKG_ROOT, 'index.js'));
   subjects['crypto-api.js'] = require(join(PKG_ROOT, 'crypto-api.js'));
   subjects['crypto-api.min.js'] = require(join(PKG_ROOT, 'crypto-api.min.js'));
+  subjects['crypto-api.min.mjs'] = (await import(pathToFileURL(join(PKG_ROOT, 'crypto-api.min.mjs')).href)).default;
   subjects['src/index.mjs'] = (await import(pathToFileURL(join(PKG_ROOT, 'src', 'index.mjs')).href)).default;
   subjects['src/crypto-api.mjs'] = (await import(pathToFileURL(join(PKG_ROOT, 'src', 'crypto-api.mjs')).href)).default;
 });
@@ -37,7 +38,7 @@ const outcome = (fn) => {
 // Binary strings (what update() takes) and UTF strings (what hash()/hmac() take).
 const BINARY = ['', 'abc', 'x'.repeat(63), 'y'.repeat(64), 'z'.repeat(65), 'The quick brown fox'.repeat(20), '\x00\x01\xfe\xff'.repeat(40)];
 const UTF = ['', 'abc', 'Привет, мир ☃ 😀', 'q'.repeat(300)];
-const LABELS = ['index.js', 'crypto-api.js', 'crypto-api.min.js', 'src/index.mjs', 'src/crypto-api.mjs'];
+const LABELS = ['index.js', 'crypto-api.js', 'crypto-api.min.js', 'crypto-api.min.mjs', 'src/index.mjs', 'src/crypto-api.mjs'];
 
 describe('shape', () => {
   for (const label of LABELS) {
@@ -190,9 +191,13 @@ describe('ES5 syntax', () => {
 });
 
 describe('WebAssembly use in the bundle (fresh process)', () => {
-  const run = (prelude, file) => JSON.parse(execFileSync(process.execPath, ['-e', `
+  const load = (file) => file.endsWith('.mjs')
+    ? `const api = (await import(${JSON.stringify(pathToFileURL(join(PKG_ROOT, file)).href)})).default;`
+    : `const api = require(${JSON.stringify(join(PKG_ROOT, file))});`;
+  const run = (prelude, file) => JSON.parse(execFileSync(process.execPath, [
+    ...(file.endsWith('.mjs') ? ['--input-type=module'] : []), '-e', `
     ${prelude}
-    const api = require(${JSON.stringify(join(PKG_ROOT, file))});
+    ${load(file)}
     const out = { md5: api.hash('md5', 'abc'), sha1: api.hash('sha1', 'abc'), snefru: api.hash('snefru', 'abc'), wasm: globalThis.__modules || 0 };
     const h = api.getHasher('md5'); h.update('x'.repeat(1000)); out.md5big = api.encoder.toHex(h.finalize());
     out.wasmAfter = globalThis.__modules || 0;
@@ -207,7 +212,7 @@ describe('WebAssembly use in the bundle (fresh process)', () => {
       WebAssembly.Module.prototype = M.prototype;
     }`;
 
-  for (const file of ['crypto-api.js', 'crypto-api.min.js']) {
+  for (const file of ['crypto-api.js', 'crypto-api.min.js', 'crypto-api.min.mjs']) {
     it(`${file} compiles the embedded wasm and uses it`, () => {
       const r = run(spy, file);
       assert.ok(r.wasmAfter >= 1, 'no WebAssembly.Module was constructed');
@@ -226,4 +231,45 @@ describe('WebAssembly use in the bundle (fresh process)', () => {
       assert.deepEqual(blocked, withWasm);
     });
   }
+});
+
+describe('ES module build (crypto-api.min.mjs)', () => {
+  let esm;
+  before(async () => {
+    const { ESM_EXPORTS } = await import(join(PKG_ROOT, '..', '..', 'scripts', 'build-bundle.mjs'));
+    esm = { ns: await import(pathToFileURL(join(PKG_ROOT, 'crypto-api.min.mjs')).href), ESM_EXPORTS };
+  });
+
+  it('parses as an ES2020 module', () => {
+    acorn.parse(readFileSync(join(PKG_ROOT, 'crypto-api.min.mjs'), 'utf8'), { ecmaVersion: 2020, sourceType: 'module' });
+  });
+
+  it('has the CryptoApi object as default export and exactly the listed named exports', () => {
+    const names = Object.keys(esm.ns).filter((k) => k !== 'default').sort();
+    assert.deepEqual(names, esm.ESM_EXPORTS.map(([n]) => n).sort());
+    const dts = readFileSync(join(PKG_ROOT, 'crypto-api.min.d.mts'), 'utf8');
+    for (const n of names) assert.match(dts, new RegExp(`\\b${n} \\}`), `${n} is not declared`);
+  });
+
+  it('named exports are the modules under src/, built into the same file as the default export', async () => {
+    for (const [name, file, from] of esm.ESM_EXPORTS) {
+      const source = await import(pathToFileURL(join(PKG_ROOT, file)).href);
+      assert.equal(typeof esm.ns[name], typeof source[from], name);
+      if (typeof source[from] === 'function' && /^[A-Z]/.test(name)) assert.equal(esm.ns[name].name, source[from].name, name);
+    }
+    const api = esm.ns.default;
+    assert.ok(api.getHasher('sha256') instanceof esm.ns.Sha256);
+    assert.ok(api.getHasher('blake3') instanceof esm.ns.Blake3);
+    assert.ok(api.getHmac('k', api.getHasher('md5')) instanceof esm.ns.Hmac);
+    assert.equal(esm.ns.bytesToHex(new esm.ns.Sha256().digest()), api.hash('sha256', ''));
+    assert.equal(esm.ns.toHex(esm.ns.fromUtf('\u00e9')), 'c3a9');
+  });
+
+  it('has a source map whose sources are files shipped next to it', () => {
+    const map = JSON.parse(readFileSync(join(PKG_ROOT, 'crypto-api.min.mjs.map'), 'utf8'));
+    assert.equal(map.version, 3);
+    assert.ok(map.sources.includes('src/crypto-api.mjs'));
+    assert.ok(map.sources.some((s) => s.startsWith('wasm/')));
+    assert.match(readFileSync(join(PKG_ROOT, 'crypto-api.min.mjs'), 'utf8'), /\/\/# sourceMappingURL=crypto-api\.min\.mjs\.map\s*$/);
+  });
 });
