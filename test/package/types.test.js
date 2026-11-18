@@ -31,6 +31,12 @@ import Scrypt from "crypto-api-ng/src/kdf/scrypt.mjs";
 import Sha3 from "crypto-api-ng/src/hasher/sha3.mjs";
 import Shake from "crypto-api-ng/src/hasher/shake.mjs";
 import Keccak from "crypto-api-ng/src/hasher/keccak.mjs";
+import CShake from "crypto-api-ng/cshake";
+import Kmac from "crypto-api-ng/kmac";
+import TupleHash from "crypto-api-ng/tuplehash";
+import ParallelHash from "crypto-api-ng/parallelhash";
+import TurboShake from "crypto-api-ng/turboshake";
+import KangarooTwelve from "crypto-api-ng/kangarootwelve";
 import Tiger from "crypto-api-ng/src/hasher/tiger.mjs";
 import Tiger2 from "crypto-api-ng/src/hasher/tiger2.mjs";
 import Streebog from "crypto-api-ng/src/hasher/streebog.mjs";
@@ -74,6 +80,13 @@ CryptoApi.hash('blake2b-256', 'abc', { key: 'k' });
 new Sha3({ length: 256 }).update('abc');
 new Keccak({ length: 256 });
 new Shake({ strength: 256, length: 1024 });
+new CShake({ strength: 256, customization: 'S', functionName: new Uint8Array(1) }).update('abc');
+const kmacTag: string = new Kmac({ key: 'k', xof: true, length: 512 }).digest('hex');
+new TupleHash({ customization: 'S' }).update('element');
+new ParallelHash({ blockSize: 1024 });
+new TurboShake({ domain: 0x0b });
+new KangarooTwelve({ strength: 256, customization: 'C' });
+const kt: string = CryptoApi.hash('kt128', 'abc', { length: 512 });
 new Tiger({ length: 128 }).update('abc');
 new Tiger2();
 new Streebog({ length: 256 }).update(new Uint8Array(3));
@@ -152,6 +165,10 @@ new Blake3({ key: 'k', context: 'c' });
 new Sha3({ length: 160 });
 // @ts-expect-error SHAKE strength is 128 or 256
 new Shake({ strength: 512 });
+// @ts-expect-error KMAC needs a key
+new Kmac({});
+// @ts-expect-error xof is a boolean
+new TupleHash({ xof: 1 });
 // @ts-expect-error Streebog has 256 and 512 bits only
 new Streebog({ length: 384 });
 // @ts-expect-error a seed is a number

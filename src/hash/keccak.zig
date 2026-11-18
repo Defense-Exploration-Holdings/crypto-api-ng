@@ -1,5 +1,6 @@
 //! Keccak-f[1600] and the sponge construction on top of it: SHA-3 and SHAKE
-//! (FIPS 202) and the original Keccak padding (Ethereum's Keccak-256).
+//! (FIPS 202), the original Keccak padding (Ethereum's Keccak-256), and the
+//! 12-round Keccak-p[1600, 12] that TurboSHAKE and KangarooTwelve use (RFC 9861).
 //!
 //! The three families differ only in the rate (block size) and in the
 //! domain-separation suffix byte that is appended to the message before the
@@ -103,6 +104,21 @@ pub fn permute(a: *[lane_count]u64) void {
     for (RC) |rc| round(a, rc);
 }
 
+/// Rounds of the reduced permutation of TurboSHAKE and KangarooTwelve.
+pub const turbo_rounds = 12;
+
+/// Keccak-p[1600, n]: the last `n` rounds of Keccak-f[1600] (1 <= n <= 24).
+/// `n` = 24 is Keccak-f[1600] itself.
+pub fn permuteRounds(a: *[lane_count]u64, n: u32) void {
+    std.debug.assert(validRounds(n));
+    for (RC[rounds - n ..]) |rc| round(a, rc);
+}
+
+/// Round counts the sponge accepts.
+pub fn validRounds(n: u32) bool {
+    return n >= 1 and n <= rounds;
+}
+
 /// Start a sponge with the given block size (`validRate`, caller checks).
 pub fn init(st: *State, rate: u32) void {
     std.debug.assert(validRate(rate));
@@ -111,6 +127,11 @@ pub fn init(st: *State, rate: u32) void {
 
 /// Absorb whole blocks: `data.len` is a multiple of `st.rate`.
 pub fn blocks(st: *State, data: []const u8) void {
+    blocksRounds(st, data, rounds);
+}
+
+/// `blocks` with Keccak-p[1600, n] (`validRounds`, caller checks).
+pub fn blocksRounds(st: *State, data: []const u8, n: u32) void {
     std.debug.assert(data.len % st.rate == 0);
     const rate: usize = st.rate;
     var off: usize = 0;
@@ -119,7 +140,7 @@ pub fn blocks(st: *State, data: []const u8) void {
         while (i < rate / 8) : (i += 1) {
             st.lanes[i] ^= std.mem.readInt(u64, data[off + i * 8 ..][0..8], .little);
         }
-        permute(&st.lanes);
+        permuteRounds(&st.lanes, n);
     }
 }
 
@@ -131,23 +152,33 @@ fn xorByte(lanes: *[lane_count]u64, index: usize, value: u8) void {
 /// suffix and the `10*1` padding, permute, and squeeze `out.len` bytes.
 /// `suffix` is one of the `suffix_*` bytes (1..127).
 pub fn final(st: *State, tail: []const u8, suffix: u8, out: []u8) void {
+    finalRounds(st, tail, suffix, out, rounds);
+}
+
+/// `final` with Keccak-p[1600, n] (`validRounds`, caller checks).
+pub fn finalRounds(st: *State, tail: []const u8, suffix: u8, out: []u8, n: u32) void {
     std.debug.assert(tail.len < st.rate and suffix >= 1 and suffix < 0x80);
     for (tail, 0..) |byte, i| xorByte(&st.lanes, i, byte);
     xorByte(&st.lanes, tail.len, suffix);
     xorByte(&st.lanes, st.rate - 1, 0x80);
-    permute(&st.lanes);
+    permuteRounds(&st.lanes, n);
     st.pos = 0;
-    squeeze(st, out);
+    squeezeRounds(st, out, n);
 }
 
 /// Squeeze `out.len` more bytes. Callable repeatedly after `final`; the stream
 /// continues where the last call stopped.
 pub fn squeeze(st: *State, out: []u8) void {
+    squeezeRounds(st, out, rounds);
+}
+
+/// `squeeze` with Keccak-p[1600, n]; `n` must be the one `finalRounds` used.
+pub fn squeezeRounds(st: *State, out: []u8, nr: u32) void {
     std.debug.assert(st.pos <= st.rate);
     var n: usize = 0;
     while (n < out.len) {
         if (st.pos == st.rate) {
-            permute(&st.lanes);
+            permuteRounds(&st.lanes, nr);
             st.pos = 0;
         }
         const take = @min(st.rate - st.pos, out.len - n);
@@ -334,6 +365,48 @@ test "the empty-state permutation matches the Keccak-f[1600] test vector" {
     permute(&a);
     try testing.expectEqual(@as(u64, 0x2D5C954DF96ECB3C), a[0]);
     try testing.expectEqual(@as(u64, 0x6A332CD07057B56D), a[1]);
+}
+
+test "TurboSHAKE (Keccak-p[1600, 12]) matches std.crypto at every length 0..450" {
+    var prng = std.Random.DefaultPrng.init(0x7b0);
+    const rnd = prng.random();
+    var data: [450]u8 = undefined;
+    rnd.bytes(&data);
+    for (0..data.len + 1) |len| {
+        const msg = data[0..len];
+        const out_len = rnd.intRangeAtMost(usize, 0, 400);
+        var want: [400]u8 = undefined;
+        var got: [400]u8 = undefined;
+        inline for (.{ .{ 168, std.crypto.hash.sha3.TurboShake128(0x1f) }, .{ 136, std.crypto.hash.sha3.TurboShake256(0x0b) } }) |pair| {
+            const rate = pair[0];
+            pair[1].hash(msg, want[0..out_len], .{});
+            var st: State = undefined;
+            init(&st, rate);
+            const whole = len - len % rate;
+            blocksRounds(&st, msg[0..whole], turbo_rounds);
+            const suffix: u8 = if (rate == 168) 0x1f else 0x0b;
+            const first = out_len / 3;
+            finalRounds(&st, msg[whole..], suffix, got[0..first], turbo_rounds);
+            squeezeRounds(&st, got[first..out_len], turbo_rounds);
+            try testing.expectEqualSlices(u8, want[0..out_len], got[0..out_len]);
+        }
+    }
+}
+
+test "permuteRounds(24) is permute, and fewer rounds are its last rounds" {
+    var a: [lane_count]u64 = undefined;
+    for (&a, 0..) |*lane, i| lane.* = @as(u64, i) *% 0x9e3779b97f4a7c15;
+    var b = a;
+    permute(&a);
+    permuteRounds(&b, 24);
+    try testing.expectEqualSlices(u64, &a, &b);
+    var c: [lane_count]u64 = @splat(1);
+    var d = c;
+    permuteRounds(&c, 12);
+    for (RC[12..]) |rc| round(&d, rc);
+    try testing.expectEqualSlices(u64, &c, &d);
+    try testing.expect(validRounds(1) and validRounds(12) and validRounds(24));
+    try testing.expect(!validRounds(0) and !validRounds(25));
 }
 
 test "validRate" {

@@ -43,6 +43,8 @@ const ripemd = @import("hash/ripemd.zig");
 const snefru = @import("hash/snefru.zig");
 const whirlpool = @import("hash/whirlpool.zig");
 const keccak = @import("hash/keccak.zig");
+const sp800_185 = @import("hash/sp800_185.zig");
+const kangarootwelve = @import("hash/kangarootwelve.zig");
 const blake2 = @import("hash/blake2.zig");
 const blake3 = @import("hash/blake3.zig");
 const tiger = @import("hash/tiger.zig");
@@ -56,7 +58,7 @@ const argon2_core = @import("kdf/argon2.zig");
 const scrypt_core = @import("kdf/scrypt.zig");
 
 /// Library version.
-pub const version = std.SemanticVersion{ .major = 1, .minor = 3, .patch = 0 };
+pub const version = std.SemanticVersion{ .major = 1, .minor = 5, .patch = 0 };
 
 fn wipe(ptr: anytype) void {
     std.crypto.secureZero(u8, std.mem.asBytes(ptr));
@@ -919,6 +921,49 @@ fn ShakeOf(comptime strength: u32) type {
 pub const Shake128 = ShakeOf(128);
 /// SHAKE256 (FIPS 202), output of any length.
 pub const Shake256 = ShakeOf(256);
+
+// ---- SP 800-185: cSHAKE, KMAC, TupleHash, ParallelHash ------------------------------
+//
+// Output of any length: `final(out)` writes `out.len` bytes and wipes the
+// hasher; `squeeze(out)` instead gives the XOF form (KMACXOF, TupleHashXOF,
+// ParallelHashXOF), and can be called repeatedly. For KMAC, TupleHash and
+// ParallelHash the output length is part of the input, so a shorter `final`
+// output is not a prefix of a longer one.
+
+/// cSHAKE128 (NIST SP 800-185). Options: `function_name` (N) and `customization` (S);
+/// with both empty it is SHAKE128.
+pub const CShake128 = sp800_185.CShake(128);
+/// cSHAKE256 (NIST SP 800-185).
+pub const CShake256 = sp800_185.CShake(256);
+/// KMAC128 (NIST SP 800-185): `init(key)` or `initWithOptions(key, .{ .customization = s })`,
+/// `create(out, msg, key)`, `update`, `final(out)`; `squeeze(out)` is KMACXOF128.
+pub const Kmac128 = sp800_185.Kmac(128);
+/// KMAC256 (NIST SP 800-185); `squeeze(out)` is KMACXOF256.
+pub const Kmac256 = sp800_185.Kmac(256);
+/// TupleHash128 (NIST SP 800-185). Every `update` call adds one element to the
+/// tuple; `hash` takes the elements as a slice of slices. `squeeze` is TupleHashXOF128.
+pub const TupleHash128 = sp800_185.TupleHash(128);
+/// TupleHash256 (NIST SP 800-185); `squeeze` is TupleHashXOF256.
+pub const TupleHash256 = sp800_185.TupleHash(256);
+/// ParallelHash128 (NIST SP 800-185). Options: `block_size` (B, bytes, default
+/// 8192) and `customization`. Blocks are hashed one after another. `squeeze` is
+/// ParallelHashXOF128.
+pub const ParallelHash128 = sp800_185.ParallelHash(128);
+/// ParallelHash256 (NIST SP 800-185); `squeeze` is ParallelHashXOF256.
+pub const ParallelHash256 = sp800_185.ParallelHash(256);
+
+// ---- TurboSHAKE and KangarooTwelve (RFC 9861) -----------------------------------------
+
+/// TurboSHAKE128 (RFC 9861): SHAKE128 with 12 rounds. Option `domain`, 0x01 to
+/// 0x7f (default 0x1f). Output of any length; `squeeze` continues it.
+pub const TurboShake128 = sp800_185.TurboShake(128);
+/// TurboSHAKE256 (RFC 9861).
+pub const TurboShake256 = sp800_185.TurboShake(256);
+/// KT128, KangarooTwelve (RFC 9861). Option `customization`, which must stay
+/// valid until `final`. Output of any length; `squeeze` continues it.
+pub const KT128 = kangarootwelve.KT128;
+/// KT256 (RFC 9861).
+pub const KT256 = kangarootwelve.KT256;
 
 // ---- HMAC, PBKDF2, HKDF -------------------------------------------------------------
 

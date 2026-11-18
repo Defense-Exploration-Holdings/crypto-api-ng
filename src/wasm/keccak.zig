@@ -10,6 +10,13 @@
 //!     keccak_final(state, data, len, suffix, out, out_len)  len < rate; pad, permute, squeeze
 //!     keccak_squeeze(state, out, out_len)                   more output after `final`
 //!
+//! The same three with a round count (1..24) as the last argument, for the
+//! 12-round Keccak-p[1600, 12] of TurboSHAKE and KangarooTwelve:
+//!
+//!     keccak_p_blocks(state, data, len, rounds)
+//!     keccak_p_final(state, data, len, suffix, out, out_len, rounds)
+//!     keccak_p_squeeze(state, out, out_len, rounds)
+//!
 //! The State (208 bytes) does not fit the 128-byte state slot of the scratch
 //! region, so the facade places the tail at the input offset and the output
 //! 256 bytes above it (`final` reads the tail before it writes the output).
@@ -46,34 +53,50 @@ export fn keccak_init(state: u32, rate: u32) i32 {
 
 /// Absorb `len` bytes (a multiple of the rate) into the lanes at `state`.
 export fn keccak_blocks(state: u32, data: u32, len: u32) i32 {
-    const st = statePtr(state);
-    if (bad(st)) return @backingInt(Status.invalid_state);
-    if (len % st.rate != 0) return @backingInt(Status.invalid_argument);
-    const p: [*]const u8 = @ptrFromInt(data);
-    defer scrubStack(scrub_len);
-    @call(.never_inline, keccak.blocks, .{ st, p[0..len] });
-    return 0;
+    return keccak_p_blocks(state, data, len, keccak.rounds);
 }
 
 /// Absorb the `len`-byte tail (shorter than the rate), pad with `suffix`,
 /// permute and write `out_len` bytes of output to `out`. Mutates the State.
 export fn keccak_final(state: u32, data: u32, len: u32, suffix: u32, out: u32, out_len: u32) i32 {
-    const st = statePtr(state);
-    if (bad(st)) return @backingInt(Status.invalid_state);
-    if (len >= st.rate or suffix < 1 or suffix > 0x7f) return @backingInt(Status.invalid_argument);
-    const p: [*]const u8 = @ptrFromInt(data);
-    const o: [*]u8 = @ptrFromInt(out);
-    defer scrubStack(scrub_len);
-    @call(.never_inline, keccak.final, .{ st, p[0..len], @as(u8, @intCast(suffix)), o[0..out_len] });
-    return 0;
+    return keccak_p_final(state, data, len, suffix, out, out_len, keccak.rounds);
 }
 
 /// `out_len` more output bytes, continuing a stream that `keccak_final` started.
 export fn keccak_squeeze(state: u32, out: u32, out_len: u32) i32 {
+    return keccak_p_squeeze(state, out, out_len, keccak.rounds);
+}
+
+/// `keccak_blocks` with `rounds` rounds of the permutation.
+export fn keccak_p_blocks(state: u32, data: u32, len: u32, rounds: u32) i32 {
     const st = statePtr(state);
     if (bad(st)) return @backingInt(Status.invalid_state);
+    if (len % st.rate != 0 or !keccak.validRounds(rounds)) return @backingInt(Status.invalid_argument);
+    const p: [*]const u8 = @ptrFromInt(data);
+    defer scrubStack(scrub_len);
+    @call(.never_inline, keccak.blocksRounds, .{ st, p[0..len], rounds });
+    return 0;
+}
+
+/// `keccak_final` with `rounds` rounds of the permutation.
+export fn keccak_p_final(state: u32, data: u32, len: u32, suffix: u32, out: u32, out_len: u32, rounds: u32) i32 {
+    const st = statePtr(state);
+    if (bad(st)) return @backingInt(Status.invalid_state);
+    if (len >= st.rate or suffix < 1 or suffix > 0x7f or !keccak.validRounds(rounds)) return @backingInt(Status.invalid_argument);
+    const p: [*]const u8 = @ptrFromInt(data);
     const o: [*]u8 = @ptrFromInt(out);
     defer scrubStack(scrub_len);
-    @call(.never_inline, keccak.squeeze, .{ st, o[0..out_len] });
+    @call(.never_inline, keccak.finalRounds, .{ st, p[0..len], @as(u8, @intCast(suffix)), o[0..out_len], rounds });
+    return 0;
+}
+
+/// `keccak_squeeze` with `rounds` rounds of the permutation.
+export fn keccak_p_squeeze(state: u32, out: u32, out_len: u32, rounds: u32) i32 {
+    const st = statePtr(state);
+    if (bad(st)) return @backingInt(Status.invalid_state);
+    if (!keccak.validRounds(rounds)) return @backingInt(Status.invalid_argument);
+    const o: [*]u8 = @ptrFromInt(out);
+    defer scrubStack(scrub_len);
+    @call(.never_inline, keccak.squeezeRounds, .{ st, o[0..out_len], rounds });
     return 0;
 }

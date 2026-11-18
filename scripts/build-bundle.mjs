@@ -49,6 +49,7 @@ export const ESM_EXPORTS = [
     ['Blake2b', 'blake2b'], ['Blake2s', 'blake2s'], ['Blake3', 'blake3'], ['Crc32', 'crc32'], ['Crc32c', 'crc32c'],
     ['Has160', 'has160'], ['Keccak', 'keccak'], ['Md2', 'md2'], ['Md4', 'md4'], ['Md5', 'md5'], ['Ripemd', 'ripemd'],
     ['Sha0', 'sha0'], ['Sha1', 'sha1'], ['Sha256', 'sha256'], ['Sha3', 'sha3'], ['Sha512', 'sha512'], ['Shake', 'shake'],
+    ['CShake', 'cshake'], ['Kmac', 'kmac'], ['TupleHash', 'tuplehash'], ['ParallelHash', 'parallelhash'], ['TurboShake', 'turboshake'], ['KangarooTwelve', 'kangarootwelve'],
     ['Sm3', 'sm3'], ['Snefru', 'snefru'], ['Streebog', 'streebog'], ['Tiger', 'tiger'], ['Tiger2', 'tiger2'],
     ['Whirlpool', 'whirlpool'], ['XxHash32', 'xxhash32'], ['XxHash64', 'xxhash64'],
   ].map(([name, file]) => [name, `src/hasher/${file}.mjs`, 'default']),

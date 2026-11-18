@@ -22,6 +22,11 @@ import Whirlpool, { _internal as whirlpool } from '../packages/crypto-api/src/ha
 import Sha3 from '../packages/crypto-api/src/hasher/sha3.mjs';
 import Keccak from '../packages/crypto-api/src/hasher/keccak.mjs';
 import Shake from '../packages/crypto-api/src/hasher/shake.mjs';
+import CShake from '../packages/crypto-api/src/hasher/cshake.mjs';
+import Kmac from '../packages/crypto-api/src/hasher/kmac.mjs';
+import ParallelHash from '../packages/crypto-api/src/hasher/parallelhash.mjs';
+import TurboShake from '../packages/crypto-api/src/hasher/turboshake.mjs';
+import KangarooTwelve from '../packages/crypto-api/src/hasher/kangarootwelve.mjs';
 import { _internal as keccak } from '../packages/crypto-api/src/wasm/keccak.mjs';
 import Blake2b, { _internal as blake2b } from '../packages/crypto-api/src/hasher/blake2b.mjs';
 import Blake2s, { _internal as blake2s } from '../packages/crypto-api/src/hasher/blake2s.mjs';
@@ -364,6 +369,11 @@ describe('keys, key-derived words, long output and big messages leave nothing in
       ['SHA3-512', () => new Sha3({ length: 512 })],
       ['Keccak-256', () => new Keccak({ length: 256 })],
       ['SHAKE128', () => new Shake({ length: 4096 })],
+      ['cSHAKE256', () => new CShake({ strength: 256, customization: 'S' })],
+      ['KMAC128', () => new Kmac({ key: binary(KEY32) })],
+      ['ParallelHash128', () => new ParallelHash({ blockSize: 1000 })],
+      ['TurboSHAKE128', () => new TurboShake()],
+      ['KT128', () => new KangarooTwelve()],
     ]) {
       // The sponge words after absorbing: `state.hash` is the secret-derived value.
       const h = make();

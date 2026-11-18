@@ -45,6 +45,12 @@ CryptoApi.hash('sha256', 'abc');
 | `sha3-224`, `sha3-256`, `sha3-384`, `sha3-512` | `Sha3` (`sha3.mjs`) | 224, 256, 384, 512 bits |
 | `shake128`, `shake256` | `Shake` (`shake.mjs`) | any length, 256 and 512 bits by default |
 | `keccak224`, `keccak256`, `keccak384`, `keccak512` | `Keccak` (`keccak.mjs`) | 224, 256, 384, 512 bits |
+| `cshake128`, `cshake256` | `CShake` (`cshake.mjs`) | any length, 256 and 512 bits by default |
+| `kmac128`, `kmac256`, `kmacxof128`, `kmacxof256` | `Kmac` (`kmac.mjs`) | any length, 256 and 512 bits by default; `key` is required |
+| `tuplehash128`, `tuplehash256`, `tuplehashxof128`, `tuplehashxof256` | `TupleHash` (`tuplehash.mjs`) | any length, 256 and 512 bits by default |
+| `parallelhash128`, `parallelhash256`, `parallelhashxof128`, `parallelhashxof256` | `ParallelHash` (`parallelhash.mjs`) | any length, 256 and 512 bits by default |
+| `turboshake128`, `turboshake256` | `TurboShake` (`turboshake.mjs`) | any length, 256 and 512 bits by default |
+| `kt128` (also `kangarootwelve`), `kt256` | `KangarooTwelve` (`kangarootwelve.mjs`) | any length, 256 and 512 bits by default |
 | `snefru` (also `snefru128`, `snefru128/8`), `snefru128/2`, `snefru256` (also `snefru256/8`), `snefru256/4` | `Snefru` (`snefru.mjs`) | 128 or 256 bits |
 | `whirlpool`, `whirlpool-0`, `whirlpool-t` | `Whirlpool` (`whirlpool.mjs`) | 512 bits |
 | `tiger` (also `tiger192`), `tiger160`, `tiger128` | `Tiger` (`tiger.mjs`) | 192, 160, 128 bits |
@@ -101,6 +107,7 @@ An option that is left out (or `undefined`) takes its default. Since 1.1 a value
 | `Sm3` | 1 to 64 (64) | 256 | |
 | `Sha3`, `Keccak` | | 224, 256, 384 or 512 (512) | |
 | `Shake` | | 8 to 2^30 in steps of 8 (256 for strength 128, 512 for strength 256) | `strength`: 128 (SHAKE128, the default) or 256 (SHAKE256) |
+| `CShake`, `Kmac`, `TupleHash`, `ParallelHash`, `TurboShake`, `KangarooTwelve` | | as for `Shake` | `strength` as for `Shake`, and the options in [SP 800-185 and KangarooTwelve](#sp-800-185-and-kangarootwelve) |
 | `Snefru` | 1 to 8 (8) | 32 to 448 in steps of 32 (128) | |
 | `Tiger`, `Tiger2` | | 8 to 192 in steps of 8 (192) | |
 | `Streebog` | | 256 or 512 (512) | |
@@ -118,6 +125,32 @@ The SHA-3 hashers `Sha3`, `Shake` and `Keccak` are additions of this package (th
 - `Keccak` is the hash with the padding of the original Keccak submission, which differs from SHA-3 in one byte of domain separation. Keccak-256 is the hash Ethereum calls "keccak256". Use `Sha3` for the standard.
 - `finalize()` does not end the message: it can be called again with the same result, and `update()` continues the message. `reset()` still starts over.
 - `blockSizeInBytes` is the sponge rate (144, 136, 104 and 72 for the four SHA-3 sizes, 168 and 136 for SHAKE128 and SHAKE256), which is the block size HMAC uses. HMAC-SHA3-256 and the like match the usual definition. NIST does not define HMAC over SHAKE (use KMAC for that); the combination works but has no standard to compare with.
+
+### SP 800-185 and KangarooTwelve
+
+The functions of [NIST SP 800-185](https://csrc.nist.gov/pubs/sp/800/185/final) and [RFC 9861](https://www.rfc-editor.org/rfc/rfc9861) are built on the same sponge as SHA-3 and share its interface (`finalize()` can be repeated, `update()` continues the message). `strength` selects the 128- or 256-bit variant and `length` the output size in bits (default twice the strength). Strings in the options are binary strings, or pass bytes.
+
+| Class | Options | Notes |
+|---|---|---|
+| `CShake` | `customization`, `functionName` | cSHAKE128/256. With both empty it is SHAKE. `functionName` is reserved by NIST for functions defined on top of cSHAKE; applications set `customization`. |
+| `Kmac` | `key` (required), `customization`, `xof` | KMAC128/256, a MAC with a key of any length. With `xof: true` it is KMACXOF, whose output does not depend on `length`. Without a key the constructor throws `TypeError`. |
+| `TupleHash` | `customization`, `xof` | TupleHash128/256: **each `update()` call is one element** of the tuple, so `update('ab')` and `update('a'); update('b')` differ. `CryptoApi.hash('tuplehash128', m)` hashes the one-element tuple `(m)`. |
+| `ParallelHash` | `blockSize` (bytes, default 8192), `customization`, `xof` | ParallelHash128/256. The blocks are hashed one after another; the result is the same as with a parallel implementation. |
+| `TurboShake` | `domain` (0x01 to 0x7f, default 0x1f) | TurboSHAKE128/256: SHAKE with 12 rounds instead of 24. |
+| `KangarooTwelve` | `customization` | KT128 (`strength` 128) and KT256 (256). Messages over 8 KiB are hashed as a tree of 8 KiB chunks, one chunk after another. |
+
+For KMAC, TupleHash and ParallelHash the requested length is part of the input, so a 256-bit result is not the first half of a 512-bit one; with `xof: true` it is.
+
+```javascript
+import Kmac from "crypto-api-ng/kmac";
+import KangarooTwelve from "crypto-api-ng/kangarootwelve";
+
+const mac = new Kmac({key: key, customization: 'My Tagged Application'});
+mac.update(message);
+mac.digest('hex');
+
+new KangarooTwelve({strength: 256, length: 512}).digest('hex');
+```
 
 `rounds` can lower the standard number of rounds, never raise it (MD2 allows up to 255). It exists for compatibility with the original and for research on reduced-round variants; leave it alone for normal hashing.
 

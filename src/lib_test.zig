@@ -190,6 +190,59 @@ test "SHAKE agrees with std.crypto, including squeeze" {
     }
 }
 
+test "SP 800-185 and RFC 9861 types agree with std.crypto" {
+    const sha3 = std.crypto.hash.sha3;
+    const data = randomData(20000, 13);
+    const key = "a KMAC key";
+    for ([_]usize{ 0, 1, 167, 168, 169, 8191, 8192, 8193, 20000 }) |len| {
+        const m = data[0..len];
+        var a: [300]u8 = undefined;
+        var b: [300]u8 = undefined;
+        inline for (.{ .{ lib.CShake128, sha3.CShake128 }, .{ lib.CShake256, sha3.CShake256 } }) |pair| {
+            pair[0].hash(m, &a, .{ .customization = "S" });
+            pair[1].hash(m, &b, .{ .context = "S" });
+            try testing.expectEqualSlices(u8, &b, &a);
+        }
+        inline for (.{ .{ lib.Kmac128, sha3.KMac128 }, .{ lib.Kmac256, sha3.KMac256 } }) |pair| {
+            pair[0].createWithOptions(a[0..40], m, key, .{ .customization = "S" });
+            pair[1].createWithOptions(b[0..40], m, key, .{ .context = "S" });
+            try testing.expectEqualSlices(u8, b[0..40], a[0..40]);
+        }
+        inline for (.{ .{ lib.TupleHash128, sha3.TupleHash128 }, .{ lib.TupleHash256, sha3.TupleHash256 } }) |pair| {
+            var x = pair[0].init(.{ .customization = "S" });
+            var y = pair[1].initWithOptions(.{ .context = "S" });
+            x.update(m[0 .. len / 2]);
+            x.update(m[len / 2 ..]);
+            y.update(m[0 .. len / 2]);
+            y.update(m[len / 2 ..]);
+            x.squeeze(&a);
+            y.squeeze(&b);
+            try testing.expectEqualSlices(u8, &b, &a);
+        }
+        inline for (.{ .{ lib.TurboShake128, sha3.TurboShake128(0x0b) }, .{ lib.TurboShake256, sha3.TurboShake256(0x0b) } }) |pair| {
+            pair[0].hash(m, &a, .{ .domain = 0x0b });
+            pair[1].hash(m, &b, .{});
+            try testing.expectEqualSlices(u8, &b, &a);
+        }
+        inline for (.{ .{ lib.KT128, sha3.KT128 }, .{ lib.KT256, sha3.KT256 } }) |pair| {
+            pair[0].hash(m, &a, .{ .customization = key });
+            try pair[1].hash(m, &b, .{ .customization = key });
+            try testing.expectEqualSlices(u8, &b, &a);
+        }
+    }
+}
+
+test "ParallelHash known answers (NIST SP 800-185 samples)" {
+    const x = [_]u8{ 0, 1, 2, 3, 4, 5, 6, 7, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27 };
+    var out: [32]u8 = undefined;
+    lib.ParallelHash128.hash(&x, &out, .{ .block_size = 8, .customization = "Parallel Data" });
+    try expectHex("fc484dcb3f84dceedc353438151bee58157d6efed0445a81f165e495795b7206", &out);
+    var h = lib.ParallelHash128.init(.{ .block_size = 8 });
+    h.update(&x);
+    h.squeeze(&out);
+    try expectHex("fe47d661e49ffe5b7d999922c062356750caf552985b8e8ce6667f2727c3c8d3", &out);
+}
+
 test "checksums agree with std.hash" {
     const data = randomData(500, 10);
     for (0..data.len + 1) |len| {
@@ -325,6 +378,21 @@ test "final wipes the hasher" {
     h.update("secret");
     _ = h.finalResult();
     for (std.mem.asBytes(&h)) |b| try testing.expectEqual(@as(u8, 0), b);
+}
+
+test "final wipes the SP 800-185 and KangarooTwelve hashers" {
+    var k = lib.Kmac128.init("secret key");
+    k.update("secret");
+    _ = k.finalResult();
+    for (std.mem.asBytes(&k)) |b| try testing.expectEqual(@as(u8, 0), b);
+    var p = lib.ParallelHash256.init(.{ .block_size = 3 });
+    p.update("secret message");
+    _ = p.finalResult();
+    for (std.mem.asBytes(&p)) |b| try testing.expectEqual(@as(u8, 0), b);
+    var t = lib.KT128.init(.{});
+    t.update(&@as([9000]u8, @splat(7)));
+    _ = t.finalResult();
+    for (std.mem.asBytes(&t)) |b| try testing.expectEqual(@as(u8, 0), b);
 }
 
 test "argon2.kdf: RFC 9106 section 5" {

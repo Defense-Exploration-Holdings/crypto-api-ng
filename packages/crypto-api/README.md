@@ -93,9 +93,15 @@ Sizes are one bundle of that import alone (esbuild, minified, ES module, the Web
 | `crypto-api-ng/sha1` | SHA-1 | 17.3 KB | 6.9 KB |
 | `crypto-api-ng/sha256` | SHA-224, SHA-256 | 15.9 KB | 7.0 KB |
 | `crypto-api-ng/sha512` | SHA-384, SHA-512, SHA-512/224, SHA-512/256 | 20.5 KB | 9.4 KB |
-| `crypto-api-ng/sha3` | SHA3-224, SHA3-256, SHA3-384, SHA3-512 | 13.0 KB | 5.9 KB |
-| `crypto-api-ng/shake` | SHAKE128, SHAKE256 | 13.1 KB | 5.9 KB |
-| `crypto-api-ng/keccak` | Keccak-224, Keccak-256, Keccak-384, Keccak-512 | 13.0 KB | 5.9 KB |
+| `crypto-api-ng/sha3` | SHA3-224, SHA3-256, SHA3-384, SHA3-512 | 13.6 KB | 6.0 KB |
+| `crypto-api-ng/shake` | SHAKE128, SHAKE256 | 13.6 KB | 6.0 KB |
+| `crypto-api-ng/keccak` | Keccak-224, Keccak-256, Keccak-384, Keccak-512 | 13.6 KB | 6.0 KB |
+| `crypto-api-ng/cshake` | cSHAKE128, cSHAKE256 | 15.0 KB | 6.5 KB |
+| `crypto-api-ng/kmac` | KMAC128, KMAC256, KMACXOF128, KMACXOF256 | 15.2 KB | 6.6 KB |
+| `crypto-api-ng/tuplehash` | TupleHash128, TupleHash256 and their XOF forms | 15.3 KB | 6.6 KB |
+| `crypto-api-ng/parallelhash` | ParallelHash128, ParallelHash256 and their XOF forms | 16.7 KB | 6.9 KB |
+| `crypto-api-ng/turboshake` | TurboSHAKE128, TurboSHAKE256 | 14.3 KB | 6.3 KB |
+| `crypto-api-ng/kangarootwelve` | KangarooTwelve: KT128, KT256 | 16.5 KB | 6.9 KB |
 | `crypto-api-ng/blake2b` | BLAKE2b | 22.0 KB | 9.3 KB |
 | `crypto-api-ng/blake2s` | BLAKE2s | 19.6 KB | 8.6 KB |
 | `crypto-api-ng/blake3` | BLAKE3 | 19.8 KB | 8.5 KB |
@@ -166,7 +172,7 @@ console.log(toHex(hasher.finalize()));
 
 ```html
 <script type="module">
-  import CryptoApi, {Sha256, bytesToHex, utf8ToBytes} from "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.4.0/crypto-api.min.mjs";
+  import CryptoApi, {Sha256, bytesToHex, utf8ToBytes} from "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.0/crypto-api.min.mjs";
 
   console.log(CryptoApi.hash('sha256', 'message'));  // UTF string in, hex out
 
@@ -176,16 +182,16 @@ console.log(toHex(hasher.finalize()));
 </script>
 ```
 
-The same file is at `https://unpkg.com/crypto-api-ng@1.4.0/crypto-api.min.mjs`. Because it is one file, one hash covers all of the code. An `import` statement cannot carry the hash itself, so declare it in an import map, which current browsers check before they run the module:
+The same file is at `https://unpkg.com/crypto-api-ng@1.5.0/crypto-api.min.mjs`. Because it is one file, one hash covers all of the code. An `import` statement cannot carry the hash itself, so declare it in an import map, which current browsers check before they run the module:
 
 ```html
 <script type="importmap">
 {
   "imports": {
-    "crypto-api-ng": "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.4.0/crypto-api.min.mjs"
+    "crypto-api-ng": "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.0/crypto-api.min.mjs"
   },
   "integrity": {
-    "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.4.0/crypto-api.min.mjs": "sha384-HASH_OF_THE_FILE"
+    "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.0/crypto-api.min.mjs": "sha384-HASH_OF_THE_FILE"
   }
 }
 </script>
@@ -202,13 +208,13 @@ To load only the algorithms you use, import the modules under `src/` directly. E
 
 ```html
 <script type="module">
-  import Blake3 from "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.4.0/src/hasher/blake3.mjs";
+  import Blake3 from "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.0/src/hasher/blake3.mjs";
 
   console.log(new Blake3().digest('hex'));
 </script>
 ```
 
-CDNs that build packages for the browser, such as esm.sh, also serve the entries of the `exports` map: `https://esm.sh/crypto-api-ng@1.4.0` and `https://esm.sh/crypto-api-ng@1.4.0/sha256`.
+CDNs that build packages for the browser, such as esm.sh, also serve the entries of the `exports` map: `https://esm.sh/crypto-api-ng@1.5.0` and `https://esm.sh/crypto-api-ng@1.5.0/sha256`.
 
 As with the global build below, the code runs without WebAssembly where it is missing or blocked by the page's Content-Security-Policy. To allow WebAssembly under a CSP, add `'wasm-unsafe-eval'` to `script-src`.
 
@@ -217,7 +223,7 @@ As with the global build below, the code runs without WebAssembly where it is mi
 `crypto-api.min.js` (and the unminified `crypto-api.js`) is a UMD build in ES5 syntax that defines the global `CryptoApi`. The WebAssembly modules are embedded, so it is a single file. Load it from your own server or a CDN that mirrors npm. Pin the version in the URL and add an `integrity` attribute, so that the browser rejects a file that differs from the one you checked:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng@1.4.0/crypto-api.min.js"
+<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.0/crypto-api.min.js"
         integrity="sha384-HASH_OF_THE_FILE"
         crossorigin="anonymous"></script>
 <script>
@@ -248,7 +254,7 @@ Where WebAssembly is missing or blocked (a page whose Content-Security-Policy la
 ## What is included
 
 * Hashing: HAS-160, MD2, MD4, MD5, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512, SHA-512/224, SHA-512/256, SM3, Snefru v2.0 and v2.5, WHIRLPOOL, WHIRLPOOL-0, WHIRLPOOL-T
-* Added in this package: SHA3-224/256/384/512, SHAKE128/256, Keccak-224/256/384/512, BLAKE2b, BLAKE2s, BLAKE3, Tiger, Tiger2, Streebog-256/512, the keyed hash SipHash (2-4 and 1-3), and the checksums CRC-32, CRC-32C, XXH32, XXH64, XXH3 (64 and 128 bits) and MurmurHash3 (x86_32 and x64_128)
+* Added in this package: SHA3-224/256/384/512, SHAKE128/256, Keccak-224/256/384/512, cSHAKE, KMAC, TupleHash, ParallelHash, TurboSHAKE, KangarooTwelve (KT128, KT256), BLAKE2b, BLAKE2s, BLAKE3, Tiger, Tiger2, Streebog-256/512, the keyed hash SipHash (2-4 and 1-3), and the checksums CRC-32, CRC-32C, XXH32, XXH64, XXH3 (64 and 128 bits) and MurmurHash3 (x86_32 and x64_128)
 * MAC: HMAC (`src/mac/hmac.mjs`, works with any hasher object, including your own)
 * Key derivation: PBKDF2 (`src/kdf/pbkdf2.mjs`) and HKDF (`src/kdf/hkdf.mjs`), over HMAC with any hasher
 * Password hashing: Argon2id, Argon2i and Argon2d (`src/kdf/argon2.mjs`, RFC 9106) and scrypt (`src/kdf/scrypt.mjs`, RFC 7914), in WebAssembly with a plain JavaScript fallback

@@ -169,6 +169,7 @@ pub fn build(b: *std.Build) void {
         "blake/blake2-kat.json",    "blake/blake2-params.json", "blake/blake3.json", "blocks/tiger.json",
         "blocks/tiger2.json",       "blocks/streebog256.json", "blocks/streebog512.json", "fast/xxh3.json",
         "fast/siphash.json",
+        "keccak-modes/sp800-185.json", "keccak-modes/kangarootwelve.json",
     };
     for (vector_files) |name| {
         vectors_mod.addAnonymousImport(name, .{ .root_source_file = b.path(b.fmt("test/vectors/{s}", .{name})) });

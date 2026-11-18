@@ -5,7 +5,9 @@ import {wasmBytes} from "../../wasm/keccak.mjs";
 import {instantiate, wipe, copyIn, binaryOf, STATE_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
- * Keccak-f[1600] for the SHA-3, SHAKE and Keccak hashers (src/hasher/sponge.mjs).
+ * Keccak-f[1600] for the SHA-3, SHAKE and Keccak hashers (src/hasher/sponge.mjs), and the
+ * reduced-round Keccak-p[1600, 12] of TurboSHAKE and KangarooTwelve: every function takes an
+ * optional round count, 24 when left out.
  *
  * Both functions work on the sponge state as an array of 50 int32 words (the 25
  * 64-bit lanes, low word first), which is what a hasher keeps in `state.hash`,
@@ -83,9 +85,9 @@ const PI = new Array(25);
 const C = new Int32Array(10);
 const B = new Int32Array(50);
 
-/** Keccak-f[1600] on `s`, an Int32Array of 50 words. */
-function permute(s) {
-  for (let round = 0; round < 24; round++) {
+/** Keccak-p[1600, rounds] on `s`, an Int32Array of 50 words: the last `rounds` rounds of Keccak-f[1600]. */
+function permute(s, rounds) {
+  for (let round = 24 - (rounds === undefined ? 24 : rounds); round < 24; round++) {
     for (let x = 0; x < 5; x++) {
       C[2 * x] = s[2 * x] ^ s[2 * x + 10] ^ s[2 * x + 20] ^ s[2 * x + 30] ^ s[2 * x + 40];
       C[2 * x + 1] = s[2 * x + 1] ^ s[2 * x + 11] ^ s[2 * x + 21] ^ s[2 * x + 31] ^ s[2 * x + 41];
@@ -143,24 +145,24 @@ function xorBytes(s, message, pos, count) {
   }
 }
 
-function jsAbsorb(hash, message, total, rate) {
+function jsAbsorb(hash, message, total, rate, rounds) {
   if (typeof message !== 'string') message = binaryOf(message, 0, total);
   const s = new Int32Array(WORDS);
   for (let k = 0; k < WORDS; k++) s[k] = hash[k];
   for (let pos = 0; pos < total; pos += rate) {
     xorBytes(s, message, pos, rate);
-    permute(s);
+    permute(s, rounds);
   }
   for (let k = 0; k < WORDS; k++) hash[k] = s[k];
 }
 
-function jsFinish(hash, tail, rate, suffix, outBytes) {
+function jsFinish(hash, tail, rate, suffix, outBytes, rounds) {
   const s = new Int32Array(WORDS);
   for (let k = 0; k < WORDS; k++) s[k] = hash[k];
   xorBytes(s, tail, 0, tail.length);
   s[tail.length >> 2] ^= suffix << ((tail.length & 3) * 8);
   s[(rate - 1) >> 2] ^= 0x80 << (((rate - 1) & 3) * 8);
-  permute(s);
+  permute(s, rounds);
   let out = '';
   let pos = 0;
   const codes = new Array(Math.min(outBytes, CHUNK));
@@ -169,7 +171,7 @@ function jsFinish(hash, tail, rate, suffix, outBytes) {
     codes.length = n;
     for (let i = 0; i < n; i++) {
       if (pos === rate) {
-        permute(s);
+        permute(s, rounds);
         pos = 0;
       }
       codes[i] = (s[pos >> 2] >>> ((pos & 3) * 8)) & 0xff;
@@ -196,7 +198,7 @@ function loadState(hash, rate) {
  * Absorb in wasm; false when the module refused a call (then `hash` is as it was). The scratch
  * region is zeroed on every way out: it held the message bytes and the sponge.
  */
-function wasmAbsorb(hash, message, total, rate) {
+function wasmAbsorb(hash, message, total, rate, rounds) {
   const {u8, ex, base, cap} = rt;
   const st = base + STATE_OFF;
   const input = base + INPUT_OFF;
@@ -209,7 +211,7 @@ function wasmAbsorb(hash, message, total, rate) {
       const end = Math.min(pos + chunk, total);
       copyIn(u8, input, message, pos, end);
       if (end - pos > used) used = end - pos;
-      if (ex.keccak_blocks(st, input, end - pos) !== 0) return false;
+      if (ex.keccak_p_blocks(st, input, end - pos, rounds) !== 0) return false;
       pos = end;
     }
     wasmCalls++;
@@ -226,7 +228,7 @@ function wasmAbsorb(hash, message, total, rate) {
  * output). The result string is built before the scratch region (the sponge, the tail and the
  * output, which is the digest) is zeroed, on every way out.
  */
-function wasmFinish(hash, tail, rate, suffix, outBytes) {
+function wasmFinish(hash, tail, rate, suffix, outBytes, rounds) {
   const {u8, ex, base, cap} = rt;
   const st = base + STATE_OFF;
   const tailPtr = base + TAIL_OFF;
@@ -243,8 +245,8 @@ function wasmFinish(hash, tail, rate, suffix, outBytes) {
       const n = Math.min(outCap, outBytes - done);
       used = Math.max(used, OUT_OFF - INPUT_OFF + n);
       const status = done === 0 ?
-        ex.keccak_final(st, tailPtr, tail.length, suffix, out, n) :
-        ex.keccak_squeeze(st, out, n);
+        ex.keccak_p_final(st, tailPtr, tail.length, suffix, out, n, rounds) :
+        ex.keccak_p_squeeze(st, out, n, rounds);
       if (status !== 0) return null;
       for (let i = 0; i < n; i += CHUNK) {
         result += String.fromCharCode.apply(null, u8.subarray(out + i, out + Math.min(n, i + CHUNK)));
@@ -297,14 +299,25 @@ export function checkState(hash, rate) {
  * @param {string|Uint8Array} message - binary string, or bytes
  * @param {number} total
  * @param {number} rate - block size in bytes
- * @throws {RangeError} when `total` is not a multiple of `rate` within `message`
+ * @param {number} [rounds=24] - rounds of the permutation, 1 to 24 (12 for TurboSHAKE)
+ * @throws {RangeError} when `total` is not a multiple of `rate` within `message`, or for a bad round count
  */
-export function absorb(hash, message, total, rate) {
+export function absorb(hash, message, total, rate, rounds) {
   if (!Number.isInteger(total) || total < 0 || total > message.length || total % rate !== 0) {
     throw new RangeError('Sponge: the absorbed length must be a multiple of the block size within the message, got ' + total);
   }
+  rounds = checkRounds(rounds);
   // A refused wasm call leaves `hash` as it was, and the JavaScript engine does the work.
-  if (!runtime() || !wasmAbsorb(hash, message, total, rate)) jsAbsorb(hash, message, total, rate);
+  if (!runtime() || !wasmAbsorb(hash, message, total, rate, rounds)) jsAbsorb(hash, message, total, rate, rounds);
+}
+
+/** The round count, 24 when not given. */
+function checkRounds(rounds) {
+  if (rounds === undefined) return 24;
+  if (!Number.isInteger(rounds) || rounds < 1 || rounds > 24) {
+    throw new RangeError('Sponge: the round count must be an integer from 1 to 24, got ' + rounds);
+  }
+  return rounds;
 }
 
 /**
@@ -314,12 +327,15 @@ export function absorb(hash, message, total, rate) {
  * @param {number[]} hash - 50 int32 words, the sponge state
  * @param {string} tail - binary string, shorter than `rate`
  * @param {number} rate - block size in bytes
- * @param {number} suffix - domain suffix byte (0x06 SHA-3, 0x1f SHAKE, 0x01 Keccak)
+ * @param {number} suffix - domain suffix byte (0x06 SHA-3, 0x1f SHAKE, 0x01 Keccak, 0x04 cSHAKE, or a
+ *   TurboSHAKE domain byte)
  * @param {number} outBytes - digest length in bytes
+ * @param {number} [rounds=24] - rounds of the permutation, 1 to 24 (12 for TurboSHAKE)
  * @returns {string} binary string
- * @throws {RangeError} for a tail of `rate` bytes or more, a suffix outside 1..127 or an invalid length
+ * @throws {RangeError} for a tail of `rate` bytes or more, a suffix outside 1..127, an invalid length
+ *   or a bad round count
  */
-export function finish(hash, tail, rate, suffix, outBytes) {
+export function finish(hash, tail, rate, suffix, outBytes, rounds) {
   if (tail.length >= rate) {
     throw new RangeError('Sponge: the last block must be shorter than the block size, got ' + tail.length + ' bytes');
   }
@@ -329,8 +345,9 @@ export function finish(hash, tail, rate, suffix, outBytes) {
   if (!Number.isSafeInteger(outBytes) || outBytes < 0) {
     throw new RangeError('Sponge: the output length must be a non-negative integer, got ' + outBytes);
   }
-  const wasm = runtime() ? wasmFinish(hash, tail, rate, suffix, outBytes) : null;
-  return wasm !== null ? wasm : jsFinish(hash, tail, rate, suffix, outBytes);
+  rounds = checkRounds(rounds);
+  const wasm = runtime() ? wasmFinish(hash, tail, rate, suffix, outBytes, rounds) : null;
+  return wasm !== null ? wasm : jsFinish(hash, tail, rate, suffix, outBytes, rounds);
 }
 
 /**

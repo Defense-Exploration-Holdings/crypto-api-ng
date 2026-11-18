@@ -1,6 +1,6 @@
 {
   "name": "@defense-exploration/crypto-api-ng",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "license": "MIT",
   "exports": {
     ".": "./src/index.mjs",
@@ -19,6 +19,12 @@
     "./sha3": "./src/hasher/sha3.mjs",
     "./sha512": "./src/hasher/sha512.mjs",
     "./shake": "./src/hasher/shake.mjs",
+    "./cshake": "./src/hasher/cshake.mjs",
+    "./kmac": "./src/hasher/kmac.mjs",
+    "./tuplehash": "./src/hasher/tuplehash.mjs",
+    "./parallelhash": "./src/hasher/parallelhash.mjs",
+    "./turboshake": "./src/hasher/turboshake.mjs",
+    "./kangarootwelve": "./src/hasher/kangarootwelve.mjs",
     "./sm3": "./src/hasher/sm3.mjs",
     "./snefru": "./src/hasher/snefru.mjs",
     "./whirlpool": "./src/hasher/whirlpool.mjs",

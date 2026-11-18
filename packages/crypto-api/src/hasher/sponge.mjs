@@ -3,13 +3,15 @@
 
 import Hasher from "./hasher.mjs";
 import {absorb, finish, checkState} from "../wasm/keccak.mjs";
+import {defineOption} from "../tools/input.mjs";
 import {binaryOf} from "../wasm/family.mjs";
 import {registerBytes, drainingHandler} from "../tools/direct.mjs";
 
 /**
- * Base class of the Keccak sponge hashers: {@link Sha3}, {@link Shake} and
- * {@link Keccak}. They differ in the block size (rate), the domain suffix
- * byte and the digest length, which the subclasses pass in.
+ * Base class of the Keccak sponge hashers: {@link Sha3}, {@link Shake},
+ * {@link Keccak}, and the SP 800-185 and RFC 9861 functions built on them. They
+ * differ in the block size (rate), the domain suffix byte, the digest length and
+ * the number of rounds, which the subclasses pass in.
  *
  * `state.hash` is the sponge, 25 64-bit lanes as 50 int32 words (low word of
  * each lane first). Whole blocks are absorbed as soon as they are complete;
@@ -24,8 +26,9 @@ class Sponge extends Hasher {
    * @param {number} rate - block size in bytes
    * @param {number} suffix - domain suffix byte
    * @param {number} outputSize - digest size in bytes
+   * @param {number} [rounds=24] - rounds of the permutation (12 for TurboSHAKE)
    */
-  constructor(options, rate, suffix, outputSize) {
+  constructor(options, rate, suffix, outputSize, rounds) {
     super(options);
     /**
      * Size of unit = 1 byte
@@ -54,6 +57,13 @@ class Sponge extends Hasher {
      * @type {number}
      */
     this.outputSize = outputSize;
+    /**
+     * Rounds of the permutation
+     * @protected
+     * @type {number}
+     */
+    // Defined, not assigned: a setter for `rounds` on Object.prototype must not see it.
+    defineOption(this, 'rounds', rounds === undefined ? 24 : rounds);
   }
 
   /**
@@ -81,8 +91,19 @@ class Sponge extends Hasher {
     if (message.length < rate) return;
     checkState(state.hash, rate);
     const total = message.length - message.length % rate;
-    absorb(state.hash, message, total, rate);
+    absorb(state.hash, message, total, rate, this.rounds);
     state.message = message.substr(total);
+  }
+
+  /**
+   * Bytes that `finalize()` appends to the message before the padding (the
+   * encoded output length of KMAC, for example). None here.
+   *
+   * @protected
+   * @returns {string}
+   */
+  trailer() {
+    return '';
   }
 
   /**
@@ -98,14 +119,15 @@ class Sponge extends Hasher {
     let message = this.state.message;
     checkMessage(message);
     checkState(hash, rate);
+    message += this.trailer();
     if (message.length >= rate) {
-      // Only reachable through setState() with unprocessed blocks.
+      // Reachable through setState() with unprocessed blocks, or with a trailer.
       hash = hash.slice();
       const total = message.length - message.length % rate;
-      absorb(hash, message, total, rate);
+      absorb(hash, message, total, rate, this.rounds);
       message = message.substr(total);
     }
-    return finish(hash, message, rate, this.suffix, this.outputSize);
+    return finish(hash, message, rate, this.suffix, this.outputSize, this.rounds);
   }
 }
 

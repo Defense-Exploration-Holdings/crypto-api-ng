@@ -5,7 +5,7 @@ The `crypto_api_ng` module (`src/lib.zig`) is the native Zig interface to the al
 ## Installing
 
 ```sh
-zig fetch --save git+https://github.com/Defense-Exploration-Holdings/crypto-api-ng#v1.4.0
+zig fetch --save git+https://github.com/Defense-Exploration-Holdings/crypto-api-ng#v1.5.0
 ```
 
 `zig fetch` adds the dependency, with its hash, to your `build.zig.zon`. In `build.zig`:
@@ -54,6 +54,12 @@ const digest = h.finalResult(); // [32]u8
 | `Sha3_224`, `Sha3_256`, `Sha3_384`, `Sha3_512` | 28, 32, 48, 64 bytes | FIPS 202 |
 | `Keccak224`, `Keccak256`, `Keccak384`, `Keccak512` | 28, 32, 48, 64 bytes | the original Keccak padding (`Keccak256` is Ethereum's keccak256) |
 | `Shake128`, `Shake256` | any length | see [Extendable output](#extendable-output) |
+| `CShake128`, `CShake256` | any length | NIST SP 800-185; `Options.function_name`, `Options.customization` |
+| `Kmac128`, `Kmac256` | any length | NIST SP 800-185 MAC: `init(key)`, `initWithOptions(key, .{ .customization = s })`, `create(out, msg, key)`; `squeeze` is KMACXOF |
+| `TupleHash128`, `TupleHash256` | any length | NIST SP 800-185; each `update` is one tuple element, `hash` takes a slice of elements; `squeeze` is TupleHashXOF |
+| `ParallelHash128`, `ParallelHash256` | any length | NIST SP 800-185; `Options.block_size` (default 8192), `Options.customization`; `squeeze` is ParallelHashXOF |
+| `TurboShake128`, `TurboShake256` | any length | RFC 9861, 12 rounds; `Options.domain` (0x01 to 0x7f, default 0x1f) |
+| `KT128`, `KT256` | any length | KangarooTwelve, RFC 9861; `Options.customization` |
 | `Sm3` | 32 bytes | GB/T 32905-2016 |
 | `Has160` | 20 bytes | TTAS.KO-12.0011/R2 |
 | `Ripemd128`, `Ripemd160`, `Ripemd256`, `Ripemd320` | 16, 20, 32, 40 bytes | |
@@ -103,6 +109,21 @@ x.final(&first);
 var more: [1000]u8 = undefined;
 x.squeeze(&more);
 ```
+
+For `CShake*`, `TurboShake*`, `KT128` and `KT256`, `final(out)` and `squeeze(out)` work the same way. For `Kmac*`, `TupleHash*` and `ParallelHash*` the length of `out` in `final` is part of the input (so `final` with 32 bytes is not a prefix of `final` with 64); call `squeeze` instead of `final` for the XOF variants, as many times as needed:
+
+```zig
+var mac: [32]u8 = undefined;
+cryptoapi.Kmac128.create(&mac, message, key);
+
+var t = cryptoapi.TupleHash256.init(.{ .customization = "my app" });
+t.update("alice");
+t.update("bob");
+var digest: [64]u8 = undefined;
+t.final(&digest);
+```
+
+The `KT128` and `KT256` customization slice is read in `final`, so it has to stay valid until then. These types hash chunks one after another and use no threads; `std.crypto.hash.sha3.KT128.hashParallel` is the multi-threaded alternative.
 
 ## BLAKE3
 

@@ -53,6 +53,9 @@ const NEW_NAMES = [
   'blake2s', 'blake2s-256', 'blake2s-224', 'blake2s-160', 'blake2s-128', 'blake3',
   'tiger', 'tiger192', 'tiger160', 'tiger128', 'tiger2', 'streebog', 'streebog256', 'streebog512',
   'crc32', 'crc32c', 'xxhash32', 'xxhash64', 'xxhash3', 'xxhash128', 'murmur3', 'murmur3-x86-32', 'murmur3-x64-128',
+  'cshake128', 'cshake256', 'tuplehash128', 'tuplehash256', 'tuplehashxof128', 'tuplehashxof256',
+  'parallelhash128', 'parallelhash256', 'parallelhashxof128', 'parallelhashxof256',
+  'turboshake128', 'turboshake256', 'kt128', 'kt256', 'kangarootwelve',
 ];
 const NAMES = GET_HASHER_NAMES.concat(ADDED_HASHER_NAMES.map((a) => a.name), NEW_NAMES);
 

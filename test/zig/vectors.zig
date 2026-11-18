@@ -306,6 +306,119 @@ test "Tiger, Tiger2 and Streebog vectors" {
     try checkBlocks(cryptoapi.Streebog512, "blocks/streebog512.json");
 }
 
+const Sp800Row = struct {
+    algo: []const u8,
+    strength: u32,
+    xof: bool,
+    input: []const u8 = "",
+    tuple: []const []const u8 = &.{},
+    key: []const u8 = "",
+    functionName: []const u8 = "",
+    customization: []const u8,
+    blockSize: usize = 0,
+    length: usize,
+    output: []const u8,
+};
+
+fn sp800Output(comptime strength: u32, v: Sp800Row, out: []u8) !void {
+    const input = try unhex(v.input);
+    defer gpa.free(input);
+    const S = v.customization;
+    if (std.mem.eql(u8, v.algo, "cshake")) {
+        const C = if (strength == 128) cryptoapi.CShake128 else cryptoapi.CShake256;
+        C.hash(input, out, .{ .function_name = v.functionName, .customization = S });
+    } else if (std.mem.eql(u8, v.algo, "kmac")) {
+        const K = if (strength == 128) cryptoapi.Kmac128 else cryptoapi.Kmac256;
+        const key = try unhex(v.key);
+        defer gpa.free(key);
+        var h = K.initWithOptions(key, .{ .customization = S });
+        h.update(input);
+        if (v.xof) h.squeeze(out) else h.final(out);
+    } else if (std.mem.eql(u8, v.algo, "tuplehash")) {
+        const T = if (strength == 128) cryptoapi.TupleHash128 else cryptoapi.TupleHash256;
+        var h = T.init(.{ .customization = S });
+        for (v.tuple) |e| {
+            const element = try unhex(e);
+            defer gpa.free(element);
+            h.update(element);
+        }
+        if (v.xof) h.squeeze(out) else h.final(out);
+    } else if (std.mem.eql(u8, v.algo, "parallelhash")) {
+        const P = if (strength == 128) cryptoapi.ParallelHash128 else cryptoapi.ParallelHash256;
+        var h = P.init(.{ .block_size = v.blockSize, .customization = S });
+        h.update(input);
+        if (v.xof) h.squeeze(out) else h.final(out);
+    } else return error.UnknownAlgorithm;
+}
+
+test "keccak-modes/sp800-185.json (NIST SP 800-185 samples)" {
+    const parsed = try parse([]const Sp800Row, "keccak-modes/sp800-185.json");
+    defer parsed.deinit();
+    try testing.expectEqual(@as(usize, 36), parsed.value.len);
+    for (parsed.value) |v| {
+        const want = try unhex(v.output);
+        defer gpa.free(want);
+        const got = try gpa.alloc(u8, v.length / 8);
+        defer gpa.free(got);
+        if (v.strength == 128) try sp800Output(128, v, got) else try sp800Output(256, v, got);
+        testing.expectEqualSlices(u8, want, got) catch |err| {
+            std.debug.print("sp800-185.json: {s}{d} xof={}\n", .{ v.algo, v.strength, v.xof });
+            return err;
+        };
+    }
+}
+
+const Spec = struct { pattern: ?usize = null, ff: ?usize = null };
+const KtRow = struct {
+    algo: []const u8,
+    message: Spec,
+    customization: Spec = .{ .pattern = 0 },
+    domain: u8 = 0x1f,
+    length: usize,
+    skip: usize,
+    output: []const u8,
+};
+
+fn specBytes(s: Spec) ![]u8 {
+    if (s.ff) |n| {
+        const out = try gpa.alloc(u8, n);
+        @memset(out, 0xff);
+        return out;
+    }
+    const out = try gpa.alloc(u8, s.pattern.?);
+    for (out, 0..) |*b, i| b.* = @intCast(i % 251);
+    return out;
+}
+
+test "keccak-modes/kangarootwelve.json (RFC 9861 vectors)" {
+    const parsed = try parse([]const KtRow, "keccak-modes/kangarootwelve.json");
+    defer parsed.deinit();
+    try testing.expectEqual(@as(usize, 54), parsed.value.len);
+    for (parsed.value) |v| {
+        const msg = try specBytes(v.message);
+        defer gpa.free(msg);
+        const custom = try specBytes(v.customization);
+        defer gpa.free(custom);
+        const want = try unhex(v.output);
+        defer gpa.free(want);
+        const got = try gpa.alloc(u8, v.length);
+        defer gpa.free(got);
+        if (std.mem.eql(u8, v.algo, "kt128")) {
+            cryptoapi.KT128.hash(msg, got, .{ .customization = custom });
+        } else if (std.mem.eql(u8, v.algo, "kt256")) {
+            cryptoapi.KT256.hash(msg, got, .{ .customization = custom });
+        } else if (std.mem.eql(u8, v.algo, "turboshake128")) {
+            cryptoapi.TurboShake128.hash(msg, got, .{ .domain = v.domain });
+        } else if (std.mem.eql(u8, v.algo, "turboshake256")) {
+            cryptoapi.TurboShake256.hash(msg, got, .{ .domain = v.domain });
+        } else return error.UnknownAlgorithm;
+        testing.expectEqualSlices(u8, want, got[v.skip..]) catch |err| {
+            std.debug.print("kangarootwelve.json: {s} {d}\n", .{ v.algo, msg.len });
+            return err;
+        };
+    }
+}
+
 /// The sanity buffer of the xxHash test suite (tests/sanity_test.c).
 fn sanityBuffer(comptime n: usize) [n]u8 {
     var out: [n]u8 = undefined;

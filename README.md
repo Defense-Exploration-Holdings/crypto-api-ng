@@ -42,14 +42,14 @@ The full API is in the [API reference](docs/api.md). Usage for Node.js, bundlers
 
 HAS-160, MD2, MD4, MD5, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512, SHA-512/224, SHA-512/256, SM3, Snefru v2.0 and v2.5, Whirlpool, Whirlpool-0 and Whirlpool-T, plus HMAC and the hex, base64 and UTF-8 encoders of the original.
 
-Added by this package, not in the original: SHA3-224/256/384/512, SHAKE128/256 and Keccak-224/256/384/512 (the pre-standard padding, as used by Ethereum), BLAKE2b and BLAKE2s (any digest length, keyed, salted, personalized) and BLAKE3 (keyed hash, key derivation, extendable output), Tiger and Tiger2, Streebog (GOST R 34.11-2012, 256 and 512 bits), the keyed hash SipHash (2-4 and 1-3), and the non-cryptographic checksums CRC-32, CRC-32C, XXH32, XXH64, XXH3 (64 and 128 bits) and MurmurHash3 (x86_32 and x64_128). Key derivation and password hashing: PBKDF2 and HKDF over HMAC with any hasher, Argon2id, Argon2i and Argon2d (RFC 9106), and scrypt (RFC 7914). They have no 0.8.5 behavior to match, and run in plain JavaScript where WebAssembly is unavailable.
+Added by this package, not in the original: SHA3-224/256/384/512, SHAKE128/256 and Keccak-224/256/384/512 (the pre-standard padding, as used by Ethereum), cSHAKE, KMAC, TupleHash and ParallelHash (NIST SP 800-185), TurboSHAKE and KangarooTwelve KT128/KT256 (RFC 9861), BLAKE2b and BLAKE2s (any digest length, keyed, salted, personalized) and BLAKE3 (keyed hash, key derivation, extendable output), Tiger and Tiger2, Streebog (GOST R 34.11-2012, 256 and 512 bits), the keyed hash SipHash (2-4 and 1-3), and the non-cryptographic checksums CRC-32, CRC-32C, XXH32, XXH64, XXH3 (64 and 128 bits) and MurmurHash3 (x86_32 and x64_128). Key derivation and password hashing: PBKDF2 and HKDF over HMAC with any hasher, Argon2id, Argon2i and Argon2d (RFC 9106), and scrypt (RFC 7914). They have no 0.8.5 behavior to match, and run in plain JavaScript where WebAssembly is unavailable.
 
 ## Zig package
 
 The algorithms are written in Zig, and the repository is also a Zig package with a native API in the style of `std.crypto.hash`. It needs Zig 0.17.1. Add it to a project:
 
 ```sh
-zig fetch --save git+https://github.com/Defense-Exploration-Holdings/crypto-api-ng#v1.4.0
+zig fetch --save git+https://github.com/Defense-Exploration-Holdings/crypto-api-ng#v1.5.0
 ```
 
 Then import the module in `build.zig`:

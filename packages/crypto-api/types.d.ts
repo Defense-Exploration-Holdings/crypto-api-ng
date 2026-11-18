@@ -154,6 +154,49 @@ export interface ShakeOptions {
   /** Output length in bits, a multiple of 8 from 8 to 2^30. Default 256 for SHAKE128, 512 for SHAKE256. */
   length?: number;
 }
+/** Options shared by cSHAKE, KMAC, TupleHash, ParallelHash, TurboSHAKE and KangarooTwelve. */
+export interface KeccakXofOptions {
+  /** Security strength in bits: 128 or 256. Default 128. */
+  strength?: 128 | 256;
+  /** Output length in bits, a multiple of 8 from 8 to 2^30. Default twice the strength. */
+  length?: number;
+}
+export interface CShakeOptions extends KeccakXofOptions {
+  /** S, the customization string. */
+  customization?: BinaryInput;
+  /** N, the function name (reserved by NIST for functions defined on cSHAKE). */
+  functionName?: BinaryInput;
+}
+export interface KmacOptions extends KeccakXofOptions {
+  /** The key, of any length. Required. */
+  key: BinaryInput;
+  /** S, the customization string. */
+  customization?: BinaryInput;
+  /** KMACXOF: the output length is not part of the input. Default false. */
+  xof?: boolean;
+}
+export interface TupleHashOptions extends KeccakXofOptions {
+  /** S, the customization string. */
+  customization?: BinaryInput;
+  /** TupleHashXOF: the output length is not part of the input. Default false. */
+  xof?: boolean;
+}
+export interface ParallelHashOptions extends KeccakXofOptions {
+  /** B, the block size in bytes, from 1 to 2^53 - 1. Default 8192. */
+  blockSize?: number;
+  /** S, the customization string. */
+  customization?: BinaryInput;
+  /** ParallelHashXOF: the output length is not part of the input. Default false. */
+  xof?: boolean;
+}
+export interface TurboShakeOptions extends KeccakXofOptions {
+  /** The domain separation byte, 0x01 to 0x7f. Default 0x1f. */
+  domain?: number;
+}
+export interface KangarooTwelveOptions extends KeccakXofOptions {
+  /** C, the customization string. */
+  customization?: BinaryInput;
+}
 export interface SnefruOptions { rounds?: number; length?: number }
 export interface WhirlpoolOptions { rounds?: number; type?: '0' | 't' | (string & {}) }
 
@@ -166,7 +209,7 @@ export interface HasherOptions {
   length?: number;
   /** Whirlpool variant: `'0'` or `'t'`. */
   type?: '0' | 't' | (string & {});
-  /** BLAKE2 and BLAKE3: the key of a keyed hash. SipHash: the 16-byte key (required). */
+  /** BLAKE2 and BLAKE3: the key of a keyed hash. SipHash: the 16-byte key (required). KMAC: the key (required). */
   key?: BinaryInput;
   /** BLAKE2: salt. */
   salt?: BinaryInput;
@@ -174,8 +217,18 @@ export interface HasherOptions {
   personalization?: BinaryInput;
   /** BLAKE3: context string of the key derivation mode. */
   context?: BinaryInput;
-  /** SHAKE security strength: 128 or 256. */
+  /** SHAKE, cSHAKE, KMAC, TupleHash, ParallelHash, TurboSHAKE and KangarooTwelve security strength: 128 or 256. */
   strength?: 128 | 256;
+  /** cSHAKE, KMAC, TupleHash, ParallelHash and KangarooTwelve: the customization string. */
+  customization?: BinaryInput;
+  /** cSHAKE: the function name. */
+  functionName?: BinaryInput;
+  /** KMAC, TupleHash and ParallelHash: the XOF form. */
+  xof?: boolean;
+  /** ParallelHash: the block size in bytes. */
+  blockSize?: number;
+  /** TurboSHAKE: the domain separation byte, 0x01 to 0x7f. */
+  domain?: number;
   /** xxHash and MurmurHash3 seed: 0 to 2^32 - 1 for `xxhash32` and `murmur3*`, 0 to 2^53 - 1 for `xxhash64`, `xxhash3` and `xxhash128`. */
   seed?: number;
 }
@@ -192,6 +245,10 @@ export type HasherName =
   | 'sha3-224' | 'sha3-256' | 'sha3-384' | 'sha3-512'
   | 'keccak224' | 'keccak256' | 'keccak384' | 'keccak512'
   | 'shake128' | 'shake256'
+  | 'cshake128' | 'cshake256' | 'kmac128' | 'kmac256' | 'kmacxof128' | 'kmacxof256'
+  | 'tuplehash128' | 'tuplehash256' | 'tuplehashxof128' | 'tuplehashxof256'
+  | 'parallelhash128' | 'parallelhash256' | 'parallelhashxof128' | 'parallelhashxof256'
+  | 'turboshake128' | 'turboshake256' | 'kt128' | 'kt256' | 'kangarootwelve'
   | 'snefru' | 'snefru128' | 'snefru128/8' | 'snefru128/2' | 'snefru256' | 'snefru256/8' | 'snefru256/4'
   | 'tiger' | 'tiger192' | 'tiger160' | 'tiger128' | 'tiger2'
   | 'streebog' | 'streebog256' | 'streebog512'

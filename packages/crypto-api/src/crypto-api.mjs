@@ -32,6 +32,12 @@ import Crc32c from "./hasher/crc32c.mjs";
 import Keccak from "./hasher/keccak.mjs";
 import Sha3 from "./hasher/sha3.mjs";
 import Shake from "./hasher/shake.mjs";
+import CShake from "./hasher/cshake.mjs";
+import Kmac from "./hasher/kmac.mjs";
+import TupleHash from "./hasher/tuplehash.mjs";
+import ParallelHash from "./hasher/parallelhash.mjs";
+import TurboShake from "./hasher/turboshake.mjs";
+import KangarooTwelve from "./hasher/kangarootwelve.mjs";
 import {fromUtf} from "./encoder/utf.mjs";
 import {fromArrayBuffer} from "./encoder/array-buffer.mjs";
 import {toHex} from "./encoder/hex.mjs";
@@ -193,6 +199,61 @@ class CryptoApi {
       case 'shake256':
         options = Object.assign({}, {strength: 256}, options);
         return new Shake(options);
+      case 'cshake128':
+        options = Object.assign({}, {strength: 128}, options);
+        return new CShake(options);
+      case 'cshake256':
+        options = Object.assign({}, {strength: 256}, options);
+        return new CShake(options);
+      case 'kmac128':
+        options = Object.assign({}, {strength: 128}, options);
+        return new Kmac(options);
+      case 'kmac256':
+        options = Object.assign({}, {strength: 256}, options);
+        return new Kmac(options);
+      case 'kmacxof128':
+        options = Object.assign({}, {strength: 128, xof: true}, options);
+        return new Kmac(options);
+      case 'kmacxof256':
+        options = Object.assign({}, {strength: 256, xof: true}, options);
+        return new Kmac(options);
+      case 'tuplehash128':
+        options = Object.assign({}, {strength: 128}, options);
+        return new TupleHash(options);
+      case 'tuplehash256':
+        options = Object.assign({}, {strength: 256}, options);
+        return new TupleHash(options);
+      case 'tuplehashxof128':
+        options = Object.assign({}, {strength: 128, xof: true}, options);
+        return new TupleHash(options);
+      case 'tuplehashxof256':
+        options = Object.assign({}, {strength: 256, xof: true}, options);
+        return new TupleHash(options);
+      case 'parallelhash128':
+        options = Object.assign({}, {strength: 128}, options);
+        return new ParallelHash(options);
+      case 'parallelhash256':
+        options = Object.assign({}, {strength: 256}, options);
+        return new ParallelHash(options);
+      case 'parallelhashxof128':
+        options = Object.assign({}, {strength: 128, xof: true}, options);
+        return new ParallelHash(options);
+      case 'parallelhashxof256':
+        options = Object.assign({}, {strength: 256, xof: true}, options);
+        return new ParallelHash(options);
+      case 'turboshake128':
+        options = Object.assign({}, {strength: 128}, options);
+        return new TurboShake(options);
+      case 'turboshake256':
+        options = Object.assign({}, {strength: 256}, options);
+        return new TurboShake(options);
+      case 'kangarootwelve':
+      case 'kt128':
+        options = Object.assign({}, {strength: 128}, options);
+        return new KangarooTwelve(options);
+      case 'kt256':
+        options = Object.assign({}, {strength: 256}, options);
+        return new KangarooTwelve(options);
       case 'snefru':
       case 'snefru128':
       case 'snefru128/8':
