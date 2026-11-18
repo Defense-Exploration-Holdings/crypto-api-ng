@@ -66,6 +66,9 @@ const digest = h.finalResult(); // [32]u8
 | `Blake3` | 32 bytes, or any length | see [BLAKE3](#blake3) |
 | `Crc32`, `Crc32c` | 4 bytes | checksums, not cryptographic; most significant byte first |
 | `XxHash32`, `XxHash64` | 4, 8 bytes | checksums, not cryptographic; most significant byte first; `Options.seed` |
+| `XxHash3`, `XxHash128` | 8, 16 bytes | XXH3 64 and 128 bits; checksums, not cryptographic; most significant byte first; `Options.seed` (u64) |
+| `SipHash24`, `SipHash13` | 8 bytes | keyed hash for hash tables; `Options.key` (16 bytes) is required; least significant byte first, as in `std.crypto.auth.siphash` |
+| `Murmur3_32`, `Murmur3_128` | 4, 16 bytes | MurmurHash3 x86_32 and x64_128; checksums, not cryptographic; `Options.seed` (u32); x86_32 most significant byte first, x64_128 in the byte order of the reference |
 
 The digest sizes are compile-time parameters, so a wrong size is a compile error and digests are fixed-size arrays.
 
@@ -78,8 +81,11 @@ Most types have no options. The others:
 // personalization (up to 16 or 8 bytes each). Longer values panic.
 cryptoapi.Blake2b256.hash(message, &out, .{ .key = key, .salt = salt, .context = "my-app" });
 
-// xxHash: a seed.
+// xxHash, XXH3 and MurmurHash3: a seed.
 cryptoapi.XxHash64.hash(message, &out8, .{ .seed = 42 });
+
+// SipHash: a 16-byte key, required.
+cryptoapi.SipHash24.hash(message, &out8, .{ .key = key16 });
 
 // BLAKE3: a 32-byte key for the keyed mode.
 cryptoapi.Blake3.hash(message, &out, .{ .key = key32 });
@@ -143,7 +149,7 @@ The Zig API implements the standard algorithms only. The JavaScript hashers also
 
 ## Security
 
-MD2, MD4, MD5, SHA-0, SHA-1, HAS-160 and Snefru with few passes are not collision resistant; use them only where an existing format or protocol requires them. CRC-32, CRC-32C, XXH32 and XXH64 are checksums and offer no security. No function claims constant-time execution. See [SECURITY.md](../SECURITY.md) to report a vulnerability.
+MD2, MD4, MD5, SHA-0, SHA-1, HAS-160 and Snefru with few passes are not collision resistant; use them only where an existing format or protocol requires them. CRC-32, CRC-32C, XXH32, XXH64, XXH3 and MurmurHash3 are checksums and offer no security. SipHash protects hash tables against chosen inputs when its key is secret; its 64-bit output is too short for a message authentication code. No function claims constant-time execution. See [SECURITY.md](../SECURITY.md) to report a vulnerability.
 
 ## Testing
 

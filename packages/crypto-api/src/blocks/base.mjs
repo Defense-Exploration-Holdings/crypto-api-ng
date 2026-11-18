@@ -5,13 +5,15 @@ import Hasher from "../hasher/hasher.mjs";
 import {checkOptions} from "../tools/input.mjs";
 
 /**
- * What Tiger, Streebog, CRC-32 and xxHash share. Not meant to be used directly.
+ * What Tiger, Streebog, CRC-32, xxHash, XXH3, SipHash and MurmurHash3 share. Not meant to be
+ * used directly.
  *
  * `state` is `{message, length, counter, hash}`: the bytes not yet compressed, the length
  * of the message so far, the bytes compressed so far, and the algorithm's words as int32
  * (64-bit words are pairs, low half first). The last block of the message (1 to
  * `blockSizeInBytes` bytes) is always kept in `message` until `finalize()`, because the
- * padding is added to it.
+ * padding is added to it. With `keep` in the spec, at least `keep` bytes are kept back instead
+ * of 1 (so `message` holds up to `blockSizeInBytes + keep - 1` bytes).
  *
  * Unlike the original crypto-api hashers, `finalize()` leaves the state alone: it can be
  * called again, and `update()` continues the message.
@@ -20,6 +22,7 @@ import {checkOptions} from "../tools/input.mjs";
  *
  *   name         class name for error messages
  *   blockBytes   block size in bytes
+ *   keep         bytes always kept back for `final` (default 1; XXH3 keeps its last 64-byte stripe)
  *   digestBytes  size of the full digest in bytes
  *   engine(options) `{blocks(state, message, start, end), final(state, tail)}`
  *   init(options) the initial `hash` words (an array of int32)
@@ -65,15 +68,17 @@ class BlockHasher extends Hasher {
     const state = this.state;
     const spec = this.constructor.spec;
     const block = spec.blockBytes;
+    const keep = spec.keep || 1;
     if (typeof state.message !== 'string') {
       throw new TypeError(spec.name + ': state.message must be a string');
     }
     const length = state.message.length;
-    if (length <= block) {
+    if (length - keep < block) {
       return;
     }
-    // Everything but the last block (the last one is compressed by finalize()).
-    const take = Math.floor((length - 1) / block) * block;
+    // Everything but the last block, or the last `keep` bytes and the block they are in (those
+    // are compressed by finalize()).
+    const take = Math.floor((length - keep) / block) * block;
     spec.engine(this.options).blocks(state, state.message, 0, take);
     state.message = state.message.substr(take);
   }

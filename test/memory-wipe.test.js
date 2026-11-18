@@ -33,6 +33,12 @@ import Crc32, { _internal as crc32 } from '../packages/crypto-api/src/hasher/crc
 import Crc32c, { _internal as crc32c } from '../packages/crypto-api/src/hasher/crc32c.mjs';
 import XxHash32, { _internal as xxhash32 } from '../packages/crypto-api/src/hasher/xxhash32.mjs';
 import XxHash64, { _internal as xxhash64 } from '../packages/crypto-api/src/hasher/xxhash64.mjs';
+import XxHash3, { _internal as xxh3 } from '../packages/crypto-api/src/hasher/xxhash3.mjs';
+import XxHash128, { _internal as xxh128 } from '../packages/crypto-api/src/hasher/xxhash128.mjs';
+import SipHash, { _internal as siphash24 } from '../packages/crypto-api/src/hasher/siphash.mjs';
+import SipHash13, { _internal as siphash13 } from '../packages/crypto-api/src/hasher/siphash13.mjs';
+import Murmur3, { _internal as murmur3 } from '../packages/crypto-api/src/hasher/murmur3.mjs';
+import Murmur3x64, { _internal as murmur3x64 } from '../packages/crypto-api/src/hasher/murmur3x64.mjs';
 import { rng } from './support/le32-suite.js';
 
 const CASES = [
@@ -78,6 +84,12 @@ const CASES = [
   ['crc32c', Crc32c, crc32c, undefined],
   ['xxhash32', XxHash32, xxhash32, { seed: 12345 }],
   ['xxhash64', XxHash64, xxhash64, { seed: 12345 }],
+  ['xxhash3', XxHash3, xxh3, { seed: 12345 }],
+  ['xxhash128', XxHash128, xxh128, { seed: 12345 }],
+  ['siphash', SipHash, siphash24, { key: 'sixteen byte key' }],
+  ['siphash-1-3', SipHash13, siphash13, { key: 'sixteen byte key' }],
+  ['murmur3', Murmur3, murmur3, { seed: 12345 }],
+  ['murmur3-x64-128', Murmur3x64, murmur3x64, { seed: 12345 }],
 ];
 
 const WINDOW = 16;

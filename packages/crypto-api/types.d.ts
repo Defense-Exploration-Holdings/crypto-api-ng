@@ -97,7 +97,15 @@ export interface StreebogOptions {
   length?: 256 | 512;
 }
 export interface XxHashOptions {
-  /** The seed: an integer from 0 to 2^32 - 1 for `XxHash32`, from 0 to 2^53 - 1 for `XxHash64` (default 0). */
+  /** The seed: an integer from 0 to 2^32 - 1 for `XxHash32`, from 0 to 2^53 - 1 for `XxHash64`, `XxHash3` and `XxHash128` (default 0). */
+  seed?: number;
+}
+export interface SipHashOptions {
+  /** Exactly 16 bytes. Required; should be random and secret. */
+  key: BinaryInput;
+}
+export interface Murmur3Options {
+  /** The seed: an integer from 0 to 2^32 - 1 (default 0). */
   seed?: number;
 }
 export interface Has160Options { rounds?: number }
@@ -128,7 +136,7 @@ export interface HasherOptions {
   length?: number;
   /** Whirlpool variant: `'0'` or `'t'`. */
   type?: '0' | 't' | (string & {});
-  /** BLAKE2 and BLAKE3: the key of a keyed hash. */
+  /** BLAKE2 and BLAKE3: the key of a keyed hash. SipHash: the 16-byte key (required). */
   key?: BinaryInput;
   /** BLAKE2: salt. */
   salt?: BinaryInput;
@@ -138,7 +146,7 @@ export interface HasherOptions {
   context?: BinaryInput;
   /** SHAKE security strength: 128 or 256. */
   strength?: 128 | 256;
-  /** xxHash seed: 0 to 2^32 - 1 for `xxhash32`, 0 to 2^53 - 1 for `xxhash64`. */
+  /** xxHash and MurmurHash3 seed: 0 to 2^32 - 1 for `xxhash32` and `murmur3*`, 0 to 2^53 - 1 for `xxhash64`, `xxhash3` and `xxhash128`. */
   seed?: number;
 }
 
@@ -157,7 +165,9 @@ export type HasherName =
   | 'snefru' | 'snefru128' | 'snefru128/8' | 'snefru128/2' | 'snefru256' | 'snefru256/8' | 'snefru256/4'
   | 'tiger' | 'tiger192' | 'tiger160' | 'tiger128' | 'tiger2'
   | 'streebog' | 'streebog256' | 'streebog512'
-  | 'crc32' | 'crc32c' | 'xxhash32' | 'xxhash64'
+  | 'crc32' | 'crc32c' | 'xxhash32' | 'xxhash64' | 'xxhash3' | 'xxhash128'
+  | 'siphash' | 'siphash-2-4' | 'siphash-1-3'
+  | 'murmur3' | 'murmur3-x86-32' | 'murmur3-x64-128'
   | 'whirlpool' | 'whirlpool-0' | 'whirlpool-t';
 
 export interface Base64Options {

@@ -1,5 +1,5 @@
-// The UMD bundles (ES5, WebAssembly embedded) hash with Tiger, Tiger2, Streebog, CRC-32, CRC-32C and xxHash like the ES modules
-// do, with WebAssembly and, in a fresh process, without it (plain JavaScript engines).
+// The UMD bundles (ES5, WebAssembly embedded) hash with Tiger, Tiger2, Streebog, CRC-32, CRC-32C, xxHash, XXH3, SipHash and
+// MurmurHash3 like the ES modules do, with WebAssembly and, in a fresh process, without it (plain JavaScript engines).
 import { describe, it, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
@@ -17,6 +17,10 @@ const EXPECTED = {
   crc32c: '364b3fb7',
   xxhash32: '32d153ff',
   xxhash64: '44bc2cf5ad770999',
+  xxhash3: '78af5f94892f3950',
+  xxhash128: '06b05ab6733a618578af5f94892f3950',
+  murmur3: 'b3dd93fa',
+  'murmur3-x64-128': '6778ad3f3f3f96b4522dca264174a23b',
 };
 
 describe('Tiger, Streebog and the checksums in the bundles', () => {
@@ -24,10 +28,12 @@ describe('Tiger, Streebog and the checksums in the bundles', () => {
     ${prelude}
     const api = require(${JSON.stringify(join(PKG_ROOT, file))});
     const out = { names: {}, modules: globalThis.__modules || 0 };
-    for (const name of ['tiger', 'tiger2', 'streebog256', 'streebog512', 'crc32', 'crc32c', 'xxhash32', 'xxhash64']) out.names[name] = api.hash(name, 'abc');
+    for (const name of ['tiger', 'tiger2', 'streebog256', 'streebog512', 'crc32', 'crc32c', 'xxhash32', 'xxhash64',
+      'xxhash3', 'xxhash128', 'murmur3', 'murmur3-x64-128']) out.names[name] = api.hash(name, 'abc');
     const big = 'q'.repeat(70000);
-    out.big = ['tiger128', 'streebog', 'crc32', 'xxhash32', 'xxhash64'].map((n) => api.hash(n, big));
-    out.seeded = [api.hash('xxhash32', 'abc', { seed: 5 }), api.hash('xxhash64', 'abc', { seed: 5 })];
+    out.big = ['tiger128', 'streebog', 'crc32', 'xxhash32', 'xxhash64', 'xxhash3', 'xxhash128', 'murmur3', 'murmur3-x64-128'].map((n) => api.hash(n, big));
+    out.seeded = [api.hash('xxhash32', 'abc', { seed: 5 }), api.hash('xxhash64', 'abc', { seed: 5 }), api.hash('xxhash3', big, { seed: 5 })];
+    out.keyed = [api.hash('siphash', 'abc', { key: '0123456789abcdef' }), api.hash('siphash-1-3', big, { key: '0123456789abcdef' })];
     out.modules = globalThis.__modules || 0;
     console.log(JSON.stringify(out));
   `], { encoding: 'utf8' }));
@@ -44,6 +50,7 @@ describe('Tiger, Streebog and the checksums in the bundles', () => {
     it(`${file}: known answers, with the embedded wasm`, () => {
       const r = run(spy, file);
       assert.deepEqual(r.names, EXPECTED);
+      assert.equal(r.keyed[0], '1d335a487e288e0d');
       assert.ok(r.modules >= 4, 'wasm modules compiled for the four families');
     });
 

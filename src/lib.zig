@@ -23,9 +23,10 @@
 //!
 //! Some of these algorithms are broken or weak (MD2, MD4, MD5, SHA-0, SHA-1,
 //! HAS-160, Snefru with few passes) and are here for compatibility with
-//! existing data and protocols. CRC-32, CRC-32C, XXH32 and XXH64 are
-//! checksums, not cryptographic hashes. No function here claims constant-time
-//! execution.
+//! existing data and protocols. CRC-32, CRC-32C, XXH32, XXH64, XXH3 and
+//! MurmurHash3 are checksums, not cryptographic hashes. SipHash is a keyed
+//! hash for hash tables, not a general-purpose MAC. No function here claims
+//! constant-time execution.
 
 const std = @import("std");
 
@@ -47,6 +48,9 @@ const tiger = @import("hash/tiger.zig");
 const streebog = @import("hash/streebog.zig");
 const crc32 = @import("hash/crc32.zig");
 const xxhash = @import("hash/xxhash.zig");
+const xxh3 = @import("hash/xxh3.zig");
+const siphash = @import("hash/siphash.zig");
+const murmur3 = @import("hash/murmur3.zig");
 
 /// Library version.
 pub const version = std.SemanticVersion{ .major = 1, .minor = 3, .patch = 0 };
@@ -420,7 +424,7 @@ fn XxHash(comptime C: type, comptime Seed: type) type {
             self.buf.feed(&self.st, C.blocks, data);
         }
 
-        /// Writes the hash most significant byte first (the canonical form).
+        /// Writes the digest in the byte order of the type (see its doc comment).
         pub fn final(self: *Self, out: *[digest_length]u8) void {
             C.final(&self.st, self.buf.tail(), out);
             wipe(self);
@@ -438,6 +442,146 @@ fn XxHash(comptime C: type, comptime Seed: type) type {
 pub const XxHash32 = XxHash(xxhash.Xxh32, u32);
 /// XXH64 with an optional 64-bit seed. A checksum, not a cryptographic hash.
 pub const XxHash64 = XxHash(xxhash.Xxh64, u64);
+
+/// Like `HoldBack`, but once a block has been compressed at least `keep`
+/// bytes stay behind it, so the tail is `keep` to `block + keep - 1` bytes.
+fn HoldBackKeep(comptime block: usize, comptime keep: usize) type {
+    return struct {
+        const Self = @This();
+        const cap = block + keep - 1;
+        buf: [cap]u8 = undefined,
+        n: usize = 0,
+
+        fn feed(self: *Self, st: anytype, comptime blocksFn: anytype, data: []const u8) void {
+            var rest = data;
+            while (rest.len > 0) {
+                if (self.n == cap) {
+                    blocksFn(st, self.buf[0..block]);
+                    std.mem.copyForwards(u8, self.buf[0 .. cap - block], self.buf[block..cap]);
+                    self.n = cap - block;
+                }
+                if (self.n == 0 and rest.len > cap) {
+                    const whole = (rest.len - keep) / block * block;
+                    blocksFn(st, rest[0..whole]);
+                    rest = rest[whole..];
+                    continue;
+                }
+                const take = @min(cap - self.n, rest.len);
+                @memcpy(self.buf[self.n..][0..take], rest[0..take]);
+                self.n += take;
+                rest = rest[take..];
+            }
+        }
+
+        fn tail(self: *const Self) []const u8 {
+            return self.buf[0..self.n];
+        }
+    };
+}
+
+fn Xxh3Of(comptime C: type) type {
+    return struct {
+        const Self = @This();
+        pub const block_length = C.block_len;
+        pub const digest_length = C.digest_len;
+        pub const Options = struct { seed: u64 = 0 };
+
+        st: C.State,
+        buf: HoldBackKeep(C.block_len, C.keep_len),
+
+        pub fn init(options: Options) Self {
+            var self: Self = .{ .st = undefined, .buf = .{} };
+            C.init(&self.st, options.seed);
+            return self;
+        }
+
+        pub fn hash(data: []const u8, out: *[digest_length]u8, options: Options) void {
+            var h = init(options);
+            h.update(data);
+            h.final(out);
+        }
+
+        pub fn update(self: *Self, data: []const u8) void {
+            self.buf.feed(&self.st, C.blocks, data);
+        }
+
+        /// Writes the hash most significant byte first (the canonical form).
+        pub fn final(self: *Self, out: *[digest_length]u8) void {
+            C.final(&self.st, self.buf.tail(), out);
+            wipe(self);
+        }
+
+        pub fn finalResult(self: *Self) [digest_length]u8 {
+            var out: [digest_length]u8 = undefined;
+            self.final(&out);
+            return out;
+        }
+    };
+}
+
+/// XXH3, 64-bit (`XXH3_64bits_withSeed`), with an optional 64-bit seed. A
+/// checksum, not a cryptographic hash.
+pub const XxHash3 = Xxh3Of(xxh3.Xxh3_64);
+/// XXH3, 128-bit (`XXH3_128bits_withSeed`, XXH128), with an optional 64-bit
+/// seed; the high 64 bits come first. A checksum, not a cryptographic hash.
+pub const XxHash128 = Xxh3Of(xxh3.Xxh3_128);
+
+fn SipHashOf(comptime C: type) type {
+    return struct {
+        const Self = @This();
+        pub const block_length = C.block_len;
+        pub const digest_length = C.digest_len;
+        pub const key_length = siphash.key_len;
+        /// `key` is required; it should be random and secret.
+        pub const Options = struct { key: [key_length]u8 };
+
+        st: C.State,
+        buf: HoldBack(C.block_len),
+
+        pub fn init(options: Options) Self {
+            var self: Self = .{ .st = undefined, .buf = .{} };
+            C.init(&self.st, &options.key);
+            return self;
+        }
+
+        pub fn hash(data: []const u8, out: *[digest_length]u8, options: Options) void {
+            var h = init(options);
+            h.update(data);
+            h.final(out);
+        }
+
+        pub fn update(self: *Self, data: []const u8) void {
+            self.buf.feed(&self.st, C.blocks, data);
+        }
+
+        /// Writes the 64-bit result least significant byte first, as the
+        /// reference implementation and `std.crypto.auth.siphash` do.
+        pub fn final(self: *Self, out: *[digest_length]u8) void {
+            C.final(&self.st, self.buf.tail(), out);
+            wipe(self);
+        }
+
+        pub fn finalResult(self: *Self) [digest_length]u8 {
+            var out: [digest_length]u8 = undefined;
+            self.final(&out);
+            return out;
+        }
+    };
+}
+
+/// SipHash-2-4 with a 128-bit key and a 64-bit output: a keyed hash for hash
+/// tables that face untrusted input. Not a general-purpose MAC.
+pub const SipHash24 = SipHashOf(siphash.SipHash24);
+/// SipHash-1-3, the variant used by the hash tables of Rust and Python.
+pub const SipHash13 = SipHashOf(siphash.SipHash13);
+
+/// MurmurHash3 x86_32 with an optional 32-bit seed, written most significant
+/// byte first. A checksum, not a cryptographic hash.
+pub const Murmur3_32 = XxHash(murmur3.X86_32, u32);
+/// MurmurHash3 x64_128 with an optional 32-bit seed, in the byte order of the
+/// reference implementation (h1 then h2, each least significant byte first).
+/// A checksum, not a cryptographic hash.
+pub const Murmur3_128 = XxHash(murmur3.X64_128, u32);
 
 // ---- BLAKE2 ---------------------------------------------------------------------
 

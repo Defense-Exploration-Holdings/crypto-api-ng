@@ -32,6 +32,7 @@ const NAMES = [
   'shake128', 'shake256', 'snefru', 'snefru256', 'snefru128/2', 'snefru256/4',
   'whirlpool', 'whirlpool-0', 'whirlpool-t',
   'tiger', 'tiger160', 'tiger2', 'streebog', 'streebog256', 'crc32', 'crc32c', 'xxhash32', 'xxhash64',
+  'xxhash3', 'xxhash128', 'murmur3', 'murmur3-x64-128',
 ];
 
 const bytesOfHex = (hex) => Uint8Array.from(Buffer.from(hex, 'hex'));

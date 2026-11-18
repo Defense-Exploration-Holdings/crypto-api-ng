@@ -39,6 +39,10 @@ test "known answers" {
     try expectHex("e3069283", &digestOf(lib.Crc32c, "123456789"));
     try expectHex("02cc5d05", &digestOf(lib.XxHash32, ""));
     try expectHex("ef46db3751d8e999", &digestOf(lib.XxHash64, ""));
+    try expectHex("78af5f94892f3950", &digestOf(lib.XxHash3, "abc"));
+    try expectHex("06b05ab6733a618578af5f94892f3950", &digestOf(lib.XxHash128, "abc"));
+    try expectHex("b3dd93fa", &digestOf(lib.Murmur3_32, "abc"));
+    try expectHex("6778ad3f3f3f96b4522dca264174a23b", &digestOf(lib.Murmur3_128, "abc"));
     try expectHex("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470", &digestOf(lib.Keccak256, ""));
 }
 
@@ -52,7 +56,8 @@ const fixed = .{
     lib.Streebog256, lib.Streebog512, lib.Crc32,        lib.Crc32c,        lib.XxHash32,
     lib.XxHash64,    lib.Blake2b512,  lib.Blake2b160,   lib.Blake2s256,    lib.Blake2s128,
     lib.Sha3_224,    lib.Sha3_256,    lib.Sha3_384,     lib.Sha3_512,      lib.Keccak224,
-    lib.Keccak256,   lib.Keccak384,   lib.Keccak512,
+    lib.Keccak256,   lib.Keccak384,   lib.Keccak512,  lib.XxHash3,       lib.XxHash128,
+    lib.Murmur3_32,  lib.Murmur3_128,
 };
 
 fn randomData(comptime n: usize, seed: u64) [n]u8 {
@@ -197,6 +202,49 @@ test "checksums agree with std.hash" {
         var x64: [8]u8 = undefined;
         lib.XxHash64.hash(m, &x64, .{ .seed = 0x123456789abcdef });
         try testing.expectEqual(std.hash.XxHash64.hash(0x123456789abcdef, m), std.mem.readInt(u64, &x64, .big));
+        lib.XxHash3.hash(m, &x64, .{ .seed = 0x9e3779b185ebca8d });
+        try testing.expectEqual(std.hash.XxHash3.hash(0x9e3779b185ebca8d, m), std.mem.readInt(u64, &x64, .big));
+        lib.Murmur3_32.hash(m, &x32, .{ .seed = 0x9747b28c });
+        try testing.expectEqual(std.hash.Murmur3_32.hashWithSeed(m, 0x9747b28c), std.mem.readInt(u32, &x32, .big));
+    }
+}
+
+test "XXH3 in pieces across the 64-byte hold-back" {
+    const data = randomData(5000, 13);
+    for ([_]usize{ 0, 1, 240, 241, 1087, 1088, 1089, 2111, 2112, 2113, 4096, 5000 }) |len| {
+        const m = data[0..len];
+        const want = digestOf(lib.XxHash128, m);
+        for ([_]usize{ 1, 63, 64, 65, 1023, 1024, 1025, 3000 }) |step| {
+            var h = lib.XxHash128.init(.{});
+            var rest = m;
+            while (rest.len > 0) {
+                const n = @min(step, rest.len);
+                h.update(rest[0..n]);
+                rest = rest[n..];
+            }
+            try testing.expectEqualSlices(u8, &want, &h.finalResult());
+        }
+        var x: [8]u8 = undefined;
+        lib.XxHash3.hash(m, &x, .{ .seed = 7 });
+        try testing.expectEqual(std.hash.XxHash3.hash(7, m), std.mem.readInt(u64, &x, .big));
+    }
+}
+
+test "SipHash agrees with std.crypto.auth.siphash" {
+    const data = randomData(300, 14);
+    const key = randomData(16, 15);
+    for (0..data.len + 1) |len| {
+        const m = data[0..len];
+        var want: [8]u8 = undefined;
+        std.crypto.auth.siphash.SipHash64(2, 4).create(&want, m, &key);
+        var got: [8]u8 = undefined;
+        lib.SipHash24.hash(m, &got, .{ .key = key });
+        try testing.expectEqualSlices(u8, &want, &got);
+        std.crypto.auth.siphash.SipHash64(1, 3).create(&want, m, &key);
+        var h = lib.SipHash13.init(.{ .key = key });
+        h.update(m[0 .. len / 2]);
+        h.update(m[len / 2 ..]);
+        try testing.expectEqualSlices(u8, &want, &h.finalResult());
     }
 }
 

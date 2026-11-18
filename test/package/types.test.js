@@ -36,6 +36,12 @@ import Crc32 from "crypto-api-ng/src/hasher/crc32.mjs";
 import Crc32c from "crypto-api-ng/src/hasher/crc32c.mjs";
 import XxHash32 from "crypto-api-ng/src/hasher/xxhash32.mjs";
 import XxHash64 from "crypto-api-ng/src/hasher/xxhash64.mjs";
+import XxHash3 from "crypto-api-ng/xxhash3";
+import XxHash128 from "crypto-api-ng/src/hasher/xxhash128.mjs";
+import SipHash from "crypto-api-ng/siphash";
+import SipHash13 from "crypto-api-ng/src/hasher/siphash13.mjs";
+import Murmur3 from "crypto-api-ng/murmur3";
+import Murmur3x64 from "crypto-api-ng/src/hasher/murmur3x64.mjs";
 import { toHex } from "crypto-api-ng/src/encoder/hex.mjs";
 import { toBase64 } from "crypto-api-ng/src/encoder/base64.mjs";
 import { fromUtf } from "crypto-api-ng/src/encoder/utf.mjs";
@@ -74,6 +80,13 @@ new Crc32c();
 new XxHash32({ seed: 7 });
 new XxHash64({ seed: 2 ** 40 }).update('abc');
 const sum: string = CryptoApi.hash('xxhash32', 'abc', { seed: 1 });
+new XxHash3({ seed: 2 ** 40 }).update('abc');
+const x128: string = new XxHash128().digest('hex');
+new SipHash({ key: new Uint8Array(16) }).update('abc');
+new SipHash13({ key: '0123456789abcdef' });
+new Murmur3({ seed: 42 }).update(new Uint8Array(3));
+new Murmur3x64();
+const keyedSum: string = CryptoApi.hash('siphash-1-3', 'abc', { key: new Uint8Array(16) }) + CryptoApi.hash('murmur3-x64-128', 'abc');
 const xof: string = CryptoApi.hash('shake128', 'abc', { length: 512, strength: 128 });
 const mac = new Hmac('key', new Md5());
 mac.update(fromUtf('message'));
@@ -131,13 +144,17 @@ new Shake({ strength: 512 });
 new Streebog({ length: 384 });
 // @ts-expect-error a seed is a number
 new XxHash32({ seed: 'x' });
+// @ts-expect-error SipHash needs a key
+new SipHash();
+// @ts-expect-error a Murmur3 seed is a number
+new Murmur3({ seed: '1' });
 // @ts-expect-error update() takes a string or bytes
 hasher.update(42);
 // @ts-expect-error getHasher() of an unknown name may return undefined
 unknown.update('x');
 // @ts-expect-error digests are strings
 const notNumber: number = hex;
-export { hex, same, macHex, b64, viaApi, encoded, notNumber, sum, kdfBytes, kdfText, kdfApi, rawHex, rawBin, macBytes, bytesOut, macOut, text, back };
+export { hex, same, macHex, b64, viaApi, encoded, notNumber, sum, x128, keyedSum, kdfBytes, kdfText, kdfApi, rawHex, rawBin, macBytes, bytesOut, macOut, text, back };
 `;
 
 const CJS = `

@@ -66,7 +66,7 @@ pub fn build(b: *std.Build) void {
     // imports one algorithm only pays for that family. To add a family, append
     // its name to `families`; the root file must exist at src/wasm/<name>.zig.
     // Each is also embedded as packages/crypto-api/wasm/<name>.mjs (see `js`).
-    const families = [_][]const u8{ "md", "md2", "has160", "ripemd", "sha1", "sha256", "sha512", "keccak", "sm3", "snefru", "whirlpool", "blake2b", "blake2s", "blake3", "tiger", "streebog", "crc32", "xxhash" };
+    const families = [_][]const u8{ "md", "md2", "has160", "ripemd", "sha1", "sha256", "sha512", "keccak", "sm3", "snefru", "whirlpool", "blake2b", "blake2s", "blake3", "tiger", "streebog", "crc32", "xxhash", "xxh3", "siphash", "murmur3" };
     // Fixed linear memory: 2 pages = 128 KiB (scratch 64 KiB + 256 B, a 16 KiB
     // stack, data). max == initial so memory can never grow and JS may cache
     // views of it.
@@ -153,7 +153,8 @@ pub fn build(b: *std.Build) void {
         "hmac-has160.json",         "hmac-md5.json",           "hmac-sha1.json",    "hmac-sha224.json",
         "hmac-sha256.json",         "hmac-sha384.json",        "hmac-sha512.json",  "sha3.json",
         "blake/blake2-kat.json",    "blake/blake2-params.json", "blake/blake3.json", "blocks/tiger.json",
-        "blocks/tiger2.json",       "blocks/streebog256.json", "blocks/streebog512.json",
+        "blocks/tiger2.json",       "blocks/streebog256.json", "blocks/streebog512.json", "fast/xxh3.json",
+        "fast/siphash.json",
     };
     for (vector_files) |name| {
         vectors_mod.addAnonymousImport(name, .{ .root_source_file = b.path(b.fmt("test/vectors/{s}", .{name})) });

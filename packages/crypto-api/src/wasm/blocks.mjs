@@ -5,7 +5,8 @@ import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * The scratch-region plumbing of the "blocks" engines: the wasm `<prefix>_blocks` and
- * `<prefix>_final` exports of Tiger, Streebog, CRC-32 and xxHash (src/hash/*.zig, wrapped by
+ * `<prefix>_final` exports of Tiger, Streebog, CRC-32, xxHash, XXH3, SipHash and MurmurHash3
+ * (src/hash/*.zig, wrapped by
  * src/wasm/blake2_exports.zig) behind the engine interface of src/blocks/*.mjs. When
  * WebAssembly is not available (no runtime, CSP, ...) every call is answered by the
  * plain-JavaScript engine of the algorithm instead, which computes the same values.
@@ -22,10 +23,12 @@ const TWO32 = 4294967296;
 
 /**
  * @param {() => Uint8Array} getBytes - the embedded wasm module
- * @param {{prefix: string, block: number, hashInts: number, digest: number, outOff?: number, stateSize?: number}} spec
+ * @param {{prefix: string, block: number, hashInts: number, digest: number, outOff?: number, stateSize?: number, keep?: number}} spec
  *   `prefix` of the exports, block size in bytes, number of int32 hash words, bytes of the full digest,
- *   where in the scratch region the digest is written (default: the output slot), and the size of the
- *   Zig `State` when padding follows the hash words (default: 8 + 4 * hashInts)
+ *   where in the scratch region the digest is written (default: the output slot), the size of the
+ *   Zig `State` when padding follows the hash words (default: 8 + 4 * hashInts), and how many bytes
+ *   the last part holds at least once a block has been compressed (default 1; it then holds up to
+ *   `block + keep - 1` bytes)
  * @param {{blocks: Function, final: Function}} fallback - the plain-JS engine
  */
 export default function createEngine(getBytes, spec, fallback) {
@@ -36,6 +39,8 @@ export default function createEngine(getBytes, spec, fallback) {
   const outOff = spec.outOff === undefined ? OUT_OFF : spec.outOff;
   // The size of the Zig `State`: its words may be followed by padding.
   const stateSize = spec.stateSize === undefined ? 8 + 4 * hashInts : spec.stateSize;
+  const keep = spec.keep === undefined ? 1 : spec.keep;
+  const tailMax = block + keep - 1;
   let tried = false;
   let rt = null;
   let i32 = null;
@@ -83,11 +88,12 @@ export default function createEngine(getBytes, spec, fallback) {
       if (typeof tail !== 'string') {
         throw new TypeError(prefix + ': the last block must be a string');
       }
-      if (tail.length > block) {
-        throw new RangeError(prefix + ': the last block can be at most ' + block + ' bytes, got ' + tail.length);
+      if (tail.length > tailMax) {
+        throw new RangeError(prefix + ': the last block can be at most ' + tailMax + ' bytes, got ' + tail.length);
       }
-      if (tail.length === 0 && counter !== 0) {
-        throw new RangeError(prefix + ': state has compressed blocks but no last block');
+      if (tail.length < keep && counter !== 0) {
+        throw new RangeError(prefix + ': state has compressed blocks but ' +
+          (keep === 1 ? 'no last block' : 'fewer than ' + keep + ' bytes after them'));
       }
       if (counter + tail.length > Number.MAX_SAFE_INTEGER) {
         throw new RangeError(prefix + ': message too long');
@@ -196,7 +202,8 @@ export default function createEngine(getBytes, spec, fallback) {
     },
 
     /**
-     * The full digest of the last block `tail` (1..block bytes, or none for an empty message); `state` is not modified.
+     * The full digest of the last block `tail` (1..block bytes, or none for an empty message; with `keep`,
+     * keep..block + keep - 1 bytes once a block was compressed); `state` is not modified.
      * @throws {TypeError} for a state of the wrong shape
      * @throws {RangeError} for a tail of the wrong length
      */

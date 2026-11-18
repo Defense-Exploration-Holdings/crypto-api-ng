@@ -84,14 +84,14 @@ blake3_xof(params, seek, out, out_len)             // output bytes from output b
 
 `State` is `key` (8 words) at 0, `flags` (u32) at 32 and `chunks` (u64, chunks added so far) at 40. The `stack` argument is the chaining values of the finished subtrees, 32 bytes each, `popcount(chunks)` entries, up to 54 (1728 bytes); it does not fit the 128-byte state slot, so the JS side places it at the start of the input region (+256) and the data at +2304 (leaving 62 chunks per call). `params` (the cv, the last block, its length and flags) is written to the output slot at +128. The JS hasher holds back the last chunk, so a chunk only enters the tree when more input follows.
 
-## Tiger, Streebog, CRC-32 and xxHash
+## Tiger, Streebog, CRC-32, xxHash, XXH3, SipHash and MurmurHash3
 
-These have no 0.8.5 original and use the same shape as BLAKE2: the JS hashers (`src/blocks/base.mjs`) keep the buffer and hold back the last 1 to 64 (16, 32) bytes, and wasm only compresses and finishes. Their exports are produced by the same wrapper (`exportHasherScrub` in `src/wasm/blake2_exports.zig`, which also takes the size of the stack area to clear), and all return a `Status`:
+These have no 0.8.5 original and use the same shape as BLAKE2: the JS hashers (`src/blocks/base.mjs`) keep the buffer and hold back the last 1 to 64 (16, 32) bytes, and wasm only compresses and finishes. XXH3 holds back more: its last stripe is the last 64 bytes of the message, so once a block has been compressed the tail is 64 to 1087 bytes. Their exports are produced by the same wrapper (`exportHasherScrub` in `src/wasm/blake2_exports.zig`, which also takes the size of the stack area to clear), and all return a `Status`:
 
 ```
 <p>_state_size() -> u32
 <p>_blocks(state, data, len)                       // len % block == 0
-<p>_final(state, tail, tail_len, out)              // tail_len <= block; writes the whole digest to out
+<p>_final(state, tail, tail_len, out)              // tail_len <= block (XXH3: <= 1087, and >= 64 when t != 0); writes the whole digest to out
 ```
 
 | Family module | `<p>` | block | digest | `State` (little-endian words) |
@@ -101,8 +101,12 @@ These have no 0.8.5 original and use the same shape as BLAKE2: the JS hashers (`
 | `crc32` | `crc32`, `crc32c` | 64 | 4 | `t` u64 at 0, `crc` u32 at 8 (16 bytes) |
 | `xxhash` | `xxhash32` | 16 | 4 | `t` u64 at 0, `v` 4 x u32 at 8, `seed` u32 at 24 (32 bytes) |
 | `xxhash` | `xxhash64` | 32 | 8 | `t` u64 at 0, `v` 4 x u64 at 8, `seed` u64 at 40 (48 bytes) |
+| `xxh3` | `xxh3`, `xxh128` | 1024 | 8, 16 | `t` u64 at 0, `acc` 8 x u64 at 8, `seed` u64 at 72 (80 bytes) |
+| `siphash` | `siphash24`, `siphash13` | 8 | 8 | `t` u64 at 0, `v` 4 x u64 at 8 (40 bytes) |
+| `murmur3` | `murmur3_32` | 4 | 4 | `t` u64 at 0, `h1` u32 at 8, padding (16 bytes) |
+| `murmur3` | `murmur3_128` | 16 | 16 | `t` u64 at 0, `h1` u64 at 8, `h2` u64 at 16 (24 bytes) |
 
-`t` is the number of bytes compressed so far; `blocks` adds to it and `final` works on a copy, so `state` is never modified by `final`. The JS side writes `t` and the hash words of `state.hash` (int32, the 64-bit words low half first) and reads the words back after `blocks`. Streebog's 136-byte `State` does not fit the 128-byte state slot, so its digest is written behind the input region's last block (at +320) instead of the output slot at +128. Tiger derives its S-boxes at compile time; Streebog derives its 16 KiB of combined tables from the typed-in S-box and matrix. The Streebog digest is the last 32 bytes of the final value for `streebog256`, all 64 for `streebog512`; CRC-32 and xxHash write the checksum most significant byte first.
+`t` is the number of bytes compressed so far; `blocks` adds to it and `final` works on a copy, so `state` is never modified by `final`. The JS side writes `t` and the hash words of `state.hash` (int32, the 64-bit words low half first) and reads the words back after `blocks`. Streebog's 136-byte `State` does not fit the 128-byte state slot, so its digest is written behind the input region's last block (at +320) instead of the output slot at +128. Tiger derives its S-boxes at compile time; Streebog derives its 16 KiB of combined tables from the typed-in S-box and matrix. The Streebog digest is the last 32 bytes of the final value for `streebog256`, all 64 for `streebog512`; CRC-32, xxHash, XXH3 and MurmurHash3 x86_32 write the checksum most significant byte first (XXH128: the high 64 bits first); SipHash and MurmurHash3 x64_128 write the bytes of their reference implementations (little-endian words). XXH3 derives the secret of a seed on every call, so the state holds no secret. The SipHash key only sets the initial `v` words, which the JS side computes.
 
 ## Loading: async and sync
 

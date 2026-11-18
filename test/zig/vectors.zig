@@ -305,3 +305,57 @@ test "Tiger, Tiger2 and Streebog vectors" {
     try checkBlocks(cryptoapi.Streebog256, "blocks/streebog256.json");
     try checkBlocks(cryptoapi.Streebog512, "blocks/streebog512.json");
 }
+
+/// The sanity buffer of the xxHash test suite (tests/sanity_test.c).
+fn sanityBuffer(comptime n: usize) [n]u8 {
+    var out: [n]u8 = undefined;
+    var gen: u64 = 2654435761;
+    for (&out) |*b| {
+        b.* = @truncate(gen >> 56);
+        gen *%= 11400714785074694797;
+    }
+    return out;
+}
+
+test "XXH3 and XXH128: the xxHash sanity values" {
+    const Row = struct { length: usize, seed: []const u8, xxh3: ?[]const u8 = null, xxh128: ?[]const u8 = null };
+    const parsed = try parse([]const Row, "fast/xxh3.json");
+    defer parsed.deinit();
+    try testing.expect(parsed.value.len > 1000);
+    const buf = sanityBuffer(4096 + 64 + 1);
+    for (parsed.value) |v| {
+        const seed = try std.fmt.parseInt(u64, v.seed, 16);
+        const m = buf[0..v.length];
+        if (v.xxh3) |want| {
+            const w = try unhex(want);
+            defer gpa.free(w);
+            const got = try digestOf(cryptoapi.XxHash3, m, .{ .seed = seed });
+            try testing.expectEqualSlices(u8, w, &got);
+        }
+        if (v.xxh128) |want| {
+            const w = try unhex(want);
+            defer gpa.free(w);
+            const got = try digestOf(cryptoapi.XxHash128, m, .{ .seed = seed });
+            try testing.expectEqualSlices(u8, w, &got);
+        }
+    }
+}
+
+test "SipHash-2-4 and SipHash-1-3 reference vectors" {
+    const Row = struct { length: usize, siphash24: []const u8, siphash13: []const u8 };
+    const parsed = try parse([]const Row, "fast/siphash.json");
+    defer parsed.deinit();
+    try testing.expectEqual(@as(usize, 64), parsed.value.len);
+    var key: [16]u8 = undefined;
+    for (&key, 0..) |*b, i| b.* = @intCast(i);
+    var msg: [64]u8 = undefined;
+    for (&msg, 0..) |*b, i| b.* = @intCast(i);
+    for (parsed.value) |v| {
+        const w24 = try unhex(v.siphash24);
+        defer gpa.free(w24);
+        const w13 = try unhex(v.siphash13);
+        defer gpa.free(w13);
+        try testing.expectEqualSlices(u8, w24, &try digestOf(cryptoapi.SipHash24, msg[0..v.length], .{ .key = key }));
+        try testing.expectEqualSlices(u8, w13, &try digestOf(cryptoapi.SipHash13, msg[0..v.length], .{ .key = key }));
+    }
+}

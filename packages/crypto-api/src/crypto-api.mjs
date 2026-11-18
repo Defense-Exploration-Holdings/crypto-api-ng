@@ -21,6 +21,12 @@ import Tiger2 from "./hasher/tiger2.mjs";
 import Whirlpool from "./hasher/whirlpool.mjs";
 import XxHash32 from "./hasher/xxhash32.mjs";
 import XxHash64 from "./hasher/xxhash64.mjs";
+import XxHash3 from "./hasher/xxhash3.mjs";
+import XxHash128 from "./hasher/xxhash128.mjs";
+import SipHash from "./hasher/siphash.mjs";
+import SipHash13 from "./hasher/siphash13.mjs";
+import Murmur3 from "./hasher/murmur3.mjs";
+import Murmur3x64 from "./hasher/murmur3x64.mjs";
 import Crc32 from "./hasher/crc32.mjs";
 import Crc32c from "./hasher/crc32c.mjs";
 import Keccak from "./hasher/keccak.mjs";
@@ -257,6 +263,20 @@ class CryptoApi {
         return new XxHash32(options);
       case 'xxhash64':
         return new XxHash64(options);
+      case 'xxhash3':
+        return new XxHash3(options);
+      case 'xxhash128':
+        return new XxHash128(options);
+      case 'siphash':
+      case 'siphash-2-4':
+        return new SipHash(options);
+      case 'siphash-1-3':
+        return new SipHash13(options);
+      case 'murmur3':
+      case 'murmur3-x86-32':
+        return new Murmur3(options);
+      case 'murmur3-x64-128':
+        return new Murmur3x64(options);
       case 'whirlpool':
         return new Whirlpool(options);
       case 'whirlpool-0':

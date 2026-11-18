@@ -39,6 +39,12 @@ import Crc32, { _internal as crc32 } from '../packages/crypto-api/src/hasher/crc
 import Crc32c, { _internal as crc32c } from '../packages/crypto-api/src/hasher/crc32c.mjs';
 import XxHash32, { _internal as xxhash32 } from '../packages/crypto-api/src/hasher/xxhash32.mjs';
 import XxHash64, { _internal as xxhash64 } from '../packages/crypto-api/src/hasher/xxhash64.mjs';
+import XxHash3, { _internal as xxh3 } from '../packages/crypto-api/src/hasher/xxhash3.mjs';
+import XxHash128, { _internal as xxh128 } from '../packages/crypto-api/src/hasher/xxhash128.mjs';
+import SipHash, { _internal as siphash24 } from '../packages/crypto-api/src/hasher/siphash.mjs';
+import SipHash13, { _internal as siphash13 } from '../packages/crypto-api/src/hasher/siphash13.mjs';
+import Murmur3, { _internal as murmur3 } from '../packages/crypto-api/src/hasher/murmur3.mjs';
+import Murmur3x64, { _internal as murmur3x64 } from '../packages/crypto-api/src/hasher/murmur3x64.mjs';
 import Blake3, { _internal as blake3 } from '../packages/crypto-api/src/hasher/blake3.mjs';
 
 import LHas160 from '../packages/crypto-api/legacy/hasher/has160.mjs';
@@ -314,7 +320,8 @@ describe('facades fall back to the original code when an export is refused', () 
 //  5. A state that no engine can work on is refused with the same error by both engines.
 // ===========================================================================
 
-const NEW_INTERNALS = [keccak, blake2b, blake2s, blake3, tiger, tiger2, streebog, crc32, crc32c, xxhash32, xxhash64];
+const NEW_INTERNALS = [keccak, blake2b, blake2s, blake3, tiger, tiger2, streebog, crc32, crc32c, xxhash32, xxhash64,
+  xxh3, xxh128, siphash24, siphash13, murmur3, murmur3x64];
 
 const view = (rt) => new DataView(rt.u8.buffer);
 
@@ -391,6 +398,7 @@ describe('the sponge, BLAKE2 and BLAKE3 exports refuse bad values and touch noth
     ['blake2b', blake2b, 128], ['blake2s', blake2s, 64],
     ['tiger', tiger, 64], ['tiger2', tiger2, 64], ['streebog256', streebog, 64], ['streebog512', streebog, 64],
     ['crc32', crc32, 64], ['crc32c', crc32c, 64], ['xxhash32', xxhash32, 16], ['xxhash64', xxhash64, 32],
+    ['siphash24', siphash24, 8], ['siphash13', siphash13, 8], ['murmur3_32', murmur3, 4], ['murmur3_128', murmur3x64, 16],
   ]) {
     test(prefix, () => {
       withScratch(internal, (rt, base) => {
@@ -406,6 +414,37 @@ describe('the sponge, BLAKE2 and BLAKE3 exports refuse bad values and touch noth
           refused(rt, `${prefix}_blocks with len ${len}`, () => ex[prefix + '_blocks'](st, input, len));
         }
         for (const len of [block + 1, 2 * block, 0xffffffff]) {
+          refused(rt, `${prefix}_final with tail_len ${len}`, () => ex[prefix + '_final'](st, input, len, out));
+        }
+      });
+    });
+  }
+
+  for (const [prefix, internal] of [['xxh3', xxh3], ['xxh128', xxh128]]) {
+    test(`${prefix}: the last part is 64 to 1087 bytes once a block was compressed`, () => {
+      withScratch(internal, (rt, base) => {
+        const { ex } = rt;
+        const dv = view(rt);
+        const st = base;
+        const input = base + 256;
+        const out = base + 128;
+        const setT = (t) => dv.setUint32(st, t, true);
+        setT(0);
+        assert.equal(ex[prefix + '_final'](st, input, 0, out), 0);
+        assert.equal(ex[prefix + '_final'](st, input, 1087, out), 0);
+        setT(1024);
+        assert.equal(ex[prefix + '_final'](st, input, 64, out), 0);
+        assert.equal(ex[prefix + '_final'](st, input, 1087, out), 0);
+        assert.equal(ex[prefix + '_blocks'](st, input, 1024), 0);
+        setT(1024);
+        for (const len of [1, 1023, 1025, 2047, 0xffffffff]) {
+          refused(rt, `${prefix}_blocks with len ${len}`, () => ex[prefix + '_blocks'](st, input, len));
+        }
+        for (const len of [0, 1, 63]) {
+          refused(rt, `${prefix}_final with tail_len ${len} after a block`, () => ex[prefix + '_final'](st, input, len, out));
+        }
+        setT(0);
+        for (const len of [1088, 2048, 0xffffffff]) {
           refused(rt, `${prefix}_final with tail_len ${len}`, () => ex[prefix + '_final'](st, input, len, out));
         }
       });
@@ -470,7 +509,7 @@ function withExportRefusals(plan, fn) {
     const exports = {};
     for (const key of Object.keys(real.exports)) {
       const value = real.exports[key];
-      if (typeof value === 'function' && /^(keccak|blake|tiger|streebog|crc32|xxhash)/.test(key)) {
+      if (typeof value === 'function' && /^(keccak|blake|tiger|streebog|crc32|xxh|siphash|murmur3)/.test(key)) {
         exports[key] = (...args) => {
           seen[key] = (seen[key] || 0) + 1;
           if (key in plan && seen[key] >= plan[key]) {
@@ -540,17 +579,25 @@ const NEW_CASES = [
   ['crc32c', Crc32c, {}, 140000],
   ['xxhash32, seeded', XxHash32, { seed: 99 }, 140000],
   ['xxhash64, seeded', XxHash64, { seed: 99 }, 140000],
+  ['xxhash3, seeded', XxHash3, { seed: 99 }, 140000],
+  ['xxhash128', XxHash128, {}, 140000],
+  ['xxhash128, short message', XxHash128, { seed: 5 }, 200],
+  ['siphash', SipHash, { key: 'sixteen byte key' }, 140000],
+  ['siphash-1-3', SipHash13, { key: 'sixteen byte key' }, 3000],
+  ['murmur3', Murmur3, { seed: 99 }, 140000],
+  ['murmur3-x64-128', Murmur3x64, { seed: 99 }, 140000],
 ];
 
 const REFUSALS = [
-  ['every compress call refused', { keccak_blocks: 1, blake2b_blocks: 1, blake2s_blocks: 1, blake3_update: 1, tiger_blocks: 1, tiger2_blocks: 1, streebog256_blocks: 1, streebog512_blocks: 1, crc32_blocks: 1, crc32c_blocks: 1, xxhash32_blocks: 1, xxhash64_blocks: 1 }],
-  ['second compress call refused after the first was applied', { keccak_blocks: 2, blake2b_blocks: 2, blake2s_blocks: 2, blake3_update: 2, tiger_blocks: 2, tiger2_blocks: 2, streebog256_blocks: 2, streebog512_blocks: 2, crc32_blocks: 2, crc32c_blocks: 2, xxhash32_blocks: 2, xxhash64_blocks: 2 }],
-  ['final refused', { keccak_final: 1, blake2b_final: 1, blake2s_final: 1, blake3_root: 1, tiger_final: 1, tiger2_final: 1, streebog256_final: 1, streebog512_final: 1, crc32_final: 1, crc32c_final: 1, xxhash32_final: 1, xxhash64_final: 1 }],
+  ['every compress call refused', { keccak_blocks: 1, blake2b_blocks: 1, blake2s_blocks: 1, blake3_update: 1, tiger_blocks: 1, tiger2_blocks: 1, streebog256_blocks: 1, streebog512_blocks: 1, crc32_blocks: 1, crc32c_blocks: 1, xxhash32_blocks: 1, xxhash64_blocks: 1, xxh3_blocks: 1, xxh128_blocks: 1, siphash24_blocks: 1, siphash13_blocks: 1, murmur3_32_blocks: 1, murmur3_128_blocks: 1 }],
+  ['second compress call refused after the first was applied', { keccak_blocks: 2, blake2b_blocks: 2, blake2s_blocks: 2, blake3_update: 2, tiger_blocks: 2, tiger2_blocks: 2, streebog256_blocks: 2, streebog512_blocks: 2, crc32_blocks: 2, crc32c_blocks: 2, xxhash32_blocks: 2, xxhash64_blocks: 2, xxh3_blocks: 2, xxh128_blocks: 2, siphash24_blocks: 2, siphash13_blocks: 2, murmur3_32_blocks: 2, murmur3_128_blocks: 2 }],
+  ['final refused', { keccak_final: 1, blake2b_final: 1, blake2s_final: 1, blake3_root: 1, tiger_final: 1, tiger2_final: 1, streebog256_final: 1, streebog512_final: 1, crc32_final: 1, crc32c_final: 1, xxhash32_final: 1, xxhash64_final: 1, xxh3_final: 1, xxh128_final: 1, siphash24_final: 1, siphash13_final: 1, murmur3_32_final: 1, murmur3_128_final: 1 }],
   ['squeeze and the second xof call refused', { keccak_squeeze: 1, blake3_xof: 2 }],
   ['xof refused at once', { blake3_xof: 1 }],
   ['everything refused', {
     keccak_blocks: 1, keccak_final: 1, keccak_squeeze: 1, blake2b_blocks: 1, blake2b_final: 1, blake2s_blocks: 1, blake2s_final: 1,
     blake3_update: 1, blake3_root: 1, blake3_xof: 1, tiger_blocks: 1, tiger2_blocks: 1, streebog256_blocks: 1, streebog512_blocks: 1, crc32_blocks: 1, crc32c_blocks: 1, xxhash32_blocks: 1, xxhash64_blocks: 1, tiger_final: 1, tiger2_final: 1, streebog256_final: 1, streebog512_final: 1, crc32_final: 1, crc32c_final: 1, xxhash32_final: 1, xxhash64_final: 1,
+    xxh3_blocks: 1, xxh128_blocks: 1, siphash24_blocks: 1, siphash13_blocks: 1, murmur3_32_blocks: 1, murmur3_128_blocks: 1, xxh3_final: 1, xxh128_final: 1, siphash24_final: 1, siphash13_final: 1, murmur3_32_final: 1, murmur3_128_final: 1,
   }],
 ];
 
@@ -609,14 +656,15 @@ describe('the facades redo a refused call in JavaScript, on the untouched state'
 
   test('a refused final call does not change the hasher', () => {
     for (const [C, options] of [[Blake2b, {}], [Blake2s, { key: 'k' }], [Sha3, { length: 256 }], [Shake, { length: 4096 }], [Blake3, {}],
-      [Tiger, {}], [Streebog, { length: 256 }], [Crc32, {}], [XxHash32, { seed: 3 }], [XxHash64, {}]]) {
+      [Tiger, {}], [Streebog, { length: 256 }], [Crc32, {}], [XxHash32, { seed: 3 }], [XxHash64, {}],
+      [XxHash3, { seed: 3 }], [XxHash128, {}], [SipHash, { key: 'sixteen byte key' }], [SipHash13, { key: 'sixteen byte key' }], [Murmur3, {}], [Murmur3x64, {}]]) {
       const message = binary(1000, 5);
       const h = new C({ ...options });
       h.update(message);
       const state = JSON.stringify(h.getState());
       const want = onJavaScript(() => toHex(h.finalize()));
       let got;
-      withExportRefusals({ keccak_final: 1, blake2b_final: 1, blake2s_final: 1, blake3_root: 1, tiger_final: 1, tiger2_final: 1, streebog256_final: 1, streebog512_final: 1, crc32_final: 1, crc32c_final: 1, xxhash32_final: 1, xxhash64_final: 1 }, () => {
+      withExportRefusals({ keccak_final: 1, blake2b_final: 1, blake2s_final: 1, blake3_root: 1, tiger_final: 1, tiger2_final: 1, streebog256_final: 1, streebog512_final: 1, crc32_final: 1, crc32c_final: 1, xxhash32_final: 1, xxhash64_final: 1, xxh3_final: 1, xxh128_final: 1, siphash24_final: 1, siphash13_final: 1, murmur3_32_final: 1, murmur3_128_final: 1 }, () => {
         got = toHex(h.finalize());
       });
       assert.equal(got, want);
@@ -747,7 +795,8 @@ describe('a state no engine can work on is refused, by both engines alike', () =
   });
 
   test('BLAKE2, Tiger, Streebog, CRC-32 and xxHash: hash, counter and last block are validated', () => {
-    for (const [C, hashInts, block] of [[Blake2b, 16, 128], [Blake2s, 8, 64], [Tiger, 6, 64], [Tiger2, 6, 64], [Streebog, 32, 64], [Crc32, 1, 64], [Crc32c, 1, 64], [XxHash32, 5, 16], [XxHash64, 10, 32]]) {
+    for (const [C, hashInts, block] of [[Blake2b, 16, 128], [Blake2s, 8, 64], [Tiger, 6, 64], [Tiger2, 6, 64], [Streebog, 32, 64], [Crc32, 1, 64], [Crc32c, 1, 64], [XxHash32, 5, 16], [XxHash64, 10, 32],
+      [XxHash3, 18, 1024], [XxHash128, 18, 1024], [Murmur3, 1, 4], [Murmur3x64, 4, 16]]) {
       const results = {};
       onBothEngines((engine) => {
         const seen = [];

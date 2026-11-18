@@ -83,7 +83,7 @@ Sizes are one bundle of that import alone (esbuild, minified, ES module, the Web
 <!-- entry-sizes:start -->
 | Import | Provides | Minified | Min + gzip |
 |---|---|---:|---:|
-| `crypto-api-ng` | Everything: the `CryptoApi` object with every hasher, HMAC and the encoders | 338.8 KB | 159.4 KB |
+| `crypto-api-ng` | Everything: the `CryptoApi` object with every hasher, HMAC and the encoders | 369.6 KB | 170.7 KB |
 | `crypto-api-ng/md2` | MD2 | 11.5 KB | 5.2 KB |
 | `crypto-api-ng/md4` | MD4 | 18.1 KB | 7.4 KB |
 | `crypto-api-ng/md5` | MD5 | 18.1 KB | 7.3 KB |
@@ -102,13 +102,19 @@ Sizes are one bundle of that import alone (esbuild, minified, ES module, the Web
 | `crypto-api-ng/sm3` | SM3 | 15.0 KB | 6.3 KB |
 | `crypto-api-ng/snefru` | Snefru 128/256 | 92.5 KB | 51.4 KB |
 | `crypto-api-ng/whirlpool` | Whirlpool, Whirlpool-0, Whirlpool-T | 26.7 KB | 13.7 KB |
-| `crypto-api-ng/tiger` | Tiger (192-bit, shorter with `length`) | 30.4 KB | 15.6 KB |
-| `crypto-api-ng/tiger2` | Tiger2 | 30.4 KB | 15.6 KB |
-| `crypto-api-ng/streebog` | Streebog (GOST R 34.11-2012, 256 and 512 bits) | 44.2 KB | 27.5 KB |
-| `crypto-api-ng/crc32` | CRC-32 checksum | 12.8 KB | 6.4 KB |
-| `crypto-api-ng/crc32c` | CRC-32C (Castagnoli) checksum | 12.8 KB | 6.4 KB |
-| `crypto-api-ng/xxhash32` | xxHash32 checksum | 13.6 KB | 6.0 KB |
-| `crypto-api-ng/xxhash64` | xxHash64 checksum | 14.7 KB | 6.4 KB |
+| `crypto-api-ng/tiger` | Tiger (192-bit, shorter with `length`) | 30.5 KB | 15.6 KB |
+| `crypto-api-ng/tiger2` | Tiger2 | 30.5 KB | 15.6 KB |
+| `crypto-api-ng/streebog` | Streebog (GOST R 34.11-2012, 256 and 512 bits) | 44.3 KB | 27.5 KB |
+| `crypto-api-ng/crc32` | CRC-32 checksum | 12.9 KB | 6.5 KB |
+| `crypto-api-ng/crc32c` | CRC-32C (Castagnoli) checksum | 12.9 KB | 6.5 KB |
+| `crypto-api-ng/xxhash32` | xxHash32 checksum | 13.7 KB | 6.0 KB |
+| `crypto-api-ng/xxhash64` | xxHash64 checksum | 14.8 KB | 6.4 KB |
+| `crypto-api-ng/xxhash3` | XXH3 (64-bit) checksum | 25.0 KB | 10.5 KB |
+| `crypto-api-ng/xxhash128` | XXH3-128 (XXH128) checksum | 26.1 KB | 10.9 KB |
+| `crypto-api-ng/siphash` | SipHash-2-4 (keyed) | 14.1 KB | 6.1 KB |
+| `crypto-api-ng/siphash13` | SipHash-1-3 (keyed) | 14.1 KB | 6.1 KB |
+| `crypto-api-ng/murmur3` | MurmurHash3 x86_32 | 12.1 KB | 5.4 KB |
+| `crypto-api-ng/murmur3x64` | MurmurHash3 x64_128 | 13.3 KB | 5.9 KB |
 | `crypto-api-ng/hmac` | HMAC (takes any hasher object) | 4.2 KB | 1.6 KB |
 | `crypto-api-ng/pbkdf2` | PBKDF2 (RFC 8018) over HMAC with any hasher | 6.0 KB | 2.2 KB |
 | `crypto-api-ng/hkdf` | HKDF (RFC 5869) over HMAC with any hasher | 5.9 KB | 2.2 KB |
@@ -240,7 +246,7 @@ Where WebAssembly is missing or blocked (a page whose Content-Security-Policy la
 ## What is included
 
 * Hashing: HAS-160, MD2, MD4, MD5, RIPEMD-128/160/256/320, SHA-0, SHA-1, SHA-224/256, SHA-384/512, SHA-512/224, SHA-512/256, SM3, Snefru v2.0 and v2.5, WHIRLPOOL, WHIRLPOOL-0, WHIRLPOOL-T
-* Added in this package: SHA3-224/256/384/512, SHAKE128/256, Keccak-224/256/384/512, BLAKE2b, BLAKE2s, BLAKE3, Tiger, Tiger2, Streebog-256/512, and the checksums CRC-32, CRC-32C, XXH32, XXH64
+* Added in this package: SHA3-224/256/384/512, SHAKE128/256, Keccak-224/256/384/512, BLAKE2b, BLAKE2s, BLAKE3, Tiger, Tiger2, Streebog-256/512, the keyed hash SipHash (2-4 and 1-3), and the checksums CRC-32, CRC-32C, XXH32, XXH64, XXH3 (64 and 128 bits) and MurmurHash3 (x86_32 and x64_128)
 * MAC: HMAC (`src/mac/hmac.mjs`, works with any hasher object, including your own)
 * Key derivation: PBKDF2 (`src/kdf/pbkdf2.mjs`) and HKDF (`src/kdf/hkdf.mjs`), over HMAC with any hasher
 * Encodings: `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64` (binary strings) and, added in this package, `utf8ToBytes`, `bytesToUtf8`, `bytesToHex`, `hexToBytes`, `bytesToBase64`, `base64ToBytes` (bytes)

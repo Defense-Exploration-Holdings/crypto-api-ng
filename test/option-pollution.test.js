@@ -38,15 +38,21 @@ import Crc32, { _internal as crc32 } from '../packages/crypto-api/src/hasher/crc
 import Crc32c, { _internal as crc32c } from '../packages/crypto-api/src/hasher/crc32c.mjs';
 import XxHash32, { _internal as xxhash32 } from '../packages/crypto-api/src/hasher/xxhash32.mjs';
 import XxHash64, { _internal as xxhash64 } from '../packages/crypto-api/src/hasher/xxhash64.mjs';
+import XxHash3, { _internal as xxh3 } from '../packages/crypto-api/src/hasher/xxhash3.mjs';
+import XxHash128, { _internal as xxh128 } from '../packages/crypto-api/src/hasher/xxhash128.mjs';
+import SipHash, { _internal as siphash24 } from '../packages/crypto-api/src/hasher/siphash.mjs';
+import SipHash13, { _internal as siphash13 } from '../packages/crypto-api/src/hasher/siphash13.mjs';
+import Murmur3, { _internal as murmur3 } from '../packages/crypto-api/src/hasher/murmur3.mjs';
+import Murmur3x64, { _internal as murmur3x64 } from '../packages/crypto-api/src/hasher/murmur3x64.mjs';
 
-const INTERNALS = [has160, md2, md4, md5, ripemd, sha0, sha1, sha256, sha512, sm3, snefru, whirlpool, keccak, blake2b, blake2s, blake3, tiger, tiger2, streebog, crc32, crc32c, xxhash32, xxhash64];
+const INTERNALS = [has160, md2, md4, md5, ripemd, sha0, sha1, sha256, sha512, sm3, snefru, whirlpool, keccak, blake2b, blake2s, blake3, tiger, tiger2, streebog, crc32, crc32c, xxhash32, xxhash64, xxh3, xxh128, siphash24, siphash13, murmur3, murmur3x64];
 // The hashers that have no 0.8.5 original: SHA-3, SHAKE, Keccak, BLAKE2 and BLAKE3 (every `getHasher()` name of them).
 const NEW_NAMES = [
   'sha3-224', 'sha3-256', 'sha3-384', 'sha3-512', 'keccak224', 'keccak256', 'keccak384', 'keccak512', 'shake128', 'shake256',
   'blake2b', 'blake2b-512', 'blake2b-384', 'blake2b-256', 'blake2b-160', 'blake2b-128',
   'blake2s', 'blake2s-256', 'blake2s-224', 'blake2s-160', 'blake2s-128', 'blake3',
   'tiger', 'tiger192', 'tiger160', 'tiger128', 'tiger2', 'streebog', 'streebog256', 'streebog512',
-  'crc32', 'crc32c', 'xxhash32', 'xxhash64',
+  'crc32', 'crc32c', 'xxhash32', 'xxhash64', 'xxhash3', 'xxhash128', 'murmur3', 'murmur3-x86-32', 'murmur3-x64-128',
 ];
 const NAMES = GET_HASHER_NAMES.concat(ADDED_HASHER_NAMES.map((a) => a.name), NEW_NAMES);
 
@@ -120,6 +126,7 @@ const CLASSES = [
   ['Sha256', Sha256], ['Sha512', Sha512], ['Sm3', Sm3], ['Snefru', Snefru], ['Whirlpool', Whirlpool],
   ['Sha3', Sha3], ['Keccak', Keccak], ['Shake', Shake], ['Blake2b', Blake2b], ['Blake2s', Blake2s], ['Blake3', Blake3],
   ['Tiger', Tiger], ['Tiger2', Tiger2], ['Streebog', Streebog], ['Crc32', Crc32], ['Crc32c', Crc32c], ['XxHash32', XxHash32], ['XxHash64', XxHash64],
+  ['XxHash3', XxHash3], ['XxHash128', XxHash128], ['Murmur3', Murmur3], ['Murmur3x64', Murmur3x64],
 ];
 
 /** Own options of the new classes, every one of them set. */
@@ -143,6 +150,12 @@ const NEW_OWN = [
   ['Crc32', Crc32, {}],
   ['XxHash32', XxHash32, { seed: 7 }],
   ['XxHash64', XxHash64, { seed: 7 }],
+  ['XxHash3', XxHash3, { seed: 7 }],
+  ['XxHash128', XxHash128, { seed: 7 }],
+  ['SipHash', SipHash, { key: 'own key, 16 byte' }],
+  ['SipHash13', SipHash13, { key: new Uint8Array(16).fill(7) }],
+  ['Murmur3', Murmur3, { seed: 7 }],
+  ['Murmur3x64', Murmur3x64, { seed: 7 }],
 ];
 
 /** Constructor-level checks: the digest of the class with no options, and with explicit own options. */
@@ -275,6 +288,8 @@ function suite(label, wasm) {
       [Blake3, { key: 'k'.repeat(32), context: 'c' }, TypeError],
       [Tiger, { length: 200 }, RangeError], [Tiger2, { length: '8' }, TypeError], [Streebog, { length: 128 }, RangeError],
       [XxHash32, { seed: 2 ** 32 }, RangeError], [XxHash64, { seed: -1 }, RangeError], [XxHash64, { seed: '1' }, TypeError],
+      [XxHash3, { seed: -1 }, RangeError], [Murmur3, { seed: 2 ** 32 }, RangeError], [Murmur3x64, { seed: '1' }, TypeError],
+      [SipHash, {}, TypeError], [SipHash, { key: 'short' }, RangeError], [SipHash13, { key: 5 }, TypeError],
     ];
     for (const [C, options, error] of bad) {
       assert.throws(() => polluted(hostile, () => new C(Object.assign({}, options))), error, JSON.stringify(options));

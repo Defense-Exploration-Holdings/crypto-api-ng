@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+
+* New hashers, not in crypto-api 0.8.5: `XxHash3` and `XxHash128` (XXH3 with 64-bit and 128-bit output, with a `seed` option), `SipHash` (SipHash-2-4) and `SipHash13` (SipHash-1-3), keyed 64-bit hashes for hash tables with a required 16-byte `key`, and `Murmur3` and `Murmur3x64` (MurmurHash3 x86_32 and x64_128, with a 32-bit `seed`). `getHasher()` and `hash()` know `xxhash3`, `xxhash128`, `siphash`, `siphash-2-4`, `siphash-1-3`, `murmur3`, `murmur3-x86-32` and `murmur3-x64-128`, each has its own entry point (`crypto-api-ng/xxhash3`, `crypto-api-ng/siphash`, ...), and the Zig API has `XxHash3`, `XxHash128`, `SipHash24`, `SipHash13`, `Murmur3_32` and `Murmur3_128`. Verified against the xxHash sanity test vectors (every length up to 4160 bytes with three seeds), the vectors of the SipHash reference implementation and of the Rust standard library, the SMHasher verification values of MurmurHash3, and Zig's `std.hash` and `std.crypto`. The loop runs in WebAssembly with a plain JavaScript implementation where it is unavailable; `finalize()` does not modify the hasher; message bytes, keys and digests are zeroed in the WebAssembly memory after every call. See the [API reference](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/api.md#tiger-streebog-and-the-checksums).
 ## 1.4.0 (2026-11-18)
 
 An ES module build for browsers and CDNs. The library code, the WebAssembly modules and every digest are the same as in 1.3.0.

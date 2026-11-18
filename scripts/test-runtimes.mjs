@@ -63,13 +63,16 @@ async function buildExpected(version) {
   const inputs = [['empty', ''], ['abc', 'abc'], ['1000 bytes', 'xyz'.repeat(333) + 'x']];
   const classes = {};
   const hashers = [];
+  // Hashers that cannot be built without options (SipHash needs a 16-byte key).
+  const required = { siphash: { key: '0123456789abcdef' }, siphash13: { key: '0123456789abcdef' } };
   const pkg = JSON.parse(readFileSync(join(repo, 'packages', 'crypto-api', 'package.json'), 'utf8'));
   for (const e of entriesFromExports(pkg).filter((x) => x.target.includes('/hasher/'))) {
     classes[e.name] = (await imp(`hasher/${e.name}.mjs`)).default;
     const cases = inputs.map(([label, input]) => {
-      const h = new classes[e.name]({});
+      const options = required[e.name] || {};
+      const h = new classes[e.name](structuredClone(options));
       h.update(input);
-      return { label, input, options: {}, hex: toHex(h.finalize()) };
+      return { label, input, options, hex: toHex(h.finalize()) };
     });
     hashers.push({ name: e.name, cases });
   }

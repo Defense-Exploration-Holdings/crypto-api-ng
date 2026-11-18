@@ -50,6 +50,9 @@ CryptoApi.hash('sha256', 'abc');
 | `streebog` (also `streebog512`), `streebog256` | `Streebog` (`streebog.mjs`) | 512, 256 bits |
 | `crc32`, `crc32c` | `Crc32`, `Crc32c` (`crc32.mjs`, `crc32c.mjs`) | 32 bits (checksums) |
 | `xxhash32`, `xxhash64` | `XxHash32`, `XxHash64` (`xxhash32.mjs`, `xxhash64.mjs`) | 32, 64 bits (checksums) |
+| `xxhash3`, `xxhash128` | `XxHash3`, `XxHash128` (`xxhash3.mjs`, `xxhash128.mjs`) | 64, 128 bits (checksums) |
+| `siphash`, `siphash-2-4`, `siphash-1-3` | `SipHash`, `SipHash13` (`siphash.mjs`, `siphash13.mjs`) | 64 bits (keyed; `key` is required) |
+| `murmur3`, `murmur3-x86-32`, `murmur3-x64-128` | `Murmur3`, `Murmur3x64` (`murmur3.mjs`, `murmur3x64.mjs`) | 32, 128 bits (checksums) |
 
 Options passed to `getHasher` or `hash` override the defaults a name implies. Names that are not listed, including different capitalization, give `undefined` from `getHasher`.
 
@@ -102,6 +105,9 @@ An option that is left out (or `undefined`) takes its default. Since 1.1 a value
 | `Crc32`, `Crc32c` | | | |
 | `XxHash32` | | | `seed`: an integer from 0 to 2^32 - 1 (0) |
 | `XxHash64` | | | `seed`: an integer from 0 to 2^53 - 1 (0) |
+| `XxHash3`, `XxHash128` | | | `seed`: an integer from 0 to 2^53 - 1 (0) |
+| `SipHash`, `SipHash13` | | | `key`: exactly 16 bytes, required |
+| `Murmur3`, `Murmur3x64` | | | `seed`: an integer from 0 to 2^32 - 1 (0) |
 | `Whirlpool` | 1 to 10 (10) | | `type`: `'0'` (Whirlpool-0), `'t'` (Whirlpool-T), anything else is Whirlpool |
 
 The SHA-3 hashers `Sha3`, `Shake` and `Keccak` are additions of this package (the original has no SHA-3). They use the same interface with these differences:
@@ -141,7 +147,7 @@ const keys = kdf.finalize();                                 // 64 bytes of deri
 
 ### Tiger, Streebog and the checksums
 
-`Tiger`, `Tiger2`, `Streebog`, `Crc32`, `Crc32c`, `XxHash32` and `XxHash64` are not in `crypto-api` 0.8.5. They follow the conventions of the BLAKE hashers: `length` is in bits, `finalize()` leaves the hasher as it was (call it again for the same digest, `update()` continues the message), options that are not supported throw, and `getState()` is a JSON-serializable object. Messages are limited to 2^53 - 1 bytes.
+`Tiger`, `Tiger2`, `Streebog`, `Crc32`, `Crc32c`, `XxHash32`, `XxHash64`, `XxHash3`, `XxHash128`, `SipHash`, `SipHash13`, `Murmur3` and `Murmur3x64` are not in `crypto-api` 0.8.5. They follow the conventions of the BLAKE hashers: `length` is in bits, `finalize()` leaves the hasher as it was (call it again for the same digest, `update()` continues the message), options that are not supported throw, and `getState()` is a JSON-serializable object. Messages are limited to 2^53 - 1 bytes.
 
 ```javascript
 import Streebog from "crypto-api-ng/src/hasher/streebog.mjs";
@@ -161,7 +167,10 @@ console.log(toHex(sum.finalize()));      // 16 hex digits
 - **Streebog** is the Russian standard GOST R 34.11-2012 ([RFC 6986](https://www.rfc-editor.org/rfc/rfc6986)). `length` 256 and 512 are the two variants (HMAC over either has the block size 64 bytes). The digest is the final value in memory order, the byte order that OpenSSL's gost engine, rhash and the Linux kernel print (`3f539a21...` and `8e945da2...` for the empty message). RFC 6986 prints its test vectors as big-endian integers, which is the same digest with the bytes reversed.
 - **CRC-32** (IEEE 802.3, the one in zlib, gzip and PNG) and **CRC-32C** (Castagnoli, iSCSI and ext4) are checksums. The digest is the 4 bytes of the checksum, most significant first, so `toHex()` gives the number everyone prints (`cbf43926` for `123456789`).
 - **XXH32** and **XXH64** are the xxHash functions of Yann Collet. The digest is the canonical representation of the specification, the hash as a big-endian number (`02cc5d05` and `ef46db3751d8e999` for the empty message with seed 0).
-- CRC-32 and xxHash are **not cryptographic**: they detect accidental changes and are fast, and anyone can produce input with a chosen checksum. Do not use them to authenticate or to compare secrets. Tiger is old and weakened in its reduced-round form; Streebog is the standard hash of Russian signatures; neither is a better choice than SHA-2, SHA-3 or BLAKE for new designs except where a protocol asks for it.
+- **XXH3** (`XxHash3`, 64 bits) and **XXH128** (`XxHash128`, 128 bits) are the newer xxHash functions (xxHash 0.8, `XXH3_64bits_withSeed` and `XXH3_128bits_withSeed`). The digest is the canonical representation, the hash as a big-endian number, high 64 bits first for XXH128 (`2d06800538d394c2` and `99aa06d3014798d86001c324468d497f` for the empty message with seed 0). The custom secret of the reference API is not supported. A seed is limited to 2^53 - 1 here; the hasher state holds it as two 32-bit words, so `setState()` can restore any 64-bit seed.
+- **SipHash-2-4** (`SipHash`) and **SipHash-1-3** (`SipHash13`) of Aumasson and Bernstein are keyed 64-bit hashes for hash tables that face untrusted input: without the key an attacker cannot predict which inputs collide. The 16-byte `key` is required, and should be random and secret. The digest is the output of the reference implementation, the 64-bit result least significant byte first (`310e0edd47db6f72` for the empty message and the key `00 01 .. 0f`). 64 bits is too short for a message authentication code; use HMAC or a keyed BLAKE2 for that. SipHash-1-3 is the faster variant used by Rust and Python. `getState()` holds values derived from the key, so treat a saved state like the key.
+- **MurmurHash3** x86_32 (`Murmur3`) and x64_128 (`Murmur3x64`) are Austin Appleby's hashes from SMHasher, with a 32-bit seed. `Murmur3` writes the 32-bit result most significant byte first, so its hex form is the number other libraries print (`b3dd93fa` for `abc`). `Murmur3x64` writes the 16 bytes of the reference implementation, h1 then h2 each least significant byte first, which is what `mmh3.hash_bytes` (Python) and `Hashing.murmur3_128` (Guava) return. The x86_128 variant gives different values and is not provided.
+- CRC-32, xxHash and MurmurHash3 are **not cryptographic**: they detect accidental changes and are fast, and anyone can produce input with a chosen checksum. Do not use them to authenticate or to compare secrets. Tiger is old and weakened in its reduced-round form; Streebog is the standard hash of Russian signatures; neither is a better choice than SHA-2, SHA-3 or BLAKE for new designs except where a protocol asks for it.
 
 ## HMAC
 

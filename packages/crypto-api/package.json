@@ -49,6 +49,12 @@
     "./crc32c": {"types": "./src/hasher/crc32c.d.mts", "default": "./src/hasher/crc32c.mjs"},
     "./xxhash32": {"types": "./src/hasher/xxhash32.d.mts", "default": "./src/hasher/xxhash32.mjs"},
     "./xxhash64": {"types": "./src/hasher/xxhash64.d.mts", "default": "./src/hasher/xxhash64.mjs"},
+    "./xxhash3": {"types": "./src/hasher/xxhash3.d.mts", "default": "./src/hasher/xxhash3.mjs"},
+    "./xxhash128": {"types": "./src/hasher/xxhash128.d.mts", "default": "./src/hasher/xxhash128.mjs"},
+    "./siphash": {"types": "./src/hasher/siphash.d.mts", "default": "./src/hasher/siphash.mjs"},
+    "./siphash13": {"types": "./src/hasher/siphash13.d.mts", "default": "./src/hasher/siphash13.mjs"},
+    "./murmur3": {"types": "./src/hasher/murmur3.d.mts", "default": "./src/hasher/murmur3.mjs"},
+    "./murmur3x64": {"types": "./src/hasher/murmur3x64.d.mts", "default": "./src/hasher/murmur3x64.mjs"},
     "./hmac": {"types": "./src/mac/hmac.d.mts", "default": "./src/mac/hmac.mjs"},
     "./pbkdf2": {"types": "./src/kdf/pbkdf2.d.mts", "default": "./src/kdf/pbkdf2.mjs"},
     "./hkdf": {"types": "./src/kdf/hkdf.d.mts", "default": "./src/kdf/hkdf.mjs"},
@@ -91,6 +97,12 @@
       "crc32c": ["src/hasher/crc32c.d.mts"],
       "xxhash32": ["src/hasher/xxhash32.d.mts"],
       "xxhash64": ["src/hasher/xxhash64.d.mts"],
+      "xxhash3": ["src/hasher/xxhash3.d.mts"],
+      "xxhash128": ["src/hasher/xxhash128.d.mts"],
+      "siphash": ["src/hasher/siphash.d.mts"],
+      "siphash13": ["src/hasher/siphash13.d.mts"],
+      "murmur3": ["src/hasher/murmur3.d.mts"],
+      "murmur3x64": ["src/hasher/murmur3x64.d.mts"],
       "hmac": ["src/mac/hmac.d.mts"],
       "pbkdf2": ["src/kdf/pbkdf2.d.mts"],
       "hkdf": ["src/kdf/hkdf.d.mts"],
@@ -129,6 +141,7 @@
     "has160", "has-160", "sha0", "sha1", "sha224", "sha256", "sha384", "sha512", "sha512/t",
     "sha512/224", "sha512/256", "sha3", "sha3-256", "shake128", "shake256", "keccak", "keccak256", "whirlpool", "whirlpool-0", "whirlpool-t", "sm3", "snefru",
     "tiger", "tiger2", "streebog", "gost", "crc32", "crc32c", "xxhash", "xxhash32", "xxhash64",
+    "xxh3", "xxh128", "siphash", "murmurhash", "murmurhash3", "murmur3",
     "hmac", "pbkdf2", "hkdf", "wasm", "webassembly", "zig"
   ]
 }
