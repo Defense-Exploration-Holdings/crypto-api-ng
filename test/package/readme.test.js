@@ -19,6 +19,19 @@ describe('package README', () => {
     assert.match(readme, /openssl dgst -sha384 -binary crypto-api\.min\.js \| openssl base64 -A/);
   });
 
+  it('ES module snippets pin the package version, and the import map carries the hash of the same URL', () => {
+    const urls = [...readme.matchAll(/https:\/\/(?:cdn\.jsdelivr\.net\/npm|unpkg\.com|esm\.sh)\/[^\s"'`)]+/g)].map((m) => m[0]);
+    assert.ok(urls.some((u) => u.endsWith('/crypto-api.min.mjs')), 'no CDN URL of crypto-api.min.mjs');
+    for (const u of urls) assert.match(u, new RegExp(`/${pkg.name}@${pkg.version.replace(/\./g, '\\.')}(/|$)`), u);
+    const map = readme.match(/<script type="importmap">([\s\S]*?)<\/script>/);
+    assert.ok(map, 'no import map example');
+    const json = JSON.parse(map[1]);
+    const bundle = `https://cdn.jsdelivr.net/npm/${pkg.name}@${pkg.version}/crypto-api.min.mjs`;
+    assert.equal(json.imports[pkg.name], bundle);
+    assert.match(json.integrity[bundle], /^sha384-/);
+    assert.match(readme, /openssl dgst -sha384 -binary crypto-api\.min\.mjs \| openssl base64 -A/);
+  });
+
   it('shows no concrete integrity value, so none can be stale or wrong', () => {
     assert.ok(!/sha384-[A-Za-z0-9+/]{64}/.test(readme));
   });

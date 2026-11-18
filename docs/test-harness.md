@@ -92,7 +92,7 @@ SHA-3, SHAKE and Keccak have no 0.8.5 class, so the harness has no oracle for th
 - **Inputs of 2 GiB or more** are exercised through `state.length` only.
 - **`src/index.mjs`** of the original assigns `module.exports` and cannot load as native ESM. In the package it is a
   facade file (default export), so the harness does not compare it with the original. `test/package/` (`npm run
-  test:package`) covers the CJS entry, the global build, the tarball and the examples.
+  test:package`) covers the CJS entry, the global and ES module builds, the tarball and the examples.
 - **Environments** (browsers, Bun, Deno, CSP, Workers) are covered by `scripts/release-gates.sh`, `test/runtimes/smoke.mjs` and the release-gates workflow. The packed tarball is also installed into Node, Bun (1.1 and current) and Deno (2.0 and current) projects on every CI run (`scripts/test-runtimes.mjs`, `npm run test:runtimes`): `exports` map resolution of every entry point, `require()`, an `npm:` specifier for Deno, and wasm loading with and without WebAssembly. The harness is plain ESM and
   has no Node-only dependency except `node:test` and `node:crypto` in the test files themselves.
 - **Speed** is measured by `bench/` (see [benchmarks.md](benchmarks.md)).

@@ -23,5 +23,8 @@ dist/
 packages/crypto-api/crypto-api.js
 packages/crypto-api/crypto-api.min.js
 packages/crypto-api/crypto-api.min.js.map
+packages/crypto-api/crypto-api.min.mjs
+packages/crypto-api/crypto-api.min.mjs.map
+packages/crypto-api/crypto-api.min.d.mts
 packages/crypto-api/example/unit-tests-vectors.js
 release-gates-out/

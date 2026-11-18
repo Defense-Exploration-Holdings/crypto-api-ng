@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0 (2026-11-18)
+
+An ES module build for browsers and CDNs. The library code, the WebAssembly modules and every digest are the same as in 1.3.0.
+
+* `crypto-api.min.mjs`: one ES module (ES2020) with every algorithm and its WebAssembly module embedded, for `<script type="module">` and CDNs such as jsDelivr and unpkg. The `CryptoApi` object is the default export, and the hasher classes, `Hmac`, `Pbkdf2`, `Hkdf` and the encoders are named exports (`import CryptoApi, {Sha256, bytesToHex} from ".../crypto-api.min.mjs"`). They are the classes `CryptoApi.getHasher()` creates, so `instanceof` works across the two. A source map and TypeScript declarations (`crypto-api.min.d.mts`) ship next to it, and `crypto-api-ng/crypto-api.min.mjs` resolves through the `exports` map.
+* The README shows how to load it from a CDN with a pinned version and an import map that carries its `integrity` hash, and how to import single algorithms from `src/` in the browser without a bundler.
+* The package tests load the ES module build, the unbundled `src/` modules and an import map with an integrity hash in headless Chromium, with WebAssembly, without it, and under a Content-Security-Policy that blocks it.
+
 ## 1.3.0 (2026-11-17)
 
 The repository is now also a Zig package. The npm package, its JavaScript code, the WebAssembly modules and every digest are the same as in 1.2.2.

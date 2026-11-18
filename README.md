@@ -36,7 +36,7 @@ CryptoApi.hashBytes('sha256', new Uint8Array([1, 2, 3]));   // Uint8Array(32), b
 
 Runs on Node.js 18 and newer, Bun 1.1 and newer, Deno 2 and newer, and current browsers, and falls back to plain JavaScript where WebAssembly is unavailable. TypeScript declarations are included.
 
-The full API is in the [API reference](docs/api.md). Usage for Node.js, bundlers and browsers is in [packages/crypto-api/README.md](packages/crypto-api/README.md).
+The full API is in the [API reference](docs/api.md). Usage for Node.js, bundlers and browsers, including loading the package from a CDN with `<script type="module">`, is in [packages/crypto-api/README.md](packages/crypto-api/README.md).
 
 ## Algorithms
 
@@ -49,7 +49,7 @@ Added by this package, not in the original: SHA3-224/256/384/512, SHAKE128/256 a
 The algorithms are written in Zig, and the repository is also a Zig package with a native API in the style of `std.crypto.hash`. It needs Zig 0.17.1. Add it to a project:
 
 ```sh
-zig fetch --save git+https://github.com/Defense-Exploration-Holdings/crypto-api-ng#v1.3.0
+zig fetch --save git+https://github.com/Defense-Exploration-Holdings/crypto-api-ng#v1.4.0
 ```
 
 Then import the module in `build.zig`:
