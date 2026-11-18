@@ -96,7 +96,7 @@ Several algorithms are provided for compatibility and are not collision resistan
 
 Measured on Node 22 against the same public API, v1 is 3.7x to 4.1x faster than 0.8.5 on average (geometric mean over 24 algorithm variants), and no measured throughput case is slower. The SHA-384/512 family gains the most (about 15x on larger inputs), followed by Whirlpool (about 8x) and MD5 (about 6x). MD2 gains the least (about 1.2x) because its cost is a chain of dependent table lookups.
 
-The trade-offs are size and start-up: the original JavaScript is kept as the fallback, so an import is about 1.8x to 4.3x larger after gzip, and loading a hasher costs roughly 1.5 to 3 milliseconds more at start-up. Full results, methodology and caveats are in [docs/benchmarks.md](docs/benchmarks.md).
+The trade-offs are size and start-up: the original JavaScript is kept as the fallback, so an import is about 1.8x to 4.3x larger after gzip, and loading a hasher costs roughly 1.5 to 3 milliseconds more at start-up. Full results, methodology and caveats are in [docs/benchmarks.md](docs/benchmarks.md). Against other hash libraries (hash-wasm, @noble/hashes, crypto-js and others), crypto-api-ng is not the fastest; [docs/benchmarks-compare.md](docs/benchmarks-compare.md) has the numbers.
 
 ![Speedup of v1 over 0.8.5 per algorithm](docs/benchmarks/speedup.svg)
 
