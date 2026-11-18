@@ -3,6 +3,7 @@
 
 import Hasher from "../hasher/hasher.mjs";
 import {toBinaryString, checkOptions, ownOption, defineOption} from "../tools/input.mjs";
+import {registerBytes, keepingHandler} from "../tools/direct.mjs";
 
 /**
  * What BLAKE2b and BLAKE2s share (RFC 7693, sequential mode). Not meant to be
@@ -136,5 +137,17 @@ function xorParam(hash, spec, at, value) {
     hash[at * (spec.wordBytes / 4) + i / 4] ^= w;
   }
 }
+
+// update() with bytes: process() with the bytes copied straight into wasm memory.
+registerBytes(Blake2.prototype.process, keepingHandler(
+  (self) => self.constructor.spec.blockBytes,
+  () => 1,
+  (self, take) => {
+    const engine = self.constructor.spec.engine();
+    const counter = self.state.counter;
+    return engine.bytes === true && engine.stateOk(self.state) && counter + take <= Number.MAX_SAFE_INTEGER ?
+      engine : null;
+  },
+  (self, engine, message, start, end) => engine.blocks(self.state, message, start, end)));
 
 export default Blake2;

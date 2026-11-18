@@ -3,7 +3,8 @@
 
 import LegacySnefru from "../../legacy/hasher/snefru.mjs";
 import {wasmBytes} from "../../wasm/snefru.mjs";
-import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
+import {instantiate, wipe, copyIn, binaryOf, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
+import {registerBytes, drainingHandler} from "../tools/direct.mjs";
 import {prepareOptions} from "../tools/input.mjs";
 
 /*
@@ -118,6 +119,73 @@ function store(hash, w, n) {
   for (let k = 0; k < n; k++) hash[k] = i32[w + k];
 }
 
+/**
+ * The rounds for `self` when its whole blocks may go to wasm, else null. Changes
+ * nothing. The caller has checked that the state is an object with a string
+ * message and a hash array, and that the block size is a positive number.
+ */
+function plan(self) {
+  const hash = self.state.hash;
+  const n = hash.length;
+  const rounds = roundsOf(self.options);
+  if (rounds < 0 || n > 15 || self.blockSizeInBytes !== 4 * (16 - n) || self.processBlock !== ORIGINAL_BLOCK ||
+    !wordsOk(hash, 15) || !runtime()) {
+    return null;
+  }
+  return rounds;
+}
+
+/**
+ * Compress the whole blocks of `message` (`state.message`, or bytes when it is
+ * empty) and keep the rest as `state.message`. False when the original must go
+ * on; `state` is then consistent (the blocks done so far are applied).
+ */
+function run(self, rounds, message) {
+  const state = self.state;
+  const hash = state.hash;
+  const n = hash.length;
+  const size = self.blockSizeInBytes;
+  const base = rt.base;
+  const st = base + STATE_OFF;
+  const input = base + INPUT_OFF;
+  const w = st >> 2;
+  const total = message.length - message.length % size;
+  const chunk = rt.cap - rt.cap % size;
+  // Bytes of the input region this call wrote; wiped on every way out.
+  let used = 0;
+  let fallback = false;
+  try {
+    for (let k = 0; k < n; k++) i32[w + k] = hash[k];
+    u8[st + O_WORDS] = n;
+    u8[st + O_ROUNDS] = rounds;
+    u8[st + O_BUFFERED] = 0;
+
+    for (let pos = 0; pos < total;) {
+      const end = Math.min(pos + chunk, total);
+      if (end - pos > used) used = end - pos;
+      const bits = copyIn(u8, input, message, pos, end);
+      if (bits > 0xff || rt.ex.snefru_blocks(st, input, end - pos) !== 0) {
+        // A code unit the wasm code cannot represent: hand over what has been
+        // consumed so far (always whole blocks) and let the original do the rest.
+        // Bytes always become `state.message`.
+        if (pos > 0) store(hash, w, n);
+        if (pos > 0 || typeof message !== 'string') state.message = binaryOf(message, pos);
+        fallback = true;
+        break;
+      }
+      pos = end;
+    }
+    if (!fallback) {
+      wasmCalls++;
+      store(hash, w, n);
+      state.message = binaryOf(message, total);
+    }
+  } finally {
+    wipe(u8, base, used);
+  }
+  return !fallback;
+}
+
 /** Supported `rounds`/`length` values (1.1 rejects the rest). */
 const OPTIONS = {length: {min: 32, max: 448, step: 32}, rounds: {min: 1, max: 8}};
 
@@ -170,58 +238,8 @@ class Snefru extends LegacySnefru {
     }
     if (message.length < size) return;
 
-    const n = hash.length;
-    const rounds = roundsOf(options);
-    if (rounds < 0 || n > 15 || size !== 4 * (16 - n) || this.processBlock !== ORIGINAL_BLOCK ||
-      !wordsOk(hash, 15) || !runtime()) {
-      return super.process();
-    }
-
-    const base = rt.base;
-    const st = base + STATE_OFF;
-    const input = base + INPUT_OFF;
-    const w = st >> 2;
-    const total = message.length - message.length % size;
-    const chunk = rt.cap - rt.cap % size;
-    // Bytes of the input region this call wrote; wiped on every way out.
-    let used = 0;
-    let fallback = false;
-    try {
-      for (let k = 0; k < n; k++) i32[w + k] = hash[k];
-      u8[st + O_WORDS] = n;
-      u8[st + O_ROUNDS] = rounds;
-      u8[st + O_BUFFERED] = 0;
-
-      for (let pos = 0; pos < total;) {
-        const end = Math.min(pos + chunk, total);
-        if (end - pos > used) used = end - pos;
-        let bits = 0;
-        for (let i = pos, o = input; i < end; i++, o++) {
-          const c = message.charCodeAt(i);
-          bits |= c;
-          u8[o] = c;
-        }
-        if (bits > 0xff || rt.ex.snefru_blocks(st, input, end - pos) !== 0) {
-          // A code unit the wasm code cannot represent: hand over what has been
-          // consumed so far (always whole blocks) and let the original do the rest.
-          if (pos > 0) {
-            store(hash, w, n);
-            state.message = message.substr(pos);
-          }
-          fallback = true;
-          break;
-        }
-        pos = end;
-      }
-      if (!fallback) {
-        wasmCalls++;
-        store(hash, w, n);
-        state.message = message.substr(total);
-      }
-    } finally {
-      wipe(u8, base, used);
-    }
-    if (fallback) return super.process();
+    const rounds = plan(this);
+    if (rounds === null || !run(this, rounds, message)) return super.process();
   }
 
   /**
@@ -288,5 +306,17 @@ class Snefru extends LegacySnefru {
     return digest === null ? super.finalize() : digest;
   }
 }
+
+// update() with bytes: the same work as process() above, with the bytes copied straight into wasm memory.
+registerBytes(Snefru.prototype.process, drainingHandler(
+  (self) => {
+    const state = self.state;
+    const size = self.blockSizeInBytes;
+    return state !== null && typeof state === 'object' && Array.isArray(state.hash) && typeof size === 'number' ? size : 0;
+  },
+  plan,
+  (self, rounds, bytes) => {
+    if (!run(self, rounds, bytes)) P.process.call(self);
+  }));
 
 export default Snefru;

@@ -2,7 +2,7 @@
 'use strict';
 
 import {wasmBytes} from "../../wasm/keccak.mjs";
-import {instantiate, wipe, STATE_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, copyIn, binaryOf, STATE_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * Keccak-f[1600] for the SHA-3, SHAKE and Keccak hashers (src/hasher/sponge.mjs).
@@ -144,6 +144,7 @@ function xorBytes(s, message, pos, count) {
 }
 
 function jsAbsorb(hash, message, total, rate) {
+  if (typeof message !== 'string') message = binaryOf(message, 0, total);
   const s = new Int32Array(WORDS);
   for (let k = 0; k < WORDS; k++) s[k] = hash[k];
   for (let pos = 0; pos < total; pos += rate) {
@@ -206,7 +207,7 @@ function wasmAbsorb(hash, message, total, rate) {
     const chunk = cap - cap % rate;
     for (let pos = 0; pos < total;) {
       const end = Math.min(pos + chunk, total);
-      for (let i = pos, o = input; i < end; i++, o++) u8[o] = message.charCodeAt(i);
+      copyIn(u8, input, message, pos, end);
       if (end - pos > used) used = end - pos;
       if (ex.keccak_blocks(st, input, end - pos) !== 0) return false;
       pos = end;
@@ -293,7 +294,7 @@ export function checkState(hash, rate) {
  * into `hash`, in place. The caller has run `checkState()`.
  *
  * @param {number[]} hash - 50 int32 words, the sponge state
- * @param {string} message - binary string
+ * @param {string|Uint8Array} message - binary string, or bytes
  * @param {number} total
  * @param {number} rate - block size in bytes
  * @throws {RangeError} when `total` is not a multiple of `rate` within `message`

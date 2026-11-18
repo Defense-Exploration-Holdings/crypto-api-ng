@@ -5,6 +5,7 @@ import LegacyWhirlpool from "../../legacy/hasher/whirlpool.mjs";
 import {wasmBytes} from "../../wasm/whirlpool.mjs";
 import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
 import {prepareOptions} from "../tools/input.mjs";
+import {registerBytes} from "../tools/direct.mjs";
 
 /*
  * Whirlpool, Whirlpool-T (`type: 't'`) and Whirlpool-0 (`type: '0'`) with the
@@ -121,6 +122,12 @@ class Whirlpool extends LegacyWhirlpool {
     return result === null ? super.finalize() : result;
   }
 }
+
+// update() with bytes copies them straight into wasm memory (src/tools/direct.mjs).
+registerBytes(Whirlpool.prototype.process, (self, bytes) => {
+  const accel = accelFor(self);
+  return accel !== null && accel.bytes(self, bytes);
+});
 
 /**
  * Test-only hooks; not public API and not kept in later releases.

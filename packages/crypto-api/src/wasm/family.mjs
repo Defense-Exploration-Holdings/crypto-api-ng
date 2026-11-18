@@ -58,3 +58,99 @@ export function instantiate(getBytes, stateSizes) {
     return null;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Copying a message into wasm memory
+// ---------------------------------------------------------------------------
+//
+// The block loops of every family read their message through these helpers, so
+// that the same loop serves a binary string (`state.message`) and the bytes an
+// `update()` call was given (src/tools/direct.mjs).
+
+const WIDE = /[^\x00-\xff]/;
+const CHUNK = 8192;
+const encoder = typeof TextEncoder === 'function' ? new TextEncoder() : null;
+const canEncodeInto = encoder !== null && typeof encoder.encodeInto === 'function';
+// Node and Bun: Buffer#write(..., 'latin1') copies a binary string at memory speed.
+// Read as a property so that bundlers do not pull in a Buffer shim for browsers.
+const NodeBuffer = typeof globalThis === 'object' && globalThis !== null &&
+  typeof globalThis.Buffer === 'function' && typeof globalThis.Buffer.from === 'function' &&
+  typeof globalThis.Buffer.prototype.write === 'function' ? globalThis.Buffer : null;
+let latin1Memory = null;
+let latin1View = null;
+
+/** A Buffer over all of `u8`'s memory, or null. Linear memory never grows, so the view is kept. */
+function latin1Target(u8) {
+  if (NodeBuffer === null) return null;
+  if (latin1Memory !== u8.buffer) {
+    try {
+      latin1View = NodeBuffer.from(u8.buffer, 0, u8.buffer.byteLength);
+      latin1Memory = u8.buffer;
+    } catch (e) {
+      return null;
+    }
+  }
+  return latin1View;
+}
+
+/**
+ * Copy `message[from, to)` to `u8[at, at + to - from)`.
+ *
+ * `message` is a binary string or a Uint8Array. A code unit above 0xFF is
+ * written as its low byte. The result is 0, or the bitwise OR of the code units
+ * of a string range: above 0xFF means the range has a code unit that is not a
+ * byte (callers then hand the message back to the original code, as before).
+ *
+ * @param {Uint8Array} u8 - all of linear memory
+ * @param {number} at
+ * @param {string|Uint8Array} message
+ * @param {number} from
+ * @param {number} to
+ * @returns {number}
+ */
+export function copyIn(u8, at, message, from, to) {
+  const n = to - from;
+  if (n <= 0) return 0;
+  if (typeof message !== 'string') {
+    u8.set(from === 0 && to === message.length ? message : message.subarray(from, to), at);
+    return 0;
+  }
+  if (n >= 64) {
+    const part = from === 0 && to === message.length ? message : message.substring(from, to);
+    // ASCII text: UTF-8 is the same bytes, and encodeInto() is a bulk copy.
+    if (canEncodeInto) {
+      const r = encoder.encodeInto(part, u8.subarray(at, at + n));
+      if (r.read === n && r.written === n) return 0;
+    }
+    const target = latin1Target(u8);
+    if (target !== null && !WIDE.test(part)) {
+      target.write(part, at, n, 'latin1');
+      return 0;
+    }
+  }
+  let bits = 0;
+  for (let i = from, o = at; i < to; i++, o++) {
+    const c = message.charCodeAt(i);
+    bits |= c;
+    u8[o] = c;
+  }
+  return bits;
+}
+
+/**
+ * `message[from, to)` as a binary string. `to` defaults to the end.
+ *
+ * @param {string|Uint8Array} message
+ * @param {number} from
+ * @param {number} [to]
+ * @returns {string}
+ */
+export function binaryOf(message, from, to) {
+  if (to === undefined) to = message.length;
+  if (typeof message === 'string') return message.substring(from, to);
+  let s = '';
+  for (let i = from; i < to; i += CHUNK) {
+    s += String.fromCharCode.apply(null, message.subarray(i, Math.min(i + CHUNK, to)));
+  }
+  return s;
+}

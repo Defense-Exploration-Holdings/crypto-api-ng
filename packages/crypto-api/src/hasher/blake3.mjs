@@ -6,6 +6,7 @@ import js, {IV, CHUNK, KEYED_HASH, DERIVE_KEY_CONTEXT, DERIVE_KEY_MATERIAL} from
 import {wasmBytes} from "../../wasm/blake3.mjs";
 import createEngine from "../wasm/blake3.mjs";
 import {toBinaryString, checkOptions, ownOption, defineOption} from "../tools/input.mjs";
+import {registerBytes, keepingHandler} from "../tools/direct.mjs";
 
 const engine = createEngine(wasmBytes, js);
 
@@ -168,5 +169,14 @@ class Blake3 extends Hasher {
     return engine.finalize(this.state, this.init, this.state.message, this.options.length / 8);
   }
 }
+
+// update() with bytes: process() with the bytes copied straight into wasm memory.
+registerBytes(Blake3.prototype.process, keepingHandler(
+  () => CHUNK,
+  () => 1,
+  (self, take) => engine.bytes === true && engine.accepts(self.state, self.init, take / CHUNK) ? true : null,
+  (self, ctx, message, start, end) => {
+    engine.update(self.state, self.init, start === 0 ? message : message.subarray(start, end), (end - start) / CHUNK);
+  }));
 
 export default Blake3;

@@ -1,7 +1,7 @@
 // crypto-api-ng:facade
 'use strict';
 
-import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, copyIn, binaryOf, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * The scratch-region plumbing of the BLAKE3 engine: the wasm `blake3_update`, `blake3_root`
@@ -139,9 +139,7 @@ export default function createEngine(getBytes, fallback) {
       for (let done = 0; done < nchunks; done += perCall) {
         const n = Math.min(perCall, nchunks - done);
         const from = done * CHUNK;
-        for (let i = 0; i < n * CHUNK; i++) {
-          u8[dataAddr + i] = message.charCodeAt(from + i);
-        }
+        copyIn(u8, dataAddr, message, from, from + n * CHUNK);
         dataBytes = Math.max(dataBytes, n * CHUNK);
         if (run(r.base + STATE_OFF, r.base + STACK_OFF, dataAddr, n) !== 0) {
           return false;
@@ -217,7 +215,7 @@ export default function createEngine(getBytes, fallback) {
      */
     update(state, init, message, nchunks) {
       checkState(state, init);
-      if (typeof message !== 'string') {
+      if (typeof message !== 'string' && !(message instanceof Uint8Array)) {
         throw new TypeError('Blake3: the message must be a string');
       }
       if (!Number.isInteger(nchunks) || nchunks < 0 || nchunks * CHUNK > message.length) {
@@ -229,8 +227,21 @@ export default function createEngine(getBytes, fallback) {
       const r = runtime();
       // A refused call leaves `state` untouched; the plain-JavaScript engine then adds all the chunks.
       if (r === null || !wasmUpdate(r, state, init, message, nchunks)) {
-        fallback.update(state, init, message, nchunks);
+        fallback.update(state, init, typeof message === 'string' ? message : binaryOf(message, 0, nchunks * CHUNK), nchunks);
       }
+    },
+
+    /** `update()` takes a Uint8Array too (the bytes path of `Hasher#update()`, src/tools/direct.mjs). */
+    bytes: true,
+
+    /** True when `update(state, init, <nchunks chunks>, nchunks)` would not throw. */
+    accepts(state, init, nchunks) {
+      try {
+        checkState(state, init);
+      } catch (e) {
+        return false;
+      }
+      return state.chunks + nchunks < MAX_CHUNKS;
     },
 
     /**

@@ -3,7 +3,8 @@
 
 import LegacyMd5 from "../../legacy/hasher/md5.mjs";
 import {wasmBytes} from "../../wasm/md.mjs";
-import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
+import {instantiate, wipe, copyIn, binaryOf, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
+import {registerBytes, drainingHandler} from "../tools/direct.mjs";
 
 /*
  * MD5 with the compression and padding done in wasm, and everything else left
@@ -99,7 +100,7 @@ function hashOk(hash) {
 }
 
 /**
- * Run the first `total` characters of `message` (whole blocks, `hash` the four
+ * Run the first `total` characters of `message` (a binary string or bytes; whole blocks, `hash` the four
  * state words) through wasm. False when a code unit above 0xFF turned up: what
  * was consumed before it is applied to `state` and the original must do the rest.
  */
@@ -115,12 +116,7 @@ function feed(state, message, hash, total) {
 
   for (let pos = 0; pos < total;) {
     const end = Math.min(pos + rt.cap, total);
-    let bits = 0;
-    for (let i = pos, o = input; i < end; i++, o++) {
-      const c = message.charCodeAt(i);
-      bits |= c;
-      u8[o] = c;
-    }
+    const bits = copyIn(u8, input, message, pos, end);
     // A refused call (non-zero status) leaves the scratch State as it was.
     const status = bits > 0xff ? -1 : rt.ex.md5_blocks(st, input, end - pos);
     if (status !== 0) {
@@ -133,8 +129,9 @@ function feed(state, message, hash, total) {
         hash[1] = i32[w + 1];
         hash[2] = i32[w + 2];
         hash[3] = i32[w + 3];
-        state.message = message.substr(pos);
       }
+      // Bytes (see run() below) always become the message the original goes on with.
+      if (bits > 0xff || pos > 0 || typeof message !== 'string') state.message = binaryOf(message, pos);
       return false;
     }
     pos = end;
@@ -144,8 +141,28 @@ function feed(state, message, hash, total) {
   hash[1] = i32[w + 1];
   hash[2] = i32[w + 2];
   hash[3] = i32[w + 3];
-  state.message = message.substr(total);
+  state.message = binaryOf(message, total);
   return true;
+}
+
+/** Null unless `process()` may run in wasm for `self` (whose state is an object with a string message). */
+function plan(self) {
+  return self.processBlock === ORIGINAL_BLOCK && hashOk(self.state.hash) && runtime() ? true : null;
+}
+
+/**
+ * Compress the whole blocks of `message` (a binary string or bytes) into `state`
+ * and keep the rest as `state.message`. False when the original must go on.
+ */
+function run(state, message) {
+  const n = message.length;
+  const total = n - n % BLOCK;
+  try {
+    return feed(state, message, state.hash, total);
+  } finally {
+    // Zero what the call wrote, whatever happened.
+    wipe(u8, rt.base, Math.min(total, rt.cap));
+  }
 }
 
 /**
@@ -168,18 +185,8 @@ class Md5 extends LegacyMd5 {
     const n = message.length;
     if (n < BLOCK) return;
 
-    const hash = state.hash;
-    if (this.processBlock !== ORIGINAL_BLOCK || !hashOk(hash) || !runtime()) return super.process();
-
-    const total = n - n % BLOCK;
-    let done;
-    try {
-      done = feed(state, message, hash, total);
-    } finally {
-      // Zero what the call wrote, whatever happened.
-      wipe(u8, rt.base, Math.min(total, rt.cap));
-    }
-    if (!done) return super.process();
+    if (plan(this) === null) return super.process();
+    if (!run(state, message)) return super.process();
   }
 
   /**
@@ -247,5 +254,9 @@ class Md5 extends LegacyMd5 {
     return digest === null ? super.finalize() : digest;
   }
 }
+
+registerBytes(Md5.prototype.process, drainingHandler(BLOCK, plan, (self, ctx, bytes) => {
+  if (!run(self.state, bytes)) P.process.call(self);
+}));
 
 export default Md5;

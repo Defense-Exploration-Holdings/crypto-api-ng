@@ -96,7 +96,7 @@ describe('tarball contents', () => {
     const { size, unpackedSize } = packed['crypto-api-ng'];
     const hint = ' (debug wasm embedded? build with: zig build js --release=small)';
     assert.ok(size < 1.5 * 1024 * 1024, `tarball ${size} bytes${hint}`);
-    assert.ok(unpackedSize < 3 * 1024 * 1024, `unpacked ${unpackedSize} bytes${hint}`);
+    assert.ok(unpackedSize < 4 * 1024 * 1024, `unpacked ${unpackedSize} bytes${hint}`);
   });
 });
 

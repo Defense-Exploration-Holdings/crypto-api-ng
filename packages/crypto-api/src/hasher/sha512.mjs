@@ -5,6 +5,7 @@ import LegacySha512 from "../../legacy/hasher/sha512.mjs";
 import {wasmBytes} from "../../wasm/sha512.mjs";
 import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
 import {prepareOptions} from "../tools/input.mjs";
+import {registerBytes} from "../tools/direct.mjs";
 
 /*
  * SHA-384, SHA-512, SHA-512/224 and SHA-512/256 with the compression and
@@ -153,6 +154,9 @@ class Sha512 extends LegacySha512 {
     return result === null ? super.finalize() : result;
   }
 }
+
+// update() with bytes copies them straight into wasm memory (src/tools/direct.mjs).
+registerBytes(Sha512.prototype.process, accel.bytes);
 
 /**
  * Test-only hooks; not public API and not kept in later releases.

@@ -26,7 +26,19 @@ function describe(value) {
   return typeof value === 'object' ? tag : typeof value;
 }
 
-function bytesOf(value) {
+/**
+ * The bytes of an `ArrayBuffer`, `SharedArrayBuffer` or view as a Uint8Array
+ * over the same memory, or null for any other value.
+ *
+ * @param {*} value
+ * @returns {Uint8Array|null}
+ */
+export function bytesOf(value) {
+  // A plain Uint8Array is used as it is; anything else gets a fresh view of its bytes.
+  if (typeof Uint8Array !== 'undefined' && value instanceof Uint8Array &&
+    Object.getPrototypeOf(value) === Uint8Array.prototype) {
+    return value;
+  }
   if (typeof ArrayBuffer === 'undefined' || value === null || typeof value !== 'object') return null;
   const tag = Object.prototype.toString.call(value);
   if (tag === '[object ArrayBuffer]' || tag === '[object SharedArrayBuffer]') return new Uint8Array(value);

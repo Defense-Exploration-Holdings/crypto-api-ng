@@ -1,7 +1,7 @@
 // crypto-api-ng:facade
 'use strict';
 
-import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, copyIn, binaryOf, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * What the facades of every `Hasher32le` algorithm that is not MD5 (MD4,
@@ -153,10 +153,13 @@ function store(state, hash, i32, w, n, replace) {
  * @param {*} state - `this.state`; must be an object whose `message` is a string of at least one block
  * @param {number} param - written to `State.param` (HAS-160 `rounds`)
  * @param {boolean} replace - assign a new `state.hash` array instead of writing in place
+ * @param {Uint8Array} [bytes] - the message instead of `state.message`, which must then be
+ *   empty (the bytes path of `update()`, src/tools/direct.mjs); the caller has checked
+ *   `accelReady()`, and when false is returned `state.message` holds what is left
  * @returns {boolean}
  */
-export function accelProcess(v, state, param, replace) {
-  const message = state.message;
+export function accelProcess(v, state, param, replace, bytes) {
+  const message = bytes === undefined ? state.message : bytes;
   const hash = state.hash;
   const n = v.words;
   if (!wordsOk(hash, n)) return false;
@@ -181,22 +184,15 @@ export function accelProcess(v, state, param, replace) {
     for (let pos = 0; pos < total;) {
       const end = Math.min(pos + rt.cap, total);
       if (end - pos > used) used = end - pos;
-      let bits = 0;
-      for (let i = pos, o = input; i < end; i++, o++) {
-        const c = message.charCodeAt(i);
-        bits |= c;
-        u8[o] = c;
-      }
+      const bits = copyIn(u8, input, message, pos, end);
       // A refused call (non-zero status) leaves the scratch State as it was.
       if (bits > 0xff || v.blocks(st, input, end - pos) !== 0) {
         // A code unit the wasm code cannot represent, or a call it refused: apply
         // what has been consumed so far (always whole blocks) and let the original
         // do the rest. Nothing is touched if the very first chunk is the one that
-        // failed.
-        if (pos > 0) {
-          store(state, hash, i32, w, n, replace);
-          state.message = message.substr(pos);
-        }
+        // failed, except that bytes become `state.message`.
+        if (pos > 0) store(state, hash, i32, w, n, replace);
+        if (pos > 0 || bytes !== undefined) state.message = binaryOf(message, pos);
         done = false;
         break;
       }
@@ -205,12 +201,24 @@ export function accelProcess(v, state, param, replace) {
     if (done) {
       eng.calls++;
       store(state, hash, i32, w, n, replace);
-      state.message = message.substr(total);
+      state.message = binaryOf(message, total);
     }
   } finally {
     wipe(u8, base, used);
   }
   return done;
+}
+
+/**
+ * True when `accelProcess(v, state, ...)` will run in wasm (until the module refuses a
+ * call). Changes nothing but loading the module.
+ *
+ * @param {Variant} v
+ * @param {Object} state
+ * @returns {boolean}
+ */
+export function accelReady(v, state) {
+  return wordsOk(state.hash, v.words) && v.engine.runtime() !== null;
 }
 
 /**

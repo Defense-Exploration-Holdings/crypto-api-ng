@@ -167,6 +167,18 @@ for (const [name, Cls, internal, options] of CASES) {
     assert.ok(internal.wasmCalls() > calls, 'the wasm path was not taken');
     assert.deepEqual(scan(rt, [['message', message], ['digest', digests[0]]]), []);
 
+    // The same pieces as bytes, which update() copies straight into wasm memory.
+    for (const pieces of [[message.length], [7, 64, 1, 300, message.length - 372]]) {
+      const h = make();
+      let pos = 0;
+      for (const n of pieces) {
+        h.update(message.subarray(pos, pos + n));
+        pos += n;
+      }
+      assert.deepEqual(Buffer.from(h.finalize(), 'latin1'), digests[0]);
+    }
+    assert.deepEqual(scan(rt, [['message', message], ['digest', digests[0]]]), []);
+
     // HMAC: key-derived pad blocks and the inner digest pass through the same region.
     const blockSize = make().blockSizeInBytes;
     const ipad = Buffer.alloc(blockSize, 0x36);

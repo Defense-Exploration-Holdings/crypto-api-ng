@@ -1,7 +1,8 @@
 // crypto-api-ng:facade
 'use strict';
 
-import {toBinaryString} from "../tools/input.mjs";
+import {toBinaryString, bytesOf} from "../tools/input.mjs";
+import Hasher from "../hasher/hasher.mjs";
 import {checkEncoding, encodeDigest} from "../tools/digest.mjs";
 
 /**
@@ -106,7 +107,14 @@ class Hmac {
    * @param {string|ArrayBuffer|ArrayBufferView} message
    */
   update(message) {
-    this.hasher.update(toBinaryString(message));
+    const hasher = this.hasher;
+    // Bytes go to Hasher#update() as they are, which copies them straight into
+    // wasm memory where it can; any other update() gets the binary string.
+    if (typeof message !== 'string' && hasher.update === Hasher.prototype.update && bytesOf(message) !== null) {
+      hasher.update(message);
+      return;
+    }
+    hasher.update(toBinaryString(message));
   }
 
   /**

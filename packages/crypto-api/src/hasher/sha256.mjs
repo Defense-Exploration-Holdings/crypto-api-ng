@@ -5,6 +5,7 @@ import LegacySha256 from "../../legacy/hasher/sha256.mjs";
 import {wasmBytes} from "../../wasm/sha256.mjs";
 import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
 import {prepareOptions} from "../tools/input.mjs";
+import {registerBytes} from "../tools/direct.mjs";
 
 /*
  * SHA-224/256 with the compression and padding done in wasm, and everything else
@@ -77,6 +78,9 @@ class Sha256 extends LegacySha256 {
     return result === null ? super.finalize() : result;
   }
 }
+
+// update() with bytes copies them straight into wasm memory (src/tools/direct.mjs).
+registerBytes(Sha256.prototype.process, accel.bytes);
 
 /**
  * Test-only hooks; not public API and not kept in later releases.

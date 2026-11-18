@@ -1,7 +1,8 @@
 // crypto-api-ng:facade
 'use strict';
 
-import {toBinaryString} from "../tools/input.mjs";
+import {toBinaryString, bytesOf} from "../tools/input.mjs";
+import {bytesHandler} from "../tools/direct.mjs";
 import {checkEncoding, encodeDigest} from "../tools/digest.mjs";
 
 /**
@@ -89,6 +90,18 @@ class Hasher {
    * @throws {TypeError} for other values, or a string with a code unit above 0xFF
    */
   update(message) {
+    if (typeof message !== 'string') {
+      // Bytes go straight into wasm memory where the class allows it
+      // (src/tools/direct.mjs); the result is the same as below.
+      const handler = bytesHandler(this);
+      if (handler !== undefined) {
+        const bytes = bytesOf(message);
+        if (bytes !== null) {
+          if (handler(this, bytes)) return;
+          message = bytes;
+        }
+      }
+    }
     message = toBinaryString(message);
     this.state.message += message;
     this.state.length += message.length;

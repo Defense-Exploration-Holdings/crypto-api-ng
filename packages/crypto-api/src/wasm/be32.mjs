@@ -1,7 +1,8 @@
 // crypto-api-ng:facade
 'use strict';
 
-import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, copyIn, binaryOf, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
+import {drainingHandler} from "../tools/direct.mjs";
 
 /*
  * Shared wasm glue for the 32-bit big-endian hashers (SHA-0, SHA-1, SHA-224/256
@@ -109,29 +110,31 @@ export function createAccelerator(spec) {
   const final = name + '_final';
   let wasmCalls = 0;
 
-  function process(self) {
+  /** The rounds for `self` when its whole blocks may go to wasm, else null. Changes nothing. */
+  function plan(self) {
     const state = self.state;
-    if (state === null || typeof state !== 'object') return false;
-    const message = state.message;
-    if (typeof message !== 'string') return false;
-    const n = message.length;
-    // Same as the original: nothing to do below one block.
-    if (self.blockSizeInBytes !== BLOCK) return false;
-    if (n < BLOCK) return true;
-
-    const hash = state.hash;
-    if (self.processBlock !== ORIGINAL_BLOCK || !hashOk(hash, words)) return false;
+    if (self.processBlock !== ORIGINAL_BLOCK || !hashOk(state.hash, words)) return null;
     const options = self.options;
-    if (options === null || typeof options !== 'object') return false;
+    if (options === null || typeof options !== 'object') return null;
     const rounds = spec.rounds(options);
-    const rt = family.runtime();
-    if (!rounds || !rt) return false;
+    return rounds && family.runtime() ? rounds : null;
+  }
 
+  /**
+   * Compress the whole blocks of `message` (`state.message`, or bytes when it is
+   * empty) and keep the rest as `state.message`. False when the original must go
+   * on; `state` is then consistent (the blocks done so far are applied).
+   */
+  function run(self, rounds, message) {
+    const state = self.state;
+    const hash = state.hash;
+    const rt = family.runtime();
     const {u8, i32, u32} = family.views();
     const base = rt.base;
     const st = base + STATE_OFF;
     const input = base + INPUT_OFF;
     const w = st >> 2;
+    const n = message.length;
     const total = n - n % BLOCK;
     // Bytes of the input region this call wrote; wiped on every way out.
     let used = 0;
@@ -143,23 +146,18 @@ export function createAccelerator(spec) {
       for (let pos = 0; pos < total;) {
         const end = Math.min(pos + rt.cap, total);
         if (end - pos > used) used = end - pos;
-        let bits = 0;
-        for (let i = pos, o = input; i < end; i++, o++) {
-          const c = message.charCodeAt(i);
-          bits |= c;
-          u8[o] = c;
-        }
+        const bits = copyIn(u8, input, message, pos, end);
         // A refused call (non-zero status) leaves the scratch State as it was.
         const status = bits > 0xff ? -1 : rt.ex[blocks](st, input, end - pos);
         if (status !== 0) {
           // A code unit the wasm code cannot represent, or a call it refused: hand
           // over what has been consumed so far (always whole blocks) and let the
           // original do the rest. Nothing is applied if the first chunk is the one
-          // that was refused.
+          // that was refused, except that bytes become `state.message`.
           if (bits > 0xff || pos > 0) {
             for (let k = 0; k < words; k++) hash[k] = i32[w + k];
-            state.message = message.substr(pos);
           }
+          if (bits > 0xff || pos > 0 || typeof message !== 'string') state.message = binaryOf(message, pos);
           done = false;
           break;
         }
@@ -168,13 +166,32 @@ export function createAccelerator(spec) {
       if (done) {
         wasmCalls++;
         for (let k = 0; k < words; k++) hash[k] = i32[w + k];
-        state.message = message.substr(total);
+        state.message = binaryOf(message, total);
       }
     } finally {
       wipe(u8, base, used);
     }
     return done;
   }
+
+  function process(self) {
+    const state = self.state;
+    if (state === null || typeof state !== 'object') return false;
+    const message = state.message;
+    if (typeof message !== 'string') return false;
+    // Same as the original: nothing to do below one block.
+    if (self.blockSizeInBytes !== BLOCK) return false;
+    if (message.length < BLOCK) return true;
+    const rounds = plan(self);
+    return rounds !== null && run(self, rounds, message);
+  }
+
+  // update() with bytes: process() with the bytes copied straight into wasm memory.
+  const bytes = drainingHandler(BLOCK,
+    (self) => self.blockSizeInBytes === BLOCK && self.process === spec.facade().prototype.process ? plan(self) : null,
+    (self, rounds, data) => {
+      if (!run(self, rounds, data)) P.process.call(self);
+    });
 
   function finalize(self) {
     const state = self.state;
@@ -242,6 +259,8 @@ export function createAccelerator(spec) {
   return {
     process,
     finalize,
+    /** The `update()` bytes handler (src/tools/direct.mjs). */
+    bytes,
     /** Test-only hooks; not public API and not kept in later releases. */
     internal: {
       /** Number of calls that ran in wasm so far. */

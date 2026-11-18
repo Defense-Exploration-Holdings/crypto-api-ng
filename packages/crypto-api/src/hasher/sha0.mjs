@@ -5,6 +5,7 @@ import LegacySha0 from "../../legacy/hasher/sha0.mjs";
 import family from "../wasm/sha1-family.mjs";
 import {createAccelerator, roundsIn} from "../wasm/be32.mjs";
 import {prepareOptions} from "../tools/input.mjs";
+import {registerBytes} from "../tools/direct.mjs";
 
 /*
  * SHA-0 with the compression and padding done in wasm, and everything else
@@ -73,6 +74,9 @@ class Sha0 extends LegacySha0 {
     return result === null ? super.finalize() : result;
   }
 }
+
+// update() with bytes copies them straight into wasm memory (src/tools/direct.mjs).
+registerBytes(Sha0.prototype.process, accel.bytes);
 
 /**
  * Test-only hooks; not public API and not kept in later releases.

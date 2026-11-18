@@ -3,7 +3,8 @@
 
 import LegacyMd4 from "../../legacy/hasher/md4.mjs";
 import {wasmBytes} from "../../wasm/md.mjs";
-import {Engine, BLOCK, accelProcess, accelFinalize} from "../wasm/le32.mjs";
+import {Engine, BLOCK, accelProcess, accelReady, accelFinalize} from "../wasm/le32.mjs";
+import {registerBytes, drainingHandler} from "../tools/direct.mjs";
 
 /*
  * MD4 with the compression and padding done in wasm, and everything else left
@@ -70,5 +71,12 @@ class Md4 extends LegacyMd4 {
     return super.finalize();
   }
 }
+
+// update() with bytes: the same work as process() above, with the bytes copied straight into wasm memory.
+registerBytes(Md4.prototype.process, drainingHandler(BLOCK,
+  (self) => self.blockSizeInBytes === BLOCK && self.processBlock === ORIGINAL_BLOCK && accelReady(V, self.state) ? true : null,
+  (self, ctx, bytes) => {
+    if (!accelProcess(V, self.state, 0, true, bytes)) P.process.call(self);
+  }));
 
 export default Md4;

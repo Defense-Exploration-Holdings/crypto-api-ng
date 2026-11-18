@@ -3,6 +3,8 @@
 
 import Hasher from "./hasher.mjs";
 import {absorb, finish, checkState} from "../wasm/keccak.mjs";
+import {binaryOf} from "../wasm/family.mjs";
+import {registerBytes, drainingHandler} from "../tools/direct.mjs";
 
 /**
  * Base class of the Keccak sponge hashers: {@link Sha3}, {@link Shake} and
@@ -113,5 +115,26 @@ function checkMessage(message) {
     throw new TypeError('Sponge: state.message must be a string, got ' + (message === null ? 'null' : typeof message));
   }
 }
+
+// update() with bytes: process() with the bytes absorbed straight from the Uint8Array.
+registerBytes(Sponge.prototype.process, drainingHandler(
+  (self) => self.blockSizeInBytes,
+  (self) => {
+    try {
+      checkState(self.state.hash, self.blockSizeInBytes);
+    } catch (e) {
+      // process() throws the same error on the usual path.
+      return null;
+    }
+    return true;
+  },
+  (self, ctx, bytes) => {
+    const state = self.state;
+    const rate = self.blockSizeInBytes;
+    const total = bytes.length - bytes.length % rate;
+    // `self.rounds` is passed like process() passes it (12 for TurboSHAKE where a class sets it).
+    absorb(state.hash, bytes, total, rate, self.rounds);
+    state.message = binaryOf(bytes, total);
+  }));
 
 export default Sponge;

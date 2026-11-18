@@ -3,7 +3,8 @@
 
 import LegacyMd2 from "../../legacy/hasher/md2.mjs";
 import {wasmBytes} from "../../wasm/md2.mjs";
-import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
+import {instantiate, wipe, copyIn, binaryOf, STATE_OFF, OUT_OFF, INPUT_OFF} from "../wasm/family.mjs";
+import {registerBytes, drainingHandler} from "../tools/direct.mjs";
 import {prepareOptions} from "../tools/input.mjs";
 
 /*
@@ -110,6 +111,80 @@ function store(array, n, o) {
   for (let i = 0; i < n; i++) array[i] = u8[o + i];
 }
 
+/** True when `load(array, n, ...)` would succeed. */
+function loadable(array, n) {
+  if (!Array.isArray(array) || array.length !== n) return false;
+  for (let i = 0; i < n; i++) {
+    const x = array[i];
+    if (x !== undefined && x !== null && !(Number.isInteger(x) && x >= 0 && x <= 255)) return false;
+  }
+  return true;
+}
+
+/** The rounds for `self` when its whole blocks may go to wasm, else null. Changes nothing. */
+function plan(self) {
+  const rounds = roundsOf(self.options);
+  const state = self.state;
+  if (self.processBlock !== ORIGINAL_BLOCK || !rounds || !loadable(state.hash, 48) ||
+    !loadable(state.checksum, 16) || !runtime()) {
+    return null;
+  }
+  return rounds;
+}
+
+/**
+ * Compress the whole blocks of `message` (`state.message`, or bytes when it is
+ * empty) and keep the rest as `state.message`. False when the original must go
+ * on; `state` is then consistent (the blocks done so far are applied).
+ */
+function run(self, rounds, message) {
+  const state = self.state;
+  const n = message.length;
+  const base = rt.base;
+  const st = base + STATE_OFF;
+  const input = base + INPUT_OFF;
+  const total = n - n % BLOCK;
+  // Bytes of the input region this call wrote; wiped on every way out.
+  let used = 0;
+  let fallback = false;
+  try {
+    if (!load(state.hash, 48, st + O_HASH) || !load(state.checksum, 16, st + O_CHECKSUM)) {
+      fallback = true;
+      if (typeof message !== 'string') state.message = binaryOf(message, 0);
+    } else {
+      u32[(st + O_ROUNDS) >> 2] = rounds;
+      for (let pos = 0; pos < total;) {
+        const end = Math.min(pos + rt.cap, total);
+        if (end - pos > used) used = end - pos;
+        const bits = copyIn(u8, input, message, pos, end);
+        // A refused call (non-zero status) leaves the scratch State as it was.
+        if (bits > 0xff || rt.ex.md2_blocks(st, input, end - pos) !== 0) {
+          // A code unit the wasm code cannot represent, or a call it refused: hand
+          // over what has been consumed so far (always whole blocks) and let the
+          // original do the rest.
+          if (pos > 0) {
+            store(state.hash, 48, st + O_HASH);
+            store(state.checksum, 16, st + O_CHECKSUM);
+          }
+          state.message = binaryOf(message, pos);
+          fallback = true;
+          break;
+        }
+        pos = end;
+      }
+      if (!fallback) {
+        wasmCalls++;
+        store(state.hash, 48, st + O_HASH);
+        store(state.checksum, 16, st + O_CHECKSUM);
+        state.message = binaryOf(message, total);
+      }
+    }
+  } finally {
+    wipe(u8, base, used);
+  }
+  return !fallback;
+}
+
 /** Supported `rounds`/`length` values (1.1 rejects the rest). */
 const OPTIONS = {rounds: {min: 1, max: 255}};
 
@@ -147,56 +222,8 @@ class Md2 extends LegacyMd2 {
     const n = message.length;
     if (n < BLOCK) return;
 
-    const rounds = roundsOf(this.options);
-    if (this.processBlock !== ORIGINAL_BLOCK || !rounds || !runtime()) return super.process();
-
-    const base = rt.base;
-    const st = base + STATE_OFF;
-    const input = base + INPUT_OFF;
-    const total = n - n % BLOCK;
-    // Bytes of the input region this call wrote; wiped on every way out.
-    let used = 0;
-    let fallback = false;
-    try {
-      if (!load(state.hash, 48, st + O_HASH) || !load(state.checksum, 16, st + O_CHECKSUM)) {
-        fallback = true;
-      } else {
-        u32[(st + O_ROUNDS) >> 2] = rounds;
-        for (let pos = 0; pos < total;) {
-          const end = Math.min(pos + rt.cap, total);
-          if (end - pos > used) used = end - pos;
-          let bits = 0;
-          for (let i = pos, o = input; i < end; i++, o++) {
-            const c = message.charCodeAt(i);
-            bits |= c;
-            u8[o] = c;
-          }
-          // A refused call (non-zero status) leaves the scratch State as it was.
-          if (bits > 0xff || rt.ex.md2_blocks(st, input, end - pos) !== 0) {
-            // A code unit the wasm code cannot represent, or a call it refused: hand
-            // over what has been consumed so far (always whole blocks) and let the
-            // original do the rest.
-            if (pos > 0) {
-              store(state.hash, 48, st + O_HASH);
-              store(state.checksum, 16, st + O_CHECKSUM);
-            }
-            state.message = message.substr(pos);
-            fallback = true;
-            break;
-          }
-          pos = end;
-        }
-        if (!fallback) {
-          wasmCalls++;
-          store(state.hash, 48, st + O_HASH);
-          store(state.checksum, 16, st + O_CHECKSUM);
-          state.message = message.substr(total);
-        }
-      }
-    } finally {
-      wipe(u8, base, used);
-    }
-    if (fallback) return super.process();
+    const rounds = plan(this);
+    if (rounds === null || !run(this, rounds, message)) return super.process();
   }
 
   /**
@@ -255,5 +282,12 @@ class Md2 extends LegacyMd2 {
     return digest === null ? super.finalize() : digest;
   }
 }
+
+// update() with bytes: the same work as process() above, with the bytes copied straight into wasm memory.
+registerBytes(Md2.prototype.process, drainingHandler(BLOCK,
+  (self) => self.blockSizeInBytes === BLOCK ? plan(self) : null,
+  (self, rounds, bytes) => {
+    if (!run(self, rounds, bytes)) P.process.call(self);
+  }));
 
 export default Md2;

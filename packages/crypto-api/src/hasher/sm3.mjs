@@ -5,6 +5,7 @@ import LegacySm3 from "../../legacy/hasher/sm3.mjs";
 import {wasmBytes} from "../../wasm/sm3.mjs";
 import {createAccelerator, createFamily, roundsIn} from "../wasm/be32.mjs";
 import {prepareOptions} from "../tools/input.mjs";
+import {registerBytes} from "../tools/direct.mjs";
 
 /*
  * SM3 with the compression and padding done in wasm, and everything else
@@ -76,6 +77,9 @@ class Sm3 extends LegacySm3 {
     return result === null ? super.finalize() : result;
   }
 }
+
+// update() with bytes copies them straight into wasm memory (src/tools/direct.mjs).
+registerBytes(Sm3.prototype.process, accel.bytes);
 
 /**
  * Test-only hooks; not public API and not kept in later releases.

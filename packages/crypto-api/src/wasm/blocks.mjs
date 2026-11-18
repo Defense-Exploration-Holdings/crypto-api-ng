@@ -1,7 +1,7 @@
 // crypto-api-ng:facade
 'use strict';
 
-import {instantiate, wipe, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
+import {instantiate, wipe, copyIn, binaryOf, STATE_OFF, OUT_OFF, INPUT_OFF} from "./family.mjs";
 
 /*
  * The scratch-region plumbing of the "blocks" engines: the wasm `<prefix>_blocks` and
@@ -127,9 +127,7 @@ export default function createEngine(getBytes, spec, fallback) {
       const run = r.ex[prefix + '_blocks'];
       for (let pos = start; pos < end; pos += step) {
         const n = Math.min(step, end - pos);
-        for (let i = 0; i < n; i++) {
-          u8[inAddr + i] = message.charCodeAt(pos + i);
-        }
+        copyIn(u8, inAddr, message, pos, pos + n);
         if (n > used) {
           used = n;
         }
@@ -179,12 +177,13 @@ export default function createEngine(getBytes, spec, fallback) {
 
     /**
      * Compress the whole blocks `message[start, end)`; updates `state.hash` and `state.counter`.
+     * `message` is a binary string or a Uint8Array.
      * @throws {TypeError} for a state of the wrong shape
      * @throws {RangeError} for a range that is not whole blocks of `message`, or a counter out of range
      */
     blocks(state, message, start, end) {
       checkState(state);
-      if (typeof message !== 'string') {
+      if (typeof message !== 'string' && !(message instanceof Uint8Array)) {
         throw new TypeError(prefix + ': the message must be a string');
       }
       if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || end > message.length ||
@@ -197,7 +196,24 @@ export default function createEngine(getBytes, spec, fallback) {
       const r = runtime();
       // A refused call leaves `state` untouched; the plain-JavaScript engine then does the whole range.
       if (r === null || !wasmBlocks(r, state, message, start, end)) {
-        fallback.blocks(state, message, start, end);
+        if (typeof message === 'string') {
+          fallback.blocks(state, message, start, end);
+        } else {
+          fallback.blocks(state, binaryOf(message, start, end), 0, end - start);
+        }
+      }
+    },
+
+    /** `blocks()` takes a Uint8Array too (the bytes path of `update()`, src/tools/direct.mjs). */
+    bytes: true,
+
+    /** True when `blocks()` accepts `state` (it would not throw for its shape). */
+    stateOk(state) {
+      try {
+        checkState(state);
+        return true;
+      } catch (e) {
+        return false;
       }
     },
 

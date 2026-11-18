@@ -3,6 +3,7 @@
 
 import Hasher from "../hasher/hasher.mjs";
 import {checkOptions} from "../tools/input.mjs";
+import {registerBytes, keepingHandler} from "../tools/direct.mjs";
 
 /**
  * What Tiger, Streebog, CRC-32, xxHash, XXH3, SipHash and MurmurHash3 share. Not meant to be
@@ -111,5 +112,18 @@ function normalize(spec, options) {
   spec.normalize(options, out);
   return out;
 }
+
+// update() with bytes: process() with the bytes copied straight into wasm memory, for the
+// engines that take a Uint8Array.
+registerBytes(BlockHasher.prototype.process, keepingHandler(
+  (self) => self.constructor.spec.blockBytes,
+  (self) => self.constructor.spec.keep || 1,
+  (self, take) => {
+    const engine = self.constructor.spec.engine(self.options);
+    const counter = self.state.counter;
+    return engine.bytes === true && engine.stateOk(self.state) && counter + take <= Number.MAX_SAFE_INTEGER ?
+      engine : null;
+  },
+  (self, engine, message, start, end) => engine.blocks(self.state, message, start, end)));
 
 export default BlockHasher;

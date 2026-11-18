@@ -3,7 +3,8 @@
 
 import LegacyHas160 from "../../legacy/hasher/has160.mjs";
 import {wasmBytes} from "../../wasm/has160.mjs";
-import {Engine, BLOCK, accelProcess, accelFinalize} from "../wasm/le32.mjs";
+import {Engine, BLOCK, accelProcess, accelReady, accelFinalize} from "../wasm/le32.mjs";
+import {registerBytes, drainingHandler} from "../tools/direct.mjs";
 import {prepareOptions} from "../tools/input.mjs";
 
 /*
@@ -102,5 +103,16 @@ class Has160 extends LegacyHas160 {
     return super.finalize();
   }
 }
+
+// update() with bytes: the same work as process() above, with the bytes copied straight into wasm memory.
+registerBytes(Has160.prototype.process, drainingHandler(BLOCK,
+  (self) => {
+    const rounds = roundsOf(self.options);
+    return self.blockSizeInBytes === BLOCK && rounds >= 0 && self.processBlock === ORIGINAL_BLOCK &&
+      accelReady(V, self.state) ? rounds : null;
+  },
+  (self, rounds, bytes) => {
+    if (!accelProcess(V, self.state, rounds, false, bytes)) P.process.call(self);
+  }));
 
 export default Has160;
