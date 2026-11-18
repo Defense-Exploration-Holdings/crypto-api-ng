@@ -1,6 +1,6 @@
 # bench/
 
-Reproducible benchmarks of v1 (`packages/crypto-api`) against the original crypto-api 0.8.5 (the `crypto-api/` checkout). Results and how to read them: [`docs/benchmarks.md`](../docs/benchmarks.md). Zero npm dependencies; Node 22 or Bun.
+Reproducible benchmarks of v1 (`packages/crypto-api`) against the original crypto-api 0.8.5 (the `crypto-api/` checkout). Results and how to read them: [`docs/benchmarks.md`](../docs/benchmarks.md). Zero npm dependencies; Node 22 or Bun. The comparison with other hash libraries (hash-wasm, @noble/hashes, crypto-js and others) is in [`compare/`](compare/README.md).
 
 ```sh
 scripts/fetch-upstream.sh

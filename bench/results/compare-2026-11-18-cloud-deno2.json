@@ -1,0 +1,3017 @@
+{
+ "schema": 1,
+ "kind": "compare",
+ "label": "cloud-deno2",
+ "date": "2026-11-18",
+ "mode": "default",
+ "environment": {
+  "runtime": "deno",
+  "runtime_version": "2.9.6",
+  "v8": "15.0.245.2-rusty",
+  "platform": "linux x64 6.18.44-fc-v553",
+  "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+  "cpu_count": 4,
+  "memory_mb": 16088,
+  "commit": "35bfdb5",
+  "note": "Shared 4-core cloud sandbox, not a quiet dedicated machine."
+ },
+ "measure": {
+  "samples": 15,
+  "minSampleMs": 25,
+  "warmupMs": 100,
+  "slowSamples": 7
+ },
+ "input_sizes": [
+  32,
+  1024,
+  65536,
+  1048576
+ ],
+ "libraries": [
+  {
+   "name": "crypto-api-ng",
+   "short": "crypto-api-ng",
+   "kind": "wasm",
+   "subject": true,
+   "informational": false,
+   "version": "1.3.0"
+  },
+  {
+   "name": "crypto-api-ng wasm core",
+   "short": "ng core",
+   "kind": "wasm",
+   "subject": false,
+   "informational": true,
+   "version": "1.3.0"
+  },
+  {
+   "name": "node:crypto",
+   "short": "node:crypto",
+   "kind": "native",
+   "subject": false,
+   "informational": false,
+   "version": "deno 2.9.6"
+  },
+  {
+   "name": "hash-wasm",
+   "short": "hash-wasm",
+   "kind": "wasm",
+   "subject": false,
+   "informational": false,
+   "version": "4.12.0"
+  },
+  {
+   "name": "@noble/hashes",
+   "short": "@noble/hashes",
+   "kind": "js",
+   "subject": false,
+   "informational": false,
+   "version": null
+  },
+  {
+   "name": "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5",
+   "short": "js-sha*",
+   "kind": "js",
+   "subject": false,
+   "informational": false,
+   "version": "js-sha256 1.0.0, js-sha512 0.9.0, js-sha3 0.13.0, js-sha1 0.7.0, js-md5 0.9.2"
+  },
+  {
+   "name": "hash.js",
+   "short": "hash.js",
+   "kind": "js",
+   "subject": false,
+   "informational": false,
+   "version": "1.1.7"
+  },
+  {
+   "name": "crypto-js",
+   "short": "crypto-js",
+   "kind": "js",
+   "subject": false,
+   "informational": false,
+   "version": "4.2.0"
+  },
+  {
+   "name": "xxhash-wasm",
+   "short": "xxhash-wasm",
+   "kind": "wasm",
+   "subject": false,
+   "informational": false,
+   "version": null
+  }
+ ],
+ "rows": [
+  {
+   "algorithm": "md5",
+   "size": 32,
+   "expected": "e835402dc56f885a57199cd0fa3fa023",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.002557948670212765,
+     "p95_ms": 0.0031665557114361593,
+     "samples": 15,
+     "iters": 15040,
+     "mb_per_s": 12.510024291198267,
+     "ops_per_s": 390938.2590999459
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.0009045353064454061,
+     "p95_ms": 0.0015879960352422871,
+     "samples": 15,
+     "iters": 23381,
+     "mb_per_s": 35.37728132000935,
+     "ops_per_s": 1105540.0412502922
+    },
+    "node:crypto": {
+     "median_ms": 0.002759715014800448,
+     "p95_ms": 0.0033236647647239114,
+     "samples": 15,
+     "iters": 9797,
+     "mb_per_s": 11.595400187476924,
+     "ops_per_s": 362356.2558586539
+    },
+    "hash-wasm": {
+     "median_ms": 0.0010531785295103922,
+     "p95_ms": 0.002371861502347408,
+     "samples": 15,
+     "iters": 23856,
+     "mb_per_s": 30.384212271091723,
+     "ops_per_s": 949506.6334716164
+    },
+    "@noble/hashes": {
+     "median_ms": 0.002776990265384176,
+     "p95_ms": 0.0036763925020280364,
+     "samples": 15,
+     "iters": 8629,
+     "mb_per_s": 11.523266897578784,
+     "ops_per_s": 360102.09054933704
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.0009177442508977102,
+     "p95_ms": 0.0020718647337458866,
+     "samples": 15,
+     "iters": 26178,
+     "mb_per_s": 34.86810183632156,
+     "ops_per_s": 1089628.1823850486
+    },
+    "crypto-js": {
+     "median_ms": 0.00867669510926122,
+     "p95_ms": 0.016449594970516818,
+     "samples": 15,
+     "iters": 2883,
+     "mb_per_s": 3.688040157806657,
+     "ops_per_s": 115251.25493145804
+    }
+   }
+  },
+  {
+   "algorithm": "md5",
+   "size": 1024,
+   "expected": "cdca24705d8f97bb5a06dcfcac298543",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.013022431157694449,
+     "p95_ms": 0.02167691448308729,
+     "samples": 15,
+     "iters": 2099,
+     "mb_per_s": 78.63355064810291,
+     "ops_per_s": 76790.57680478801
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.0038231279671131564,
+     "p95_ms": 0.005237248362286158,
+     "samples": 15,
+     "iters": 7541,
+     "mb_per_s": 267.84350636665255,
+     "ops_per_s": 261565.9241861841
+    },
+    "node:crypto": {
+     "median_ms": 0.004722555223880757,
+     "p95_ms": 0.006602828656716371,
+     "samples": 15,
+     "iters": 4355,
+     "mb_per_s": 216.83176828126713,
+     "ops_per_s": 211749.77371217497
+    },
+    "hash-wasm": {
+     "median_ms": 0.0029688754256193823,
+     "p95_ms": 0.003749547270165541,
+     "samples": 15,
+     "iters": 8517,
+     "mb_per_s": 344.91174374093777,
+     "ops_per_s": 336827.87474700954
+    },
+    "@noble/hashes": {
+     "median_ms": 0.012681007544979757,
+     "p95_ms": 0.015542068949506853,
+     "samples": 15,
+     "iters": 1723,
+     "mb_per_s": 80.75068139245671,
+     "ops_per_s": 78858.087297321
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.003981114330218019,
+     "p95_ms": 0.00457288281931466,
+     "samples": 15,
+     "iters": 6420,
+     "mb_per_s": 257.21441663392835,
+     "ops_per_s": 251185.95374407063
+    },
+    "crypto-js": {
+     "median_ms": 0.017111274225445117,
+     "p95_ms": 0.024221856295319297,
+     "samples": 15,
+     "iters": 1517,
+     "mb_per_s": 59.84358537584963,
+     "ops_per_s": 58441.00134360315
+    }
+   }
+  },
+  {
+   "algorithm": "md5",
+   "size": 65536,
+   "expected": "c5af48fa649a755e96a41dee9eb03ae4",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.6839523902438863,
+     "p95_ms": 0.8534819317073121,
+     "samples": 15,
+     "iters": 41,
+     "mb_per_s": 95.81953500686053,
+     "ops_per_s": 1462.0900727365192
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.1761391913580245,
+     "p95_ms": 0.1870932481481512,
+     "samples": 15,
+     "iters": 162,
+     "mb_per_s": 372.0693815766989,
+     "ops_per_s": 5677.328210093672
+    },
+    "node:crypto": {
+     "median_ms": 0.12357795299145732,
+     "p95_ms": 0.13485265000000196,
+     "samples": 15,
+     "iters": 234,
+     "mb_per_s": 530.3211326419232,
+     "ops_per_s": 8092.058298369191
+    },
+    "hash-wasm": {
+     "median_ms": 0.1304919818181836,
+     "p95_ms": 0.1451280745454559,
+     "samples": 15,
+     "iters": 220,
+     "mb_per_s": 502.22242843481575,
+     "ops_per_s": 7663.306097943356
+    },
+    "@noble/hashes": {
+     "median_ms": 0.6557523095237966,
+     "p95_ms": 0.7354367904761905,
+     "samples": 15,
+     "iters": 42,
+     "mb_per_s": 99.94017413006422,
+     "ops_per_s": 1524.9660359201694
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.20875917037037314,
+     "p95_ms": 0.2374641318518492,
+     "samples": 15,
+     "iters": 135,
+     "mb_per_s": 313.93111921133016,
+     "ops_per_s": 4790.2087282002285
+    },
+    "crypto-js": {
+     "median_ms": 0.7549987631578724,
+     "p95_ms": 0.8549473184210525,
+     "samples": 15,
+     "iters": 38,
+     "mb_per_s": 86.80279120708471,
+     "ops_per_s": 1324.5054810651354
+    }
+   }
+  },
+  {
+   "algorithm": "md5",
+   "size": 1048576,
+   "expected": "c27f9a8e10886ec55d25f264fe584b83",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 10.384672500000306,
+     "p95_ms": 12.784415800000346,
+     "samples": 15,
+     "iters": 2,
+     "mb_per_s": 100.97342983131813,
+     "ops_per_s": 96.29576666957678
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 2.8552616363636347,
+     "p95_ms": 3.240035345454469,
+     "samples": 15,
+     "iters": 11,
+     "mb_per_s": 367.2434030723122,
+     "ops_per_s": 350.23060137969225
+    },
+    "node:crypto": {
+     "median_ms": 1.9451636666666066,
+     "p95_ms": 2.1295422133333464,
+     "samples": 15,
+     "iters": 15,
+     "mb_per_s": 539.0682634931828,
+     "ops_per_s": 514.0955576831655
+    },
+    "hash-wasm": {
+     "median_ms": 2.064353999999954,
+     "p95_ms": 2.3100922461538946,
+     "samples": 15,
+     "iters": 13,
+     "mb_per_s": 507.9438894685811,
+     "ops_per_s": 484.4130415616809
+    },
+    "@noble/hashes": {
+     "median_ms": 10.381451999999626,
+     "p95_ms": 11.060984366666707,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 101.00475347764818,
+     "ops_per_s": 96.32563922657793
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 3.326284333333307,
+     "p95_ms": 3.6392937444444717,
+     "samples": 15,
+     "iters": 9,
+     "mb_per_s": 315.2394368370819,
+     "ops_per_s": 300.63575442989526
+    },
+    "crypto-js": {
+     "median_ms": 14.208778500000335,
+     "p95_ms": 16.307677899999725,
+     "samples": 15,
+     "iters": 2,
+     "mb_per_s": 73.79775819575028,
+     "ops_per_s": 70.37902659964587
+    }
+   }
+  },
+  {
+   "algorithm": "sha1",
+   "size": 32,
+   "expected": "6ec5b75e0c91790ff185be010a99420c758ba355",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.0031408473170733663,
+     "p95_ms": 0.00421736389268296,
+     "samples": 15,
+     "iters": 10250,
+     "mb_per_s": 10.188333519445804,
+     "ops_per_s": 318385.42248268134
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.0013690987696397745,
+     "p95_ms": 0.0018460508401213645,
+     "samples": 15,
+     "iters": 29341,
+     "mb_per_s": 23.373039775953906,
+     "ops_per_s": 730407.4929985595
+    },
+    "node:crypto": {
+     "median_ms": 0.002176079939554404,
+     "p95_ms": 0.005532788568190414,
+     "samples": 15,
+     "iters": 13235,
+     "mb_per_s": 14.705342123852603,
+     "ops_per_s": 459541.9413703938
+    },
+    "hash-wasm": {
+     "median_ms": 0.0009439451832200361,
+     "p95_ms": 0.0017664791212071282,
+     "samples": 15,
+     "iters": 30155,
+     "mb_per_s": 33.90027362694928,
+     "ops_per_s": 1059383.550842165
+    },
+    "@noble/hashes": {
+     "median_ms": 0.00226561007767097,
+     "p95_ms": 0.004735457770380549,
+     "samples": 15,
+     "iters": 15321,
+     "mb_per_s": 14.124230958972321,
+     "ops_per_s": 441382.21746788506
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.0013118706225680962,
+     "p95_ms": 0.0024991675369649847,
+     "samples": 15,
+     "iters": 25700,
+     "mb_per_s": 24.392649282257217,
+     "ops_per_s": 762270.2900705381
+    },
+    "hash.js": {
+     "median_ms": 0.004469657646823081,
+     "p95_ms": 0.005633577330126283,
+     "samples": 15,
+     "iters": 14967,
+     "mb_per_s": 7.159385019732951,
+     "ops_per_s": 223730.7818666547
+    },
+    "crypto-js": {
+     "median_ms": 0.005930615576496918,
+     "p95_ms": 0.008102259257206335,
+     "samples": 15,
+     "iters": 7216,
+     "mb_per_s": 5.39572993515484,
+     "ops_per_s": 168616.56047358876
+    }
+   }
+  },
+  {
+   "algorithm": "sha1",
+   "size": 1024,
+   "expected": "b3cab2230cd64f7b04fc26167c73b55daee4aa41",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.014795168660288925,
+     "p95_ms": 0.017451851973684266,
+     "samples": 15,
+     "iters": 1672,
+     "mb_per_s": 69.21178281316077,
+     "ops_per_s": 67589.63165347732
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.007657931723563929,
+     "p95_ms": 0.008916911296142676,
+     "samples": 15,
+     "iters": 3603,
+     "mb_per_s": 133.71756721845517,
+     "ops_per_s": 130583.56173677264
+    },
+    "node:crypto": {
+     "median_ms": 0.003275473522482641,
+     "p95_ms": 0.003443339209259447,
+     "samples": 15,
+     "iters": 9763,
+     "mb_per_s": 312.6265539841276,
+     "ops_per_s": 305299.36912512465
+    },
+    "hash-wasm": {
+     "median_ms": 0.0031936256454389664,
+     "p95_ms": 0.003531968109171328,
+     "samples": 15,
+     "iters": 8134,
+     "mb_per_s": 320.6387077528776,
+     "ops_per_s": 313123.7380399196
+    },
+    "@noble/hashes": {
+     "median_ms": 0.00569769391736173,
+     "p95_ms": 0.006692711739670277,
+     "samples": 15,
+     "iters": 5639,
+     "mb_per_s": 179.72183392999017,
+     "ops_per_s": 175509.60344725603
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.011022989573889773,
+     "p95_ms": 0.013002406527651666,
+     "samples": 15,
+     "iters": 2206,
+     "mb_per_s": 92.89675846428771,
+     "ops_per_s": 90719.49068778097
+    },
+    "hash.js": {
+     "median_ms": 0.04173587055260989,
+     "p95_ms": 0.05050548387585109,
+     "samples": 15,
+     "iters": 1321,
+     "mb_per_s": 24.53524956929323,
+     "ops_per_s": 23960.204657512924
+    },
+    "crypto-js": {
+     "median_ms": 0.025085118842846903,
+     "p95_ms": 0.043779151524628544,
+     "samples": 15,
+     "iters": 1279,
+     "mb_per_s": 40.821014499279386,
+     "ops_per_s": 39864.27197195253
+    }
+   }
+  },
+  {
+   "algorithm": "sha1",
+   "size": 65536,
+   "expected": "5c6576e47cf5e8d4f8af0f0696d5eb15440c4f80",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.9024019696968908,
+     "p95_ms": 1.1774682545454582,
+     "samples": 15,
+     "iters": 33,
+     "mb_per_s": 72.62395495658436,
+     "ops_per_s": 1108.1536095670222
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.3882191232876547,
+     "p95_ms": 0.4834019767123121,
+     "samples": 15,
+     "iters": 73,
+     "mb_per_s": 168.8118798605407,
+     "ops_per_s": 2575.8648660360823
+    },
+    "node:crypto": {
+     "median_ms": 0.04237694221508888,
+     "p95_ms": 0.05781053434991941,
+     "samples": 15,
+     "iters": 623,
+     "mb_per_s": 1546.5013890658922,
+     "ops_per_s": 23597.738480619693
+    },
+    "hash-wasm": {
+     "median_ms": 0.13608033888888005,
+     "p95_ms": 0.18219856166666829,
+     "samples": 15,
+     "iters": 180,
+     "mb_per_s": 481.59786002234404,
+     "ops_per_s": 7348.60015903235
+    },
+    "@noble/hashes": {
+     "median_ms": 0.24185430578513323,
+     "p95_ms": 0.2634736082644631,
+     "samples": 15,
+     "iters": 121,
+     "mb_per_s": 270.97305457204925,
+     "ops_per_s": 4134.720681336201
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.6339017727272718,
+     "p95_ms": 0.7295348909090535,
+     "samples": 15,
+     "iters": 44,
+     "mb_per_s": 103.38510289700046,
+     "ops_per_s": 1577.531477310188
+    },
+    "hash.js": {
+     "median_ms": 1.3273978888889058,
+     "p95_ms": 1.6542847555555755,
+     "samples": 15,
+     "iters": 18,
+     "mb_per_s": 49.371782604578875,
+     "ops_per_s": 753.3536164028759
+    },
+    "crypto-js": {
+     "median_ms": 1.1678393750000093,
+     "p95_ms": 1.3705303874999724,
+     "samples": 15,
+     "iters": 24,
+     "mb_per_s": 56.11730637186255,
+     "ops_per_s": 856.2821406839378
+    }
+   }
+  },
+  {
+   "algorithm": "sha1",
+   "size": 1048576,
+   "expected": "c9bfa02c76c9fc9eb001dea7949d9975fed27c75",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 13.699686333333375,
+     "p95_ms": 16.114550366666172,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 76.54014657610507,
+     "ops_per_s": 72.99437196360118
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 6.224981600001047,
+     "p95_ms": 6.835288839999557,
+     "samples": 15,
+     "iters": 5,
+     "mb_per_s": 168.44644167298802,
+     "ops_per_s": 160.64304511355212
+    },
+    "node:crypto": {
+     "median_ms": 0.6259278510638359,
+     "p95_ms": 0.6418283042553122,
+     "samples": 15,
+     "iters": 47,
+     "mb_per_s": 1675.23461085463,
+     "ops_per_s": 1597.6282223268797
+    },
+    "hash-wasm": {
+     "median_ms": 2.1367015714287327,
+     "p95_ms": 2.588971750000096,
+     "samples": 15,
+     "iters": 14,
+     "mb_per_s": 490.7451812743584,
+     "ops_per_s": 468.01107528148503
+    },
+    "@noble/hashes": {
+     "median_ms": 3.866294124999513,
+     "p95_ms": 4.266414724999777,
+     "samples": 15,
+     "iters": 8,
+     "mb_per_s": 271.20957850047995,
+     "ops_per_s": 258.64560937927246
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 10.13719966666637,
+     "p95_ms": 11.313777799999903,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 103.43842821287008,
+     "ops_per_s": 98.64657231604585
+    },
+    "hash.js": {
+     "median_ms": 31.076623000000836,
+     "p95_ms": 39.44517940000077,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 33.741632737893426,
+     "ops_per_s": 32.17852853574126
+    },
+    "crypto-js": {
+     "median_ms": 21.409035999997286,
+     "p95_ms": 23.573656199995455,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 48.97819780396151,
+     "ops_per_s": 46.709249309503086
+    }
+   }
+  },
+  {
+   "algorithm": "sha256",
+   "size": 32,
+   "expected": "b5e6b17e10731f3024bb9afdf5fbf8a4bff4ba6003c11afb3b499ed343668dd1",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.003595293701216292,
+     "p95_ms": 0.0042341312125610845,
+     "samples": 15,
+     "iters": 11018,
+     "mb_per_s": 8.900524591127107,
+     "ops_per_s": 278141.3934727221
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.0014109860434076053,
+     "p95_ms": 0.0017039735869312474,
+     "samples": 15,
+     "iters": 34464,
+     "mb_per_s": 22.67917542452675,
+     "ops_per_s": 708724.232016461
+    },
+    "node:crypto": {
+     "median_ms": 0.0021863003218617902,
+     "p95_ms": 0.005678574962862164,
+     "samples": 15,
+     "iters": 16156,
+     "mb_per_s": 14.636598494734576,
+     "ops_per_s": 457393.70296045556
+    },
+    "hash-wasm": {
+     "median_ms": 0.0013681276112292567,
+     "p95_ms": 0.0022521908084733263,
+     "samples": 15,
+     "iters": 27286,
+     "mb_per_s": 23.389631009089964,
+     "ops_per_s": 730925.9690340613
+    },
+    "@noble/hashes": {
+     "median_ms": 0.0026643165482658107,
+     "p95_ms": 0.005909755411617005,
+     "samples": 15,
+     "iters": 9572,
+     "mb_per_s": 12.010584861182739,
+     "ops_per_s": 375330.7769119606
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.009808296602552632,
+     "p95_ms": 0.013401149883156657,
+     "samples": 15,
+     "iters": 5563,
+     "mb_per_s": 3.2625440784154027,
+     "ops_per_s": 101954.50245048133
+    },
+    "hash.js": {
+     "median_ms": 0.0048443220251862896,
+     "p95_ms": 0.005718232151117843,
+     "samples": 15,
+     "iters": 15564,
+     "mb_per_s": 6.60567151267559,
+     "ops_per_s": 206427.2347711122
+    },
+    "crypto-js": {
+     "median_ms": 0.00468254209039422,
+     "p95_ms": 0.008537749237287033,
+     "samples": 15,
+     "iters": 3540,
+     "mb_per_s": 6.833894790960851,
+     "ops_per_s": 213559.21221752663
+    }
+   }
+  },
+  {
+   "algorithm": "sha256",
+   "size": 1024,
+   "expected": "8ab783947bae918d01b74448625dfd0fef119e16e97d6fc9fdf15e310c87cb01",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.014809108010335442,
+     "p95_ms": 0.014955831679584503,
+     "samples": 15,
+     "iters": 1935,
+     "mb_per_s": 69.14663592738596,
+     "ops_per_s": 67526.01164783786
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.00679362549309751,
+     "p95_ms": 0.006932942011835495,
+     "samples": 15,
+     "iters": 4056,
+     "mb_per_s": 150.72953330153524,
+     "ops_per_s": 147196.80986478052
+    },
+    "node:crypto": {
+     "median_ms": 0.0036305428996081437,
+     "p95_ms": 0.004702862734765685,
+     "samples": 15,
+     "iters": 7401,
+     "mb_per_s": 282.05148054042377,
+     "ops_per_s": 275440.89896525757
+    },
+    "hash-wasm": {
+     "median_ms": 0.005184118907233578,
+     "p95_ms": 0.006189313148584234,
+     "samples": 15,
+     "iters": 5088,
+     "mb_per_s": 197.52633346646002,
+     "ops_per_s": 192896.81002583986
+    },
+    "@noble/hashes": {
+     "median_ms": 0.008006077535301465,
+     "p95_ms": 0.0100559526829276,
+     "samples": 15,
+     "iters": 3895,
+     "mb_per_s": 127.90283325196921,
+     "ops_per_s": 124905.11059762619
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.006584672868213898,
+     "p95_ms": 0.028625907984494194,
+     "samples": 15,
+     "iters": 1290,
+     "mb_per_s": 155.51266106827285,
+     "ops_per_s": 151867.8330744852
+    },
+    "hash.js": {
+     "median_ms": 0.022936695052715825,
+     "p95_ms": 0.05294569732360144,
+     "samples": 15,
+     "iters": 1233,
+     "mb_per_s": 44.64461848782146,
+     "ops_per_s": 43598.260242013144
+    },
+    "crypto-js": {
+     "median_ms": 0.03514520290859122,
+     "p95_ms": 0.05121098227146702,
+     "samples": 15,
+     "iters": 1444,
+     "mb_per_s": 29.13626655288662,
+     "ops_per_s": 28453.385305553344
+    }
+   }
+  },
+  {
+   "algorithm": "sha256",
+   "size": 65536,
+   "expected": "653f5cec98c039706a34d4a6d36ac73eedd26cf31dd0daac69656ab776b3ed33",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.8574293142858161,
+     "p95_ms": 0.9069254257142685,
+     "samples": 15,
+     "iters": 35,
+     "mb_per_s": 76.43312271704553,
+     "ops_per_s": 1166.2768969275749
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.3495777333333131,
+     "p95_ms": 0.42427027777776744,
+     "samples": 15,
+     "iters": 45,
+     "mb_per_s": 187.47189466301953,
+     "ops_per_s": 2860.594095810234
+    },
+    "node:crypto": {
+     "median_ms": 0.04604716468591054,
+     "p95_ms": 0.0478697536502561,
+     "samples": 15,
+     "iters": 589,
+     "mb_per_s": 1423.2363805029809,
+     "ops_per_s": 21716.863716170974
+    },
+    "hash-wasm": {
+     "median_ms": 0.25627059595960117,
+     "p95_ms": 0.29878329292927197,
+     "samples": 15,
+     "iters": 99,
+     "mb_per_s": 255.72968976250078,
+     "ops_per_s": 3902.125393104566
+    },
+    "@noble/hashes": {
+     "median_ms": 0.3702991466666572,
+     "p95_ms": 0.417632397333354,
+     "samples": 15,
+     "iters": 75,
+     "mb_per_s": 176.98123419926597,
+     "ops_per_s": 2700.519320667511
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.06123772631577403,
+     "p95_ms": 0.065464648684216,
+     "samples": 15,
+     "iters": 380,
+     "mb_per_s": 1070.1899620188674,
+     "ops_per_s": 16329.802887250782
+    },
+    "hash.js": {
+     "median_ms": 1.4050643750001655,
+     "p95_ms": 1.5895922187499305,
+     "samples": 15,
+     "iters": 16,
+     "mb_per_s": 46.64270275872042,
+     "ops_per_s": 711.7111627002017
+    },
+    "crypto-js": {
+     "median_ms": 1.1060530000000794,
+     "p95_ms": 1.2078846384615574,
+     "samples": 15,
+     "iters": 26,
+     "mb_per_s": 59.25213348726986,
+     "ops_per_s": 904.1158063853434
+    }
+   }
+  },
+  {
+   "algorithm": "sha256",
+   "size": 1048576,
+   "expected": "b13261ceffb27a120f88c3466a3917bfb2875493d5f802422b433a3599407be6",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 13.132156333333114,
+     "p95_ms": 13.576423899999886,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 79.8479681008989,
+     "ops_per_s": 76.14895639505282
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 5.591594999999506,
+     "p95_ms": 6.314373039999044,
+     "samples": 15,
+     "iters": 5,
+     "mb_per_s": 187.5271724794254,
+     "ops_per_s": 178.83984802191296
+    },
+    "node:crypto": {
+     "median_ms": 0.6901382250000097,
+     "p95_ms": 0.827838872500051,
+     "samples": 15,
+     "iters": 40,
+     "mb_per_s": 1519.3709926732217,
+     "ops_per_s": 1448.9850928051203
+    },
+    "hash-wasm": {
+     "median_ms": 4.057107000000542,
+     "p95_ms": 5.28221668571402,
+     "samples": 15,
+     "iters": 7,
+     "mb_per_s": 258.4541152106316,
+     "ops_per_s": 246.48105164588125
+    },
+    "@noble/hashes": {
+     "median_ms": 5.835596400000213,
+     "p95_ms": 6.281014299999078,
+     "samples": 15,
+     "iters": 5,
+     "mb_per_s": 179.6861756923357,
+     "ops_per_s": 171.36209077104158
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 1.2703749500000412,
+     "p95_ms": 1.4258270650000482,
+     "samples": 15,
+     "iters": 20,
+     "mb_per_s": 825.4067037451942,
+     "ops_per_s": 787.1691739513343
+    },
+    "hash.js": {
+     "median_ms": 34.1210510000019,
+     "p95_ms": 45.611277900001724,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 30.731058079070937,
+     "ops_per_s": 29.307420805998746
+    },
+    "crypto-js": {
+     "median_ms": 20.785831000001053,
+     "p95_ms": 27.38052689999822,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 50.446672062326826,
+     "ops_per_s": 48.109695494009806
+    }
+   }
+  },
+  {
+   "algorithm": "sha512",
+   "size": 32,
+   "expected": "1ed5a72c77a70f04f39b467dfb4e7be8a3371e33e422ba21b91539cddbe9d6dec8ab89fa5efaa3941eeab39a86751e12fb68197ec2eb78cc96ee561916d87219",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.004126078573419189,
+     "p95_ms": 0.004963108609640577,
+     "samples": 15,
+     "iters": 7178,
+     "mb_per_s": 7.755547896287955,
+     "ops_per_s": 242360.8717589986
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.0015681713417212675,
+     "p95_ms": 0.0017692070106584573,
+     "samples": 15,
+     "iters": 25989,
+     "mb_per_s": 20.40593342617518,
+     "ops_per_s": 637685.4195679745
+    },
+    "node:crypto": {
+     "median_ms": 0.003520830914442358,
+     "p95_ms": 0.003974004749822288,
+     "samples": 15,
+     "iters": 19706,
+     "mb_per_s": 9.088763640632902,
+     "ops_per_s": 284023.8637697782
+    },
+    "hash-wasm": {
+     "median_ms": 0.001151310954742975,
+     "p95_ms": 0.0018767754027761512,
+     "samples": 15,
+     "iters": 26007,
+     "mb_per_s": 27.79440243156885,
+     "ops_per_s": 868575.0759865266
+    },
+    "@noble/hashes": {
+     "median_ms": 0.0031763589531033382,
+     "p95_ms": 0.006572509000473896,
+     "samples": 15,
+     "iters": 8444,
+     "mb_per_s": 10.07442813373962,
+     "ops_per_s": 314825.87917936314
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.00290624890909054,
+     "p95_ms": 0.003969451381817899,
+     "samples": 15,
+     "iters": 5500,
+     "mb_per_s": 11.01075682124345,
+     "ops_per_s": 344086.1506638578
+    },
+    "hash.js": {
+     "median_ms": 0.011307394708339679,
+     "p95_ms": 0.015592586213831947,
+     "samples": 15,
+     "iters": 6463,
+     "mb_per_s": 2.830006453776541,
+     "ops_per_s": 88437.70168051691
+    },
+    "crypto-js": {
+     "median_ms": 0.01670015388522001,
+     "p95_ms": 0.03400774636871641,
+     "samples": 15,
+     "iters": 1969,
+     "mb_per_s": 1.916150007954159,
+     "ops_per_s": 59879.68774856746
+    }
+   }
+  },
+  {
+   "algorithm": "sha512",
+   "size": 1024,
+   "expected": "a5f36b9d3de859ae1d396e4bc753e1a5132dc0590fd467767f8cf589686982aafc410501842ec779eed5cf184d90d8ddc9e16dcec281c17fc178becf50469cb1",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.01716363708206274,
+     "p95_ms": 0.031450631124621015,
+     "samples": 15,
+     "iters": 1645,
+     "mb_per_s": 59.66101445189347,
+     "ops_per_s": 58262.709425677225
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.005515013972054256,
+     "p95_ms": 0.005812963273453721,
+     "samples": 15,
+     "iters": 3006,
+     "mb_per_s": 185.67496024286154,
+     "ops_per_s": 181323.2033621695
+    },
+    "node:crypto": {
+     "median_ms": 0.004976163688506138,
+     "p95_ms": 0.009180671365541217,
+     "samples": 15,
+     "iters": 4533,
+     "mb_per_s": 205.78101206059972,
+     "ops_per_s": 200958.0195904294
+    },
+    "hash-wasm": {
+     "median_ms": 0.004132529767442227,
+     "p95_ms": 0.004584931906976452,
+     "samples": 15,
+     "iters": 6450,
+     "mb_per_s": 247.79010863212505,
+     "ops_per_s": 241982.52796105962
+    },
+    "@noble/hashes": {
+     "median_ms": 0.01555497613997987,
+     "p95_ms": 0.016313919247086126,
+     "samples": 15,
+     "iters": 1886,
+     "mb_per_s": 65.83102351202483,
+     "ops_per_s": 64288.108898461745
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.024802186425337547,
+     "p95_ms": 0.025813030678733057,
+     "samples": 15,
+     "iters": 1105,
+     "mb_per_s": 41.2866826512479,
+     "ops_per_s": 40319.02602660928
+    },
+    "hash.js": {
+     "median_ms": 0.038088253146860505,
+     "p95_ms": 0.040504466013991436,
+     "samples": 15,
+     "iters": 715,
+     "mb_per_s": 26.884929483420137,
+     "ops_per_s": 26254.81394865248
+    },
+    "crypto-js": {
+     "median_ms": 0.209580855769253,
+     "p95_ms": 0.27231708557689605,
+     "samples": 15,
+     "iters": 208,
+     "mb_per_s": 4.8859424504278985,
+     "ops_per_s": 4771.428174245994
+    }
+   }
+  },
+  {
+   "algorithm": "sha512",
+   "size": 65536,
+   "expected": "3258fc996dc9b62f866fe07ad2231b9389b2c94d932237421a397f187b1092739c896dedf5f9134e2f0193fb07cd86162eab36927bdd8980be0df6968f7f7f96",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.7406216410256606,
+     "p95_ms": 0.9356396897435886,
+     "samples": 15,
+     "iters": 39,
+     "mb_per_s": 88.48782748130546,
+     "ops_per_s": 1350.2170941361308
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.26597491666662215,
+     "p95_ms": 0.3734216527777552,
+     "samples": 15,
+     "iters": 108,
+     "mb_per_s": 246.39917485957528,
+     "ops_per_s": 3759.7530343563126
+    },
+    "node:crypto": {
+     "median_ms": 0.11210008880307108,
+     "p95_ms": 0.12134067953667493,
+     "samples": 15,
+     "iters": 259,
+     "mb_per_s": 584.6204110964502,
+     "ops_per_s": 8920.59953455277
+    },
+    "hash-wasm": {
+     "median_ms": 0.16970978787878377,
+     "p95_ms": 0.18265898560607496,
+     "samples": 15,
+     "iters": 132,
+     "mb_per_s": 386.1651164563913,
+     "ops_per_s": 5892.412055303823
+    },
+    "@noble/hashes": {
+     "median_ms": 0.752348628571573,
+     "p95_ms": 0.8579008457144038,
+     "samples": 15,
+     "iters": 35,
+     "mb_per_s": 87.10855248640274,
+     "ops_per_s": 1329.1710279297295
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 1.3909188947367703,
+     "p95_ms": 1.4390915631580068,
+     "samples": 15,
+     "iters": 19,
+     "mb_per_s": 47.11705351619557,
+     "ops_per_s": 718.9491808501522
+    },
+    "hash.js": {
+     "median_ms": 5.7336157999990975,
+     "p95_ms": 6.003533879999304,
+     "samples": 15,
+     "iters": 5,
+     "mb_per_s": 11.430134540931451,
+     "ops_per_s": 174.4100119160683
+    },
+    "crypto-js": {
+     "median_ms": 8.182134999999107,
+     "p95_ms": 9.342808575001618,
+     "samples": 15,
+     "iters": 4,
+     "mb_per_s": 8.009645404287165,
+     "ops_per_s": 122.21748968944037
+    }
+   }
+  },
+  {
+   "algorithm": "sha512",
+   "size": 1048576,
+   "expected": "b73e75681007d3fccd9f6b3c5e1be907ee9bcd97a8b8fdcdbea13c123b7d83c573005f29386a8e521c2faae7f34d3ed864d1c16c129a7c2c0d9630c40d4daaec",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 11.975174999999581,
+     "p95_ms": 13.058301149998442,
+     "samples": 15,
+     "iters": 2,
+     "mb_per_s": 87.5624782101336,
+     "ops_per_s": 83.50608654988633
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 4.233861000000616,
+     "p95_ms": 4.43920248571459,
+     "samples": 15,
+     "iters": 7,
+     "mb_per_s": 247.6642478342694,
+     "ops_per_s": 236.19103225161493
+    },
+    "node:crypto": {
+     "median_ms": 1.7159154999999373,
+     "p95_ms": 1.9535637249995488,
+     "samples": 15,
+     "iters": 16,
+     "mb_per_s": 611.0883665308917,
+     "ops_per_s": 582.77928021516
+    },
+    "hash-wasm": {
+     "median_ms": 2.778094636363676,
+     "p95_ms": 3.127618100000307,
+     "samples": 15,
+     "iters": 11,
+     "mb_per_s": 377.4443052712235,
+     "ops_per_s": 359.95893981096606
+    },
+    "@noble/hashes": {
+     "median_ms": 12.180915999997524,
+     "p95_ms": 13.667977599999478,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 86.08350964740363,
+     "ops_per_s": 82.09563221683848
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 22.85577700000431,
+     "p95_ms": 28.641972700002945,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 45.877941493732735,
+     "ops_per_s": 43.7526144921615
+    },
+    "hash.js": {
+     "median_ms": 102.24921399999585,
+     "p95_ms": 145.60080149999837,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 10.255100836276771,
+     "ops_per_s": 9.780026279713413
+    },
+    "crypto-js": {
+     "median_ms": 125.01770700000634,
+     "p95_ms": 135.2077640000047,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 8.387419871650236,
+     "ops_per_s": 7.998866912508236
+    }
+   }
+  },
+  {
+   "algorithm": "sha3-256",
+   "size": 32,
+   "expected": "fec11fb4dce392148b9be34788c938810478ae45ee3f800ed1a356ffbed22395",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.004164107050914842,
+     "p95_ms": 0.00660846782036603,
+     "samples": 15,
+     "iters": 13984,
+     "mb_per_s": 7.684720783767962,
+     "ops_per_s": 240147.5244927488
+    },
+    "node:crypto": {
+     "median_ms": 0.00432399151074088,
+     "p95_ms": 0.006434268069992518,
+     "samples": 15,
+     "iters": 11544,
+     "mb_per_s": 7.400569571080648,
+     "ops_per_s": 231267.79909627026
+    },
+    "hash-wasm": {
+     "median_ms": 0.0015813697217970763,
+     "p95_ms": 0.00278121362204051,
+     "samples": 15,
+     "iters": 22214,
+     "mb_per_s": 20.23562204266504,
+     "ops_per_s": 632363.1888332826
+    },
+    "@noble/hashes": {
+     "median_ms": 0.004901669182659278,
+     "p95_ms": 0.008832767478971512,
+     "samples": 15,
+     "iters": 4637,
+     "mb_per_s": 6.528388352524272,
+     "ops_per_s": 204012.1360163835
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.003772441141500837,
+     "p95_ms": 0.010004877734840073,
+     "samples": 15,
+     "iters": 3364,
+     "mb_per_s": 8.482571046096968,
+     "ops_per_s": 265080.3451905303
+    }
+   }
+  },
+  {
+   "algorithm": "sha3-256",
+   "size": 1024,
+   "expected": "6fb4d5474c2d9593457b75e7c282ad6652479b4339498ee3425d9bf3aee2e240",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.014372695302012557,
+     "p95_ms": 0.025458844429526194,
+     "samples": 15,
+     "iters": 1490,
+     "mb_per_s": 71.24620528597812,
+     "ops_per_s": 69576.37234958801
+    },
+    "node:crypto": {
+     "median_ms": 0.007399340321653795,
+     "p95_ms": 0.011165768466399639,
+     "samples": 15,
+     "iters": 3482,
+     "mb_per_s": 138.39071531867722,
+     "ops_per_s": 135147.18292839575
+    },
+    "hash-wasm": {
+     "median_ms": 0.004812793160340795,
+     "p95_ms": 0.005586439028049844,
+     "samples": 15,
+     "iters": 6667,
+     "mb_per_s": 212.76625981730126,
+     "ops_per_s": 207779.55060283327
+    },
+    "@noble/hashes": {
+     "median_ms": 0.028444818548392033,
+     "p95_ms": 0.029161524596768303,
+     "samples": 15,
+     "iters": 992,
+     "mb_per_s": 35.999526530918445,
+     "ops_per_s": 35155.78762785004
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.023513571679858444,
+     "p95_ms": 0.024866287862799492,
+     "samples": 15,
+     "iters": 1137,
+     "mb_per_s": 43.549317557619325,
+     "ops_per_s": 42528.63042736263
+    }
+   }
+  },
+  {
+   "algorithm": "sha3-256",
+   "size": 65536,
+   "expected": "af8a6ef819f4f369b831c3ce61e7fdb8cf090b23d48ccd81b80f92c44c364ec9",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.7412623500000336,
+     "p95_ms": 0.9085698275001046,
+     "samples": 15,
+     "iters": 40,
+     "mb_per_s": 88.41134316345222,
+     "ops_per_s": 1349.050036063419
+    },
+    "node:crypto": {
+     "median_ms": 0.2740568818181848,
+     "p95_ms": 0.3593614127272632,
+     "samples": 15,
+     "iters": 110,
+     "mb_per_s": 239.13283828237516,
+     "ops_per_s": 3648.877537267688
+    },
+    "hash-wasm": {
+     "median_ms": 0.21288658823537202,
+     "p95_ms": 0.24396216823524272,
+     "samples": 15,
+     "iters": 85,
+     "mb_per_s": 307.8446629411054,
+     "ops_per_s": 4697.336775834739
+    },
+    "@noble/hashes": {
+     "median_ms": 1.613381368420577,
+     "p95_ms": 1.8323288157892463,
+     "samples": 15,
+     "iters": 19,
+     "mb_per_s": 40.62027818268201,
+     "ops_per_s": 619.8162564496156
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 1.3722240476192729,
+     "p95_ms": 1.7704868904761883,
+     "samples": 15,
+     "iters": 21,
+     "mb_per_s": 47.75896480877234,
+     "ops_per_s": 728.7439698604179
+    }
+   }
+  },
+  {
+   "algorithm": "sha3-256",
+   "size": 1048576,
+   "expected": "c65104ff7ac131ba69221cde79e098d413aff51f08452dd24c10636ad73a054c",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 11.124642999995558,
+     "p95_ms": 12.429015849994903,
+     "samples": 15,
+     "iters": 2,
+     "mb_per_s": 94.25704717000076,
+     "ops_per_s": 89.89052502632212
+    },
+    "node:crypto": {
+     "median_ms": 4.264801833334786,
+     "p95_ms": 5.2955118000002885,
+     "samples": 15,
+     "iters": 6,
+     "mb_per_s": 245.86746136809,
+     "ops_per_s": 234.47748314675331
+    },
+    "hash-wasm": {
+     "median_ms": 3.298678555554943,
+     "p95_ms": 4.870763477777654,
+     "samples": 15,
+     "iters": 9,
+     "mb_per_s": 317.87759320598485,
+     "ops_per_s": 303.15169640158166
+    },
+    "@noble/hashes": {
+     "median_ms": 25.205824000004213,
+     "p95_ms": 28.028529000001434,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 41.600544382116794,
+     "ops_per_s": 39.6733707257431
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 20.96835500000452,
+     "p95_ms": 23.763349200002263,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 50.007547087016306,
+     "ops_per_s": 47.690913283363635
+    }
+   }
+  },
+  {
+   "algorithm": "keccak256",
+   "size": 32,
+   "expected": "921203fd209fae1a767d4f9de5a28513b60b80b750e7dd9458b5c9986e235d29",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.003307076166753939,
+     "p95_ms": 0.006198835762978705,
+     "samples": 15,
+     "iters": 7628,
+     "mb_per_s": 9.67622104434613,
+     "ops_per_s": 302381.9076358166
+    },
+    "hash-wasm": {
+     "median_ms": 0.002104747041716933,
+     "p95_ms": 0.0034289591405932724,
+     "samples": 15,
+     "iters": 19944,
+     "mb_per_s": 15.203727272563935,
+     "ops_per_s": 475116.477267623
+    },
+    "@noble/hashes": {
+     "median_ms": 0.005342032668646598,
+     "p95_ms": 0.007899823207465666,
+     "samples": 15,
+     "iters": 4714,
+     "mb_per_s": 5.9902291851965,
+     "ops_per_s": 187194.66203739063
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.0037559131744025285,
+     "p95_ms": 0.005818417289837963,
+     "samples": 15,
+     "iters": 3985,
+     "mb_per_s": 8.519898760729578,
+     "ops_per_s": 266246.83627279935
+    },
+    "crypto-js": {
+     "median_ms": 0.04984668969422065,
+     "p95_ms": 0.05633801608153421,
+     "samples": 15,
+     "iters": 883,
+     "mb_per_s": 0.6419684074569582,
+     "ops_per_s": 20061.51273302994
+    }
+   }
+  },
+  {
+   "algorithm": "keccak256",
+   "size": 1024,
+   "expected": "0fabd6b860e7581bc20d2e858c169a0f0727428c0cad635c90f37f14fe20dfa3",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.012787297513691419,
+     "p95_ms": 0.017007244163503295,
+     "samples": 15,
+     "iters": 2373,
+     "mb_per_s": 80.0794694034137,
+     "ops_per_s": 78202.60683927119
+    },
+    "hash-wasm": {
+     "median_ms": 0.004727461158432915,
+     "p95_ms": 0.007707468500852488,
+     "samples": 15,
+     "iters": 5870,
+     "mb_per_s": 216.60675057549096,
+     "ops_per_s": 211530.0298588779
+    },
+    "@noble/hashes": {
+     "median_ms": 0.028073092066599296,
+     "p95_ms": 0.039489776003916184,
+     "samples": 15,
+     "iters": 1021,
+     "mb_per_s": 36.47620994405283,
+     "ops_per_s": 35621.2987734891
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 0.023042131789843035,
+     "p95_ms": 0.037816733481742235,
+     "samples": 15,
+     "iters": 1123,
+     "mb_per_s": 44.44033257597193,
+     "ops_per_s": 43398.762281222596
+    },
+    "crypto-js": {
+     "median_ms": 0.2166567113403214,
+     "p95_ms": 0.37064169999999624,
+     "samples": 15,
+     "iters": 97,
+     "mb_per_s": 4.726371011842392,
+     "ops_per_s": 4615.596691252336
+    }
+   }
+  },
+  {
+   "algorithm": "keccak256",
+   "size": 65536,
+   "expected": "ce30b27487350b6b66d7b7df0eba589ef4fbaed2dadddb27ccdafa0dd7e7487c",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.6960724523811396,
+     "p95_ms": 0.7882442333333269,
+     "samples": 15,
+     "iters": 42,
+     "mb_per_s": 94.15111857366722,
+     "ops_per_s": 1436.6320583140139
+    },
+    "hash-wasm": {
+     "median_ms": 0.20832514388485907,
+     "p95_ms": 0.23393641294965523,
+     "samples": 15,
+     "iters": 139,
+     "mb_per_s": 314.5851661392426,
+     "ops_per_s": 4800.188692310219
+    },
+    "@noble/hashes": {
+     "median_ms": 1.5769690555559162,
+     "p95_ms": 1.7578478555550747,
+     "samples": 15,
+     "iters": 18,
+     "mb_per_s": 41.55820291406867,
+     "ops_per_s": 634.1278520823467
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 1.3066375909091386,
+     "p95_ms": 1.4699104363633193,
+     "samples": 15,
+     "iters": 22,
+     "mb_per_s": 50.15621810972165,
+     "ops_per_s": 765.3231523089851
+    },
+    "crypto-js": {
+     "median_ms": 13.514122333333944,
+     "p95_ms": 14.34818690000102,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 4.84944551954727,
+     "ops_per_s": 73.99666625285752
+    }
+   }
+  },
+  {
+   "algorithm": "keccak256",
+   "size": 1048576,
+   "expected": "a818718b9fbdd716ac5175d89828e24b927944af1d01eb296655363c6df505ec",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 11.228408666667141,
+     "p95_ms": 14.065447566668926,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 93.38598470438842,
+     "ops_per_s": 89.05981512488215
+    },
+    "hash-wasm": {
+     "median_ms": 3.3756531428578973,
+     "p95_ms": 4.979261600000193,
+     "samples": 15,
+     "iters": 7,
+     "mb_per_s": 310.6290710639346,
+     "ops_per_s": 296.2389670028063
+    },
+    "@noble/hashes": {
+     "median_ms": 25.19425099999353,
+     "p95_ms": 26.376646500005155,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 41.619653626546366,
+     "ops_per_s": 39.691594721361504
+    },
+    "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+     "median_ms": 20.594586999999592,
+     "p95_ms": 22.34001620000199,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 50.915126387337644,
+     "ops_per_s": 48.556448352182045
+    },
+    "crypto-js": {
+     "median_ms": 210.20940999999584,
+     "p95_ms": 225.79904470000037,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 4.9882448173943335,
+     "ops_per_s": 4.757160966295561
+    }
+   }
+  },
+  {
+   "algorithm": "blake2b512",
+   "size": 32,
+   "expected": "b15c081d784b26e2d6f81202c5d6e08a91c36371783da7c8918ab737f322ea1692a6611c243b4b3db71de87c5c795ff7c7646207e59b6a404751181fd04070d2",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.0041947205259313825,
+     "p95_ms": 0.0071157434769895285,
+     "samples": 15,
+     "iters": 6845,
+     "mb_per_s": 7.628636950228006,
+     "ops_per_s": 238394.9046946252
+    },
+    "node:crypto": {
+     "median_ms": 0.007143522128980899,
+     "p95_ms": 0.009613677261753908,
+     "samples": 15,
+     "iters": 8699,
+     "mb_per_s": 4.4795829595288374,
+     "ops_per_s": 139986.96748527617
+    },
+    "hash-wasm": {
+     "median_ms": 0.0015074343893306157,
+     "p95_ms": 0.0027639129538477416,
+     "samples": 15,
+     "iters": 23769,
+     "mb_per_s": 21.2281212545574,
+     "ops_per_s": 663378.7892049188
+    },
+    "@noble/hashes": {
+     "median_ms": 0.005035248729794885,
+     "p95_ms": 0.008519768475750948,
+     "samples": 15,
+     "iters": 4330,
+     "mb_per_s": 6.3551974723011435,
+     "ops_per_s": 198599.92100941075
+    }
+   }
+  },
+  {
+   "algorithm": "blake2b512",
+   "size": 1024,
+   "expected": "bc84b166cce840661378f70c5076e5861dab88708be0d330d605c8595750b89ee3f93bdcee1f42dc8e7749868b93615ec4a7cfbb1ee50565e46c2ab7e18559df",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.011672407692308566,
+     "p95_ms": 0.012717101674204812,
+     "samples": 15,
+     "iters": 2210,
+     "mb_per_s": 87.72825855583815,
+     "ops_per_s": 85672.1274959357
+    },
+    "node:crypto": {
+     "median_ms": 0.004450005658437465,
+     "p95_ms": 0.006124520082304553,
+     "samples": 15,
+     "iters": 9720,
+     "mb_per_s": 230.11206694949644,
+     "ops_per_s": 224718.81538036763
+    },
+    "hash-wasm": {
+     "median_ms": 0.0020760396166759547,
+     "p95_ms": 0.0029874784034766544,
+     "samples": 15,
+     "iters": 10122,
+     "mb_per_s": 493.24684932533944,
+     "ops_per_s": 481686.3762942768
+    },
+    "@noble/hashes": {
+     "median_ms": 0.024721888396808542,
+     "p95_ms": 0.02835464747564478,
+     "samples": 15,
+     "iters": 1129,
+     "mb_per_s": 41.42078402603713,
+     "ops_per_s": 40449.98440042689
+    }
+   }
+  },
+  {
+   "algorithm": "blake2b512",
+   "size": 65536,
+   "expected": "3743c335e3eb99c1931e43fd26dedff04328b43846a74f7da35d80418945bcf72401429b752539c0e89e7ac674983f7e9d2786711f2e953785cf73b18c089494",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.6002876470590184,
+     "p95_ms": 0.9593839019607447,
+     "samples": 15,
+     "iters": 51,
+     "mb_per_s": 109.174327209763,
+     "ops_per_s": 1665.868029934128
+    },
+    "node:crypto": {
+     "median_ms": 0.07643923970037018,
+     "p95_ms": 0.1172173910112478,
+     "samples": 15,
+     "iters": 267,
+     "mb_per_s": 857.3606992546083,
+     "ops_per_s": 13082.28606040357
+    },
+    "hash-wasm": {
+     "median_ms": 0.08281407453415673,
+     "p95_ms": 0.10911144440995382,
+     "samples": 15,
+     "iters": 322,
+     "mb_per_s": 791.3630668295353,
+     "ops_per_s": 12075.24210860497
+    },
+    "@noble/hashes": {
+     "median_ms": 1.4941970526315824,
+     "p95_ms": 2.3436057210523833,
+     "samples": 15,
+     "iters": 19,
+     "mb_per_s": 43.86034618698911,
+     "ops_per_s": 669.2557706754931
+    }
+   }
+  },
+  {
+   "algorithm": "blake2b512",
+   "size": 1048576,
+   "expected": "d53f82635ae918f9524d13749e9a43e6e627517d3df26ec7793177945f5aed16e7d78f841eeb31e04c849d875a78f39018c59dc10ef2ec71764d99b42c85d4c1",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 8.925084500002413,
+     "p95_ms": 9.776179125000997,
+     "samples": 15,
+     "iters": 4,
+     "mb_per_s": 117.48639466659576,
+     "ops_per_s": 112.04375712070062
+    },
+    "node:crypto": {
+     "median_ms": 1.1587384999996477,
+     "p95_ms": 1.2959042875001614,
+     "samples": 15,
+     "iters": 24,
+     "mb_per_s": 904.9289378063461,
+     "ops_per_s": 863.007486158701
+    },
+    "hash-wasm": {
+     "median_ms": 1.3089879047620343,
+     "p95_ms": 1.368157790476107,
+     "samples": 15,
+     "iters": 21,
+     "mb_per_s": 801.0585859390537,
+     "ops_per_s": 763.9489993467844
+    },
+    "@noble/hashes": {
+     "median_ms": 23.810751000011805,
+     "p95_ms": 24.226945900006104,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 44.03792219739227,
+     "ops_per_s": 41.997835347549696
+    }
+   }
+  },
+  {
+   "algorithm": "blake2s256",
+   "size": 32,
+   "expected": "f8716841a37b6f24ea54b3e6f0e463099baecd2d116b4bc05a23a2596e8a2cbc",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.003150470289968107,
+     "p95_ms": 0.00356360167960797,
+     "samples": 15,
+     "iters": 6311,
+     "mb_per_s": 10.157213702949708,
+     "ops_per_s": 317412.9282171784
+    },
+    "node:crypto": {
+     "median_ms": 0.002430383501775037,
+     "p95_ms": 0.003262499535645868,
+     "samples": 15,
+     "iters": 10983,
+     "mb_per_s": 13.166646324182468,
+     "ops_per_s": 411457.6976307021
+    },
+    "hash-wasm": {
+     "median_ms": 0.0008367282641997774,
+     "p95_ms": 0.001334672238220813,
+     "samples": 15,
+     "iters": 32642,
+     "mb_per_s": 38.24419631695347,
+     "ops_per_s": 1195131.134904796
+    },
+    "@noble/hashes": {
+     "median_ms": 0.006274152352268349,
+     "p95_ms": 0.00875633523730487,
+     "samples": 15,
+     "iters": 9629,
+     "mb_per_s": 5.100290557724624,
+     "ops_per_s": 159384.0799288945
+    }
+   }
+  },
+  {
+   "algorithm": "blake2s256",
+   "size": 1024,
+   "expected": "63a65edaf2508cfd603cf419ac6c5f46e3a103747cd13e0cb4c83c34e3ec911f",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.012174089630932841,
+     "p95_ms": 0.016866155492091535,
+     "samples": 15,
+     "iters": 2276,
+     "mb_per_s": 84.11306562078727,
+     "ops_per_s": 82141.66564530008
+    },
+    "node:crypto": {
+     "median_ms": 0.0048228803245446445,
+     "p95_ms": 0.005447945055781594,
+     "samples": 15,
+     "iters": 7888,
+     "mb_per_s": 212.32125433190834,
+     "ops_per_s": 207344.9749335042
+    },
+    "hash-wasm": {
+     "median_ms": 0.003315609350238086,
+     "p95_ms": 0.004042898917063038,
+     "samples": 15,
+     "iters": 7572,
+     "mb_per_s": 308.8421740415435,
+     "ops_per_s": 301603.68558744487
+    },
+    "@noble/hashes": {
+     "median_ms": 0.07532947601009594,
+     "p95_ms": 0.08452388068181248,
+     "samples": 15,
+     "iters": 792,
+     "mb_per_s": 13.593616393438865,
+     "ops_per_s": 13275.016009217643
+    }
+   }
+  },
+  {
+   "algorithm": "blake2s256",
+   "size": 65536,
+   "expected": "3a06e525c4628bf722749fea46dd7ade1a50962129d282a111d59064b5fd04a6",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.627737041666478,
+     "p95_ms": 0.8357603687501067,
+     "samples": 15,
+     "iters": 48,
+     "mb_per_s": 104.40040279608006,
+     "ops_per_s": 1593.023724305421
+    },
+    "node:crypto": {
+     "median_ms": 0.1204292596898889,
+     "p95_ms": 0.15127805387598436,
+     "samples": 15,
+     "iters": 258,
+     "mb_per_s": 544.1866882579726,
+     "ops_per_s": 8303.62988674885
+    },
+    "hash-wasm": {
+     "median_ms": 0.13899221198154776,
+     "p95_ms": 0.17321791520736138,
+     "samples": 15,
+     "iters": 217,
+     "mb_per_s": 471.5084324918894,
+     "ops_per_s": 7194.647712583762
+    },
+    "@noble/hashes": {
+     "median_ms": 1.8795835294115344,
+     "p95_ms": 2.4315875588237437,
+     "samples": 15,
+     "iters": 17,
+     "mb_per_s": 34.86729851294143,
+     "ops_per_s": 532.0327531881932
+    }
+   }
+  },
+  {
+   "algorithm": "blake2s256",
+   "size": 1048576,
+   "expected": "2fab334286551af117eb89632d3772ed4dcf521f86023c8acdcae4eb296bf9c9",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 10.090579999998832,
+     "p95_ms": 12.95649646666667,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 103.9163259198303,
+     "ops_per_s": 99.10233108504325
+    },
+    "node:crypto": {
+     "median_ms": 1.8300235625001733,
+     "p95_ms": 2.2285480750001616,
+     "samples": 15,
+     "iters": 16,
+     "mb_per_s": 572.984972153822,
+     "ops_per_s": 546.4410516298504
+    },
+    "hash-wasm": {
+     "median_ms": 2.2271713846152683,
+     "p95_ms": 2.6534740384611015,
+     "samples": 15,
+     "iters": 13,
+     "mb_per_s": 470.81064674380036,
+     "ops_per_s": 449.00002169017836
+    },
+    "@noble/hashes": {
+     "median_ms": 28.69845900000655,
+     "p95_ms": 37.43933830000023,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 36.5377109621029,
+     "ops_per_s": 34.84507652483263
+    }
+   }
+  },
+  {
+   "algorithm": "blake3",
+   "size": 32,
+   "expected": "d8aa241b408ba4623e3404f601774a887f5fb61a3e2d5e7e867d06a739ddfd71",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.0029553482508665615,
+     "p95_ms": 0.004525719098644994,
+     "samples": 15,
+     "iters": 9519,
+     "mb_per_s": 10.827827140377456,
+     "ops_per_s": 338369.5981367955
+    },
+    "hash-wasm": {
+     "median_ms": 0.0017907895813147653,
+     "p95_ms": 0.0020704091701654525,
+     "samples": 15,
+     "iters": 9291,
+     "mb_per_s": 17.86921273939185,
+     "ops_per_s": 558412.8981059953
+    },
+    "@noble/hashes": {
+     "median_ms": 0.0062903374439466555,
+     "p95_ms": 0.009851402615843942,
+     "samples": 15,
+     "iters": 2676,
+     "mb_per_s": 5.087167466793753,
+     "ops_per_s": 158973.9833373048
+    }
+   }
+  },
+  {
+   "algorithm": "blake3",
+   "size": 1024,
+   "expected": "4540eff5b421ab7551dabc723ddf9218a382c519fdc8cbad74a7dd27f473f062",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.01025985585953312,
+     "p95_ms": 0.012277030298078632,
+     "samples": 15,
+     "iters": 2449,
+     "mb_per_s": 99.806470385111,
+     "ops_per_s": 97467.25623545996
+    },
+    "hash-wasm": {
+     "median_ms": 0.002769783374537247,
+     "p95_ms": 0.003181857107540026,
+     "samples": 15,
+     "iters": 9708,
+     "mb_per_s": 369.7040026356146,
+     "ops_per_s": 361039.0650738424
+    },
+    "@noble/hashes": {
+     "median_ms": 0.035738280816324415,
+     "p95_ms": 0.03840947053061646,
+     "samples": 15,
+     "iters": 1225,
+     "mb_per_s": 28.65274928200409,
+     "ops_per_s": 27981.20047070712
+    }
+   }
+  },
+  {
+   "algorithm": "blake3",
+   "size": 65536,
+   "expected": "3f4e1863b888d57c48f1a73f3a58c2cf4407d52a68b9ddbc7e033edfc122c2dc",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.6592556521734324,
+     "p95_ms": 0.8586228391304913,
+     "samples": 15,
+     "iters": 46,
+     "mb_per_s": 99.40908323491968,
+     "ops_per_s": 1516.8622319781446
+    },
+    "hash-wasm": {
+     "median_ms": 0.10580551291515662,
+     "p95_ms": 0.13198045055349514,
+     "samples": 15,
+     "iters": 271,
+     "mb_per_s": 619.4006171734363,
+     "ops_per_s": 9451.30336263178
+    },
+    "@noble/hashes": {
+     "median_ms": 1.546950095238918,
+     "p95_ms": 2.1694218714289097,
+     "samples": 15,
+     "iters": 21,
+     "mb_per_s": 42.36465041871847,
+     "ops_per_s": 646.4332644457775
+    }
+   }
+  },
+  {
+   "algorithm": "blake3",
+   "size": 1048576,
+   "expected": "3a278cac3800d5f838f7ebced019ba0849da3513ca388b3ea08f02dd38e3b00c",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 10.273997666673191,
+     "p95_ms": 10.614495133335973,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 102.06114834942706,
+     "ops_per_s": 97.33309588377672
+    },
+    "hash-wasm": {
+     "median_ms": 1.6709429411772254,
+     "p95_ms": 1.7644445470587335,
+     "samples": 15,
+     "iters": 17,
+     "mb_per_s": 627.5354915837218,
+     "ops_per_s": 598.4644809567659
+    },
+    "@noble/hashes": {
+     "median_ms": 25.340462000021944,
+     "p95_ms": 26.360471599997254,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 41.37951391727159,
+     "ops_per_s": 39.46257964827689
+    }
+   }
+  },
+  {
+   "algorithm": "ripemd160",
+   "size": 32,
+   "expected": "54fbd182cb77f50fedb87321fef6c861551cb394",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.0035338638056689868,
+     "p95_ms": 0.008195224599189758,
+     "samples": 15,
+     "iters": 6175,
+     "mb_per_s": 9.055244276439273,
+     "ops_per_s": 282976.3836387273
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.0015231840022218617,
+     "p95_ms": 0.002569881808082131,
+     "samples": 15,
+     "iters": 21603,
+     "mb_per_s": 21.008624009523302,
+     "ops_per_s": 656519.5002976032
+    },
+    "node:crypto": {
+     "median_ms": 0.0031110227821871017,
+     "p95_ms": 0.004225671441720438,
+     "samples": 15,
+     "iters": 8691,
+     "mb_per_s": 10.286006320244127,
+     "ops_per_s": 321437.697507629
+    },
+    "hash-wasm": {
+     "median_ms": 0.0014457981727573242,
+     "p95_ms": 0.002932500692137654,
+     "samples": 15,
+     "iters": 10836,
+     "mb_per_s": 22.133103086561423,
+     "ops_per_s": 691659.4714550446
+    },
+    "@noble/hashes": {
+     "median_ms": 0.003283750735168076,
+     "p95_ms": 0.008237595710087585,
+     "samples": 15,
+     "iters": 5781,
+     "mb_per_s": 9.744954042122844,
+     "ops_per_s": 304529.81381633884
+    },
+    "hash.js": {
+     "median_ms": 0.003836367962426276,
+     "p95_ms": 0.011940570403560153,
+     "samples": 15,
+     "iters": 16181,
+     "mb_per_s": 8.3412228215361,
+     "ops_per_s": 260663.2131730031
+    },
+    "crypto-js": {
+     "median_ms": 0.013956233089306361,
+     "p95_ms": 0.03688135891654058,
+     "samples": 15,
+     "iters": 3415,
+     "mb_per_s": 2.2928823125288194,
+     "ops_per_s": 71652.5722665256
+    }
+   }
+  },
+  {
+   "algorithm": "ripemd160",
+   "size": 1024,
+   "expected": "d85d86bce991de5d36bbd6a8db675f34292ab784",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.023786624037886596,
+     "p95_ms": 0.05683323664890122,
+     "samples": 15,
+     "iters": 1689,
+     "mb_per_s": 43.049404504355245,
+     "ops_per_s": 42040.43408628442
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.007778798266351155,
+     "p95_ms": 0.010068184712372443,
+     "samples": 15,
+     "iters": 3807,
+     "mb_per_s": 131.63987095918526,
+     "ops_per_s": 128554.56148357935
+    },
+    "node:crypto": {
+     "median_ms": 0.006920177357521757,
+     "p95_ms": 0.010801933299259764,
+     "samples": 15,
+     "iters": 3913,
+     "mb_per_s": 147.97308610695973,
+     "ops_per_s": 144504.96690132786
+    },
+    "hash-wasm": {
+     "median_ms": 0.00544863845079276,
+     "p95_ms": 0.0072539148332990975,
+     "samples": 15,
+     "iters": 5009,
+     "mb_per_s": 187.93685968482842,
+     "ops_per_s": 183532.08953596526
+    },
+    "@noble/hashes": {
+     "median_ms": 0.012841148080434727,
+     "p95_ms": 0.017791350411343335,
+     "samples": 15,
+     "iters": 2188,
+     "mb_per_s": 79.74364858857177,
+     "ops_per_s": 77874.65682477714
+    },
+    "hash.js": {
+     "median_ms": 0.0266013562628374,
+     "p95_ms": 0.0442393379876793,
+     "samples": 15,
+     "iters": 974,
+     "mb_per_s": 38.49427788125778,
+     "ops_per_s": 37592.06824341581
+    },
+    "crypto-js": {
+     "median_ms": 0.04980183440308112,
+     "p95_ms": 0.06838463851091103,
+     "samples": 15,
+     "iters": 779,
+     "mb_per_s": 20.561491605149538,
+     "ops_per_s": 20079.58164565385
+    }
+   }
+  },
+  {
+   "algorithm": "ripemd160",
+   "size": 65536,
+   "expected": "99186e9e7132f6394811b9851923b733ecaa1c08",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 1.0127595833340213,
+     "p95_ms": 1.1061444291667915,
+     "samples": 15,
+     "iters": 24,
+     "mb_per_s": 64.71032323807236,
+     "ops_per_s": 987.4011724559382
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.45366321212107624,
+     "p95_ms": 0.5848893924243218,
+     "samples": 15,
+     "iters": 66,
+     "mb_per_s": 144.45958642665823,
+     "ops_per_s": 2204.2783573403663
+    },
+    "node:crypto": {
+     "median_ms": 0.2718188487396364,
+     "p95_ms": 0.3020221445378563,
+     "samples": 15,
+     "iters": 119,
+     "mb_per_s": 241.10174958019235,
+     "ops_per_s": 3678.920739443853
+    },
+    "hash-wasm": {
+     "median_ms": 0.3155192199998419,
+     "p95_ms": 0.3453570650000474,
+     "samples": 15,
+     "iters": 100,
+     "mb_per_s": 207.70842422858686,
+     "ops_per_s": 3169.379031808272
+    },
+    "@noble/hashes": {
+     "median_ms": 0.7341765249999298,
+     "p95_ms": 0.8941470899998963,
+     "samples": 15,
+     "iters": 40,
+     "mb_per_s": 89.2646356405992,
+     "ops_per_s": 1362.0702459808226
+    },
+    "hash.js": {
+     "median_ms": 1.8770816666672343,
+     "p95_ms": 2.28007475555593,
+     "samples": 15,
+     "iters": 18,
+     "mb_per_s": 34.9137712885766,
+     "ops_per_s": 532.7418714687592
+    },
+    "crypto-js": {
+     "median_ms": 2.24531074999868,
+     "p95_ms": 2.738115100000141,
+     "samples": 15,
+     "iters": 16,
+     "mb_per_s": 29.187942025413868,
+     "ops_per_s": 445.3726505342692
+    }
+   }
+  },
+  {
+   "algorithm": "ripemd160",
+   "size": 1048576,
+   "expected": "ab2c418e9694bc430fc0481372329fbe72fbd6e2",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 15.536117499999818,
+     "p95_ms": 22.366122850004466,
+     "samples": 15,
+     "iters": 2,
+     "mb_per_s": 67.49279541687376,
+     "ops_per_s": 64.36614553153397
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 7.342369999998482,
+     "p95_ms": 11.443573160001542,
+     "samples": 15,
+     "iters": 5,
+     "mb_per_s": 142.81165345797294,
+     "ops_per_s": 136.19580598637862
+    },
+    "node:crypto": {
+     "median_ms": 3.7936548750003567,
+     "p95_ms": 4.272655549999399,
+     "samples": 15,
+     "iters": 8,
+     "mb_per_s": 276.40258129698776,
+     "ops_per_s": 263.59804277132775
+    },
+    "hash-wasm": {
+     "median_ms": 4.498340800002916,
+     "p95_ms": 4.929492780002765,
+     "samples": 15,
+     "iters": 5,
+     "mb_per_s": 233.1028364945849,
+     "ops_per_s": 222.3041882463311
+    },
+    "@noble/hashes": {
+     "median_ms": 10.3232896666644,
+     "p95_ms": 12.545313033329633,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 101.57382325384363,
+     "ops_per_s": 96.86834645637859
+    },
+    "hash.js": {
+     "median_ms": 38.8752889999887,
+     "p95_ms": 60.96157570000212,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 26.97281555901243,
+     "ops_per_s": 25.723281439793045
+    },
+    "crypto-js": {
+     "median_ms": 37.88969199999701,
+     "p95_ms": 47.155571399984176,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 27.674439792228522,
+     "ops_per_s": 26.392402450779457
+    }
+   }
+  },
+  {
+   "algorithm": "md4",
+   "size": 32,
+   "expected": "4f1774bdca78bc9e43204b05b5e95561",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.002864621546960399,
+     "p95_ms": 0.003798276830996271,
+     "samples": 15,
+     "iters": 14118,
+     "mb_per_s": 11.170760072636698,
+     "ops_per_s": 349086.2522698968
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.001421613501811268,
+     "p95_ms": 0.0023024735736799783,
+     "samples": 15,
+     "iters": 33951,
+     "mb_per_s": 22.509634270657262,
+     "ops_per_s": 703426.0709580395
+    },
+    "node:crypto": {
+     "median_ms": 0.002697164161367905,
+     "p95_ms": 0.0041979915394211205,
+     "samples": 15,
+     "iters": 16831,
+     "mb_per_s": 11.864313065679601,
+     "ops_per_s": 370759.7833024876
+    },
+    "hash-wasm": {
+     "median_ms": 0.0010839162817388988,
+     "p95_ms": 0.001776591217902633,
+     "samples": 15,
+     "iters": 34855,
+     "mb_per_s": 29.522575257069878,
+     "ops_per_s": 922580.4767834338
+    }
+   }
+  },
+  {
+   "algorithm": "md4",
+   "size": 1024,
+   "expected": "46eb7ec6cc7eb356a41380c7bdb1e7a2",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.010232605600538151,
+     "p95_ms": 0.01849835620782691,
+     "samples": 15,
+     "iters": 2964,
+     "mb_per_s": 100.07226311411299,
+     "ops_per_s": 97726.81944737596
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.0032444871921162616,
+     "p95_ms": 0.004498343448274007,
+     "samples": 15,
+     "iters": 6090,
+     "mb_per_s": 315.6122799585107,
+     "ops_per_s": 308215.11714698316
+    },
+    "node:crypto": {
+     "median_ms": 0.004510022963156883,
+     "p95_ms": 0.007101583744162703,
+     "samples": 15,
+     "iters": 7708,
+     "mb_per_s": 227.04984173367274,
+     "ops_per_s": 221728.36106803978
+    },
+    "hash-wasm": {
+     "median_ms": 0.0021555621185699383,
+     "p95_ms": 0.002753332574106415,
+     "samples": 15,
+     "iters": 9176,
+     "mb_per_s": 475.0501000079511,
+     "ops_per_s": 463916.11328901467
+    }
+   }
+  },
+  {
+   "algorithm": "md4",
+   "size": 65536,
+   "expected": "28a6cb2a63fbaeef81a16dd982516dd2",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.6094312884614248,
+     "p95_ms": 0.9735042961541553,
+     "samples": 15,
+     "iters": 52,
+     "mb_per_s": 107.5363231931408,
+     "ops_per_s": 1640.874072160962
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.1256572015810364,
+     "p95_ms": 0.18142040158102468,
+     "samples": 15,
+     "iters": 253,
+     "mb_per_s": 521.5459136079502,
+     "ops_per_s": 7958.159082152561
+    },
+    "node:crypto": {
+     "median_ms": 0.07697213903744332,
+     "p95_ms": 0.09525226149733712,
+     "samples": 15,
+     "iters": 374,
+     "mb_per_s": 851.4249547894183,
+     "ops_per_s": 12991.713787680334
+    },
+    "hash-wasm": {
+     "median_ms": 0.07439946733668433,
+     "p95_ms": 0.09499424070351808,
+     "samples": 15,
+     "iters": 398,
+     "mb_per_s": 880.8665215763716,
+     "ops_per_s": 13440.956444951958
+    }
+   }
+  },
+  {
+   "algorithm": "md4",
+   "size": 1048576,
+   "expected": "472ea50c04c77c86193505ec39bcb0cf",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 9.34963666666105,
+     "p95_ms": 11.557449666665825,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 112.15152389172661,
+     "ops_per_s": 106.95602788136159
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 1.940709999999464,
+     "p95_ms": 2.518388428571259,
+     "samples": 15,
+     "iters": 14,
+     "mb_per_s": 540.3053521650785,
+     "ops_per_s": 515.2753373766694
+    },
+    "node:crypto": {
+     "median_ms": 1.1440266666674386,
+     "p95_ms": 1.3059644375001274,
+     "samples": 15,
+     "iters": 24,
+     "mb_per_s": 916.5660474108638,
+     "ops_per_s": 874.105498705734
+    },
+    "hash-wasm": {
+     "median_ms": 1.1497086086955792,
+     "p95_ms": 1.2373015869570814,
+     "samples": 15,
+     "iters": 23,
+     "mb_per_s": 912.0363125659111,
+     "ops_per_s": 869.7856069239722
+    }
+   }
+  },
+  {
+   "algorithm": "sm3",
+   "size": 32,
+   "expected": "2630b101fcbb04daa7feec9d1f93ff1300f76b577c62887fc585e5166a817c3a",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.004177862471739811,
+     "p95_ms": 0.0078301502637525,
+     "samples": 15,
+     "iters": 7962,
+     "mb_per_s": 7.659419192579131,
+     "ops_per_s": 239356.84976809786
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.0014991595390436302,
+     "p95_ms": 0.002569199887753364,
+     "samples": 15,
+     "iters": 26727,
+     "mb_per_s": 21.345293257056547,
+     "ops_per_s": 667040.414283017
+    },
+    "node:crypto": {
+     "median_ms": 0.0034132541052752843,
+     "p95_ms": 0.005543351684299194,
+     "samples": 15,
+     "iters": 15407,
+     "mb_per_s": 9.375217611411662,
+     "ops_per_s": 292975.55035661446
+    },
+    "hash-wasm": {
+     "median_ms": 0.0011790120459259468,
+     "p95_ms": 0.0023280464944482895,
+     "samples": 15,
+     "iters": 21252,
+     "mb_per_s": 27.141368156988197,
+     "ops_per_s": 848167.7549058812
+    }
+   }
+  },
+  {
+   "algorithm": "sm3",
+   "size": 1024,
+   "expected": "73cfbe08ece1e8ca8b12ad97619d35fa0e4a8fc0d0541629feb129952eeb67be",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.01632782084095548,
+     "p95_ms": 0.02772306188299813,
+     "samples": 15,
+     "iters": 1094,
+     "mb_per_s": 62.715043849052726,
+     "ops_per_s": 61245.16000884056
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.008439575590803576,
+     "p95_ms": 0.013807865911297252,
+     "samples": 15,
+     "iters": 3089,
+     "mb_per_s": 121.33311550830005,
+     "ops_per_s": 118489.37061357428
+    },
+    "node:crypto": {
+     "median_ms": 0.008612752314078426,
+     "p95_ms": 0.014231732365148889,
+     "samples": 15,
+     "iters": 3133,
+     "mb_per_s": 118.8934689699792,
+     "ops_per_s": 116106.90329099532
+    },
+    "hash-wasm": {
+     "median_ms": 0.006421098982427221,
+     "p95_ms": 0.009080558325624993,
+     "samples": 15,
+     "iters": 2162,
+     "mb_per_s": 159.47425865921173,
+     "ops_per_s": 155736.58072188648
+    }
+   }
+  },
+  {
+   "algorithm": "sm3",
+   "size": 65536,
+   "expected": "99b450c01518f090be02793fbd94d934bbb0ffb23d038c1197b3b5bfa601ce8d",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.9064531875001194,
+     "p95_ms": 1.052440790625223,
+     "samples": 15,
+     "iters": 32,
+     "mb_per_s": 72.29937618812926,
+     "ops_per_s": 1103.2009306049997
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.4547354545454833,
+     "p95_ms": 0.5783208709090035,
+     "samples": 15,
+     "iters": 55,
+     "mb_per_s": 144.11895827543174,
+     "ops_per_s": 2199.080784232052
+    },
+    "node:crypto": {
+     "median_ms": 0.34325875903631237,
+     "p95_ms": 0.38576166626502173,
+     "samples": 15,
+     "iters": 83,
+     "mb_per_s": 190.92302315603004,
+     "ops_per_s": 2913.2541375126652
+    },
+    "hash-wasm": {
+     "median_ms": 0.33595270930239823,
+     "p95_ms": 0.3435179127907843,
+     "samples": 15,
+     "iters": 86,
+     "mb_per_s": 195.07507510829342,
+     "ops_per_s": 2976.6094224287936
+    }
+   }
+  },
+  {
+   "algorithm": "sm3",
+   "size": 1048576,
+   "expected": "f0d1235708b331bb1806de8534a0e0120072ad8b63a103d55dea03b2c3ac9b09",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 14.835125500001595,
+     "p95_ms": 17.495802199994795,
+     "samples": 15,
+     "iters": 2,
+     "mb_per_s": 70.68197704157522,
+     "ops_per_s": 67.40758613736651
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 7.434344666670465,
+     "p95_ms": 11.302157966664526,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 141.04484618542898,
+     "ops_per_s": 134.51084726851366
+    },
+    "node:crypto": {
+     "median_ms": 5.758291499999662,
+     "p95_ms": 7.521859533332948,
+     "samples": 15,
+     "iters": 6,
+     "mb_per_s": 182.0984575025529,
+     "ops_per_s": 173.6626219773797
+    },
+    "hash-wasm": {
+     "median_ms": 5.703848333330825,
+     "p95_ms": 6.898833000002681,
+     "samples": 15,
+     "iters": 6,
+     "mb_per_s": 183.83658518277474,
+     "ops_per_s": 175.32022970464206
+    }
+   }
+  },
+  {
+   "algorithm": "whirlpool",
+   "size": 32,
+   "expected": "039196b1517c2602c86f8560781d9cdf773cfa45e48d40cfecb5f1976b3f61e7910976f6d0a9f14131269384fc95e0892dd61626068194145541a8b03adb7109",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.005630240860713888,
+     "p95_ms": 0.008297024872744016,
+     "samples": 15,
+     "iters": 4322,
+     "mb_per_s": 5.683593436168297,
+     "ops_per_s": 177612.2948802593
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.0031538328790994205,
+     "p95_ms": 0.004263810934263233,
+     "samples": 15,
+     "iters": 9173,
+     "mb_per_s": 10.146384170215647,
+     "ops_per_s": 317074.505319239
+    },
+    "hash-wasm": {
+     "median_ms": 0.002412674260353628,
+     "p95_ms": 0.0034902121671595157,
+     "samples": 15,
+     "iters": 13520,
+     "mb_per_s": 13.263290667058273,
+     "ops_per_s": 414477.83334557107
+    }
+   }
+  },
+  {
+   "algorithm": "whirlpool",
+   "size": 1024,
+   "expected": "cf0df752a93b3b80483bb2d22447b86a142708587792beea52b396069376a728565f0403da384760f1b1c9c5b9dcbb5bea2f4e29de16181acfb1df4488854462",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.029136019819814646,
+     "p95_ms": 0.03337266522522875,
+     "samples": 15,
+     "iters": 1110,
+     "mb_per_s": 35.14550052933463,
+     "ops_per_s": 34321.777860678354
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 0.019294625712467057,
+     "p95_ms": 0.025159378720710175,
+     "samples": 15,
+     "iters": 1579,
+     "mb_per_s": 53.07177321083513,
+     "ops_per_s": 51827.90352620619
+    },
+    "hash-wasm": {
+     "median_ms": 0.01329308269719269,
+     "p95_ms": 0.01525977692959726,
+     "samples": 15,
+     "iters": 2358,
+     "mb_per_s": 77.03254567251388,
+     "ops_per_s": 75227.09538331434
+    }
+   }
+  },
+  {
+   "algorithm": "whirlpool",
+   "size": 65536,
+   "expected": "04c377fa1a9d8682301c357d50faaeedc8533ee7955953c04691190909cbefdc6fee657d8ff9de9bebc92b722ecd3c24457cffac84160d2f11dc93f8d4b4fe65",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 1.507735333335101,
+     "p95_ms": 2.37868190833251,
+     "samples": 15,
+     "iters": 12,
+     "mb_per_s": 43.46651468002331,
+     "ops_per_s": 663.2463787845353
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 1.0900287500002637,
+     "p95_ms": 1.7497465821431044,
+     "samples": 15,
+     "iters": 28,
+     "mb_per_s": 60.12318482423894,
+     "ops_per_s": 917.4069949987633
+    },
+    "hash-wasm": {
+     "median_ms": 0.7415479750001396,
+     "p95_ms": 1.1097299100001692,
+     "samples": 15,
+     "iters": 40,
+     "mb_per_s": 88.37728941271489,
+     "ops_per_s": 1348.530417064131
+    }
+   }
+  },
+  {
+   "algorithm": "whirlpool",
+   "size": 1048576,
+   "expected": "73b5eef1d20a4ecfbebb7889f309527c10c390670e1d5192a99e661bdc181dd01b8709e008ecf2dbc92dcf3f5a03c21083d8ce5f8406533003c90ce53003b36a",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 23.728395000012824,
+     "p95_ms": 26.189714900017133,
+     "samples": 15,
+     "iters": 1,
+     "mb_per_s": 44.19076806498852,
+     "ops_per_s": 42.14360052584507
+    },
+    "crypto-api-ng wasm core": {
+     "median_ms": 16.659727499994915,
+     "p95_ms": 20.204328499999242,
+     "samples": 15,
+     "iters": 2,
+     "mb_per_s": 62.94076538768836,
+     "ops_per_s": 60.024991405189866
+    },
+    "hash-wasm": {
+     "median_ms": 10.943490000005113,
+     "p95_ms": 14.068193566665279,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 95.81733066869072,
+     "ops_per_s": 91.37852732533523
+    }
+   }
+  },
+  {
+   "algorithm": "crc32",
+   "size": 32,
+   "expected": "9eba8a6b",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.0022994630925518168,
+     "p95_ms": 0.0031976661851012256,
+     "samples": 15,
+     "iters": 17720,
+     "mb_per_s": 13.916292069940628,
+     "ops_per_s": 434884.12718564464
+    },
+    "hash-wasm": {
+     "median_ms": 0.0013296198980589844,
+     "p95_ms": 0.0017509231080497301,
+     "samples": 15,
+     "iters": 25701,
+     "mb_per_s": 24.067028514475812,
+     "ops_per_s": 752094.6410773691
+    }
+   }
+  },
+  {
+   "algorithm": "crc32",
+   "size": 1024,
+   "expected": "6b80de5b",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.012085123572172726,
+     "p95_ms": 0.01650358646589749,
+     "samples": 15,
+     "iters": 2889,
+     "mb_per_s": 84.73227384764755,
+     "ops_per_s": 82746.36117934331
+    },
+    "hash-wasm": {
+     "median_ms": 0.0014171091128894633,
+     "p95_ms": 0.002315483081456304,
+     "samples": 15,
+     "iters": 13234,
+     "mb_per_s": 722.5978512777184,
+     "ops_per_s": 705661.9641383969
+    }
+   }
+  },
+  {
+   "algorithm": "crc32",
+   "size": 65536,
+   "expected": "40c2d76f",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.6106809600000269,
+     "p95_ms": 0.6771674639997654,
+     "samples": 15,
+     "iters": 50,
+     "mb_per_s": 107.31626543587852,
+     "ops_per_s": 1637.5162572613299
+    },
+    "hash-wasm": {
+     "median_ms": 0.03647957234313234,
+     "p95_ms": 0.037627841613314915,
+     "samples": 15,
+     "iters": 781,
+     "mb_per_s": 1796.5122886737415,
+     "ops_per_s": 27412.60206106173
+    }
+   }
+  },
+  {
+   "algorithm": "crc32",
+   "size": 1048576,
+   "expected": "586edb66",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 10.016666000000745,
+     "p95_ms": 11.26629740000159,
+     "samples": 15,
+     "iters": 3,
+     "mb_per_s": 104.68313508705612,
+     "ops_per_s": 99.83361729341136
+    },
+    "hash-wasm": {
+     "median_ms": 0.6062257234044274,
+     "p95_ms": 0.694054831914787,
+     "samples": 15,
+     "iters": 47,
+     "mb_per_s": 1729.6791599528851,
+     "ops_per_s": 1649.5505904702045
+    }
+   }
+  },
+  {
+   "algorithm": "xxhash64",
+   "size": 32,
+   "expected": "c569bbfa5bb5e615",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.004652838027573823,
+     "p95_ms": 0.005386882703205681,
+     "samples": 15,
+     "iters": 11823,
+     "mb_per_s": 6.877522881811144,
+     "ops_per_s": 214922.59005659827
+    },
+    "hash-wasm": {
+     "median_ms": 0.0007718786844553978,
+     "p95_ms": 0.0009045320235076885,
+     "samples": 15,
+     "iters": 54791,
+     "mb_per_s": 41.457291986988515,
+     "ops_per_s": 1295540.374593391
+    },
+    "xxhash-wasm": {
+     "median_ms": 0.00006992482061591466,
+     "p95_ms": 0.00007675348505393968,
+     "samples": 15,
+     "iters": 410711,
+     "mb_per_s": 457.6343524107219,
+     "ops_per_s": 14301073.51283506
+    }
+   }
+  },
+  {
+   "algorithm": "xxhash64",
+   "size": 1024,
+   "expected": "47bf000960a88a28",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.016646466172111667,
+     "p95_ms": 0.02171755661720977,
+     "samples": 15,
+     "iters": 3370,
+     "mb_per_s": 61.51455746899233,
+     "ops_per_s": 60072.81002831283
+    },
+    "hash-wasm": {
+     "median_ms": 0.0010792573246353133,
+     "p95_ms": 0.0018462745395447391,
+     "samples": 15,
+     "iters": 43381,
+     "mb_per_s": 948.8006026236744,
+     "ops_per_s": 926563.0884996821
+    },
+    "xxhash-wasm": {
+     "median_ms": 0.0001555223137199054,
+     "p95_ms": 0.0001657650240774986,
+     "samples": 15,
+     "iters": 175475,
+     "mb_per_s": 6584.264183750614,
+     "ops_per_s": 6429945.49194396
+    }
+   }
+  },
+  {
+   "algorithm": "xxhash64",
+   "size": 65536,
+   "expected": "acaa5737c59db872",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 0.5212713050847415,
+     "p95_ms": 0.5710168627118376,
+     "samples": 15,
+     "iters": 59,
+     "mb_per_s": 125.7233984697201,
+     "ops_per_s": 1918.3868174700947
+    },
+    "hash-wasm": {
+     "median_ms": 0.007442903840339649,
+     "p95_ms": 0.008654328999089148,
+     "samples": 15,
+     "iters": 3307,
+     "mb_per_s": 8805.16548457911,
+     "ops_per_s": 134356.16278959825
+    },
+    "xxhash-wasm": {
+     "median_ms": 0.006176549798504918,
+     "p95_ms": 0.006886152763385426,
+     "samples": 15,
+     "iters": 3474,
+     "mb_per_s": 10610.45440220744,
+     "ops_per_s": 161902.68558055788
+    }
+   }
+  },
+  {
+   "algorithm": "xxhash64",
+   "size": 1048576,
+   "expected": "4ac89fdfae842375",
+   "dropped": {},
+   "results": {
+    "crypto-api-ng": {
+     "median_ms": 7.991846249999071,
+     "p95_ms": 11.101822274999721,
+     "samples": 15,
+     "iters": 4,
+     "mb_per_s": 131.20572733742492,
+     "ops_per_s": 125.12753232710355
+    },
+    "hash-wasm": {
+     "median_ms": 0.10145908675794957,
+     "p95_ms": 0.15314659634702063,
+     "samples": 15,
+     "iters": 219,
+     "mb_per_s": 10334.96391014816,
+     "ops_per_s": 9856.189642093812
+    },
+    "xxhash-wasm": {
+     "median_ms": 0.13788842331304535,
+     "p95_ms": 0.18296793435582034,
+     "samples": 15,
+     "iters": 163,
+     "mb_per_s": 7604.525273448363,
+     "ops_per_s": 7252.24044174992
+    }
+   }
+  }
+ ],
+ "summary": {
+  "node:crypto": {
+   "cells": 40,
+   "geomean_time_ratio": 0.2945018265239072
+  },
+  "hash-wasm": {
+   "cells": 60,
+   "geomean_time_ratio": 0.22872471852650184
+  },
+  "@noble/hashes": {
+   "cells": 40,
+   "geomean_time_ratio": 1.2339704076754394
+  },
+  "js-sha256 / js-sha512 / js-sha3 / js-sha1 / js-md5": {
+   "cells": 24,
+   "geomean_time_ratio": 0.7707645385313067
+  },
+  "hash.js": {
+   "cells": 16,
+   "geomean_time_ratio": 2.1847388627171562
+  },
+  "crypto-js": {
+   "cells": 24,
+   "geomean_time_ratio": 3.4189306212521418
+  },
+  "xxhash-wasm": {
+   "cells": 4,
+   "geomean_time_ratio": 0.013016275260226204
+  }
+ },
+ "duration_s": 193
+}

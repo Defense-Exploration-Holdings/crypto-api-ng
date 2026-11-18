@@ -312,7 +312,7 @@ Speed numbers only mean something next to this. The same commit passes:
 
 - **Operation:** `new Hasher(options)`, `update(input)`, `finalize()`; the result is the binary digest string. Inputs are deterministic pseudo-random binary strings (one character per byte, the 0.8.5 API), so the wasm path is used in full. Inputs with characters above 0xFF, other option values and odd states run the original JavaScript in v1 and cost the same as 0.8.5.
 - **Timing:** `bench/lib/stats.mjs`. Each contender is warmed up, its iteration count is calibrated so a sample takes about 25 ms, and samples are taken round-robin between contenders so drift hits all of them equally. Reported: median per operation, plus p95 in the JSON.
-- **Not measured here:** browsers and other runtimes (the harness runs under Bun too, results labeled separately), third-party libraries (`hash-wasm`, `@noble/hashes`, `crypto-js`), a quiet dedicated machine. These are follow-ups.
+- **Not measured here:** browsers and other runtimes (the harness runs under Bun too, results labeled separately), a quiet dedicated machine. These are follow-ups. Third-party libraries (`hash-wasm`, `@noble/hashes`, `crypto-js` and others) are compared in [benchmarks-compare.md](benchmarks-compare.md).
 
 ## Reading the results honestly
 
