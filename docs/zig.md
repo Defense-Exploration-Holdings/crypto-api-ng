@@ -143,6 +143,22 @@ H.expand(&okm, "context info", prk);
 
 `pbkdf2` and `Hkdf` are the `std.crypto` implementations instantiated with this module's `Hmac`, which wipes its copies of the key when it is done.
 
+## Argon2 and scrypt
+
+Password hashing with an allocator for the work memory, which is zeroed before it is freed. The interface follows `std.crypto.pwhash` without the `Io` argument: everything runs on the calling thread.
+
+```zig
+// Argon2id (RFC 9106). m is in KiB; secret and ad are optional.
+var tag: [32]u8 = undefined;
+try cryptoapi.argon2.kdf(allocator, &tag, password, salt, .{ .t = 3, .m = 65536, .p = 4 }, .argon2id);
+
+// scrypt (RFC 7914). ln is log2(N).
+var key: [32]u8 = undefined;
+try cryptoapi.scrypt.kdf(allocator, &key, password, salt, .{ .ln = 17, .r = 8, .p = 1 });
+```
+
+Both return `error.WeakParameters` for parameters outside their RFC (for Argon2 also a salt shorter than 8 bytes or a tag shorter than 4) and `error.OutOfMemory` when the allocator fails. `argon2.Mode` is `.argon2d`, `.argon2i` or `.argon2id`; only version 0x13 is implemented. The Argon2 core uses this library's BLAKE2b and the scrypt core its SHA-256; the tests compare both with `std.crypto.pwhash` and the RFC vectors.
+
 ## Differences from the JavaScript API
 
 The Zig API implements the standard algorithms only. The JavaScript hashers also accept options kept for compatibility with crypto-api 0.8.5, such as `rounds` (reduced-round variants) and arbitrary `length` values for SHA-512/t; those are not part of the Zig API, except for the Snefru pass count. There is no state export (`getState`/`setState`): copy the hasher value instead.

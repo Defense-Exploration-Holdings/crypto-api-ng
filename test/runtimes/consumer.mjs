@@ -10,7 +10,7 @@
 //   - every per-algorithm entry in `exports` imports, hashes a few messages correctly (digests computed in Node
 //     from the source tree) and, with wasm, really instantiated wasm
 //   - the original 24 variants and the 7 HMAC vectors through those entries
-//   - HMAC, PBKDF2, HKDF and the encoders
+//   - HMAC, PBKDF2, HKDF, Argon2, scrypt and the encoders
 //   - unknown subpaths are rejected by the exports map
 //
 // Output: one JSON line {"runtime", "version", "mode", "checks", "failures", "wasmInstances"}; exit 1 on failure.
@@ -91,6 +91,8 @@ for (const v of expected.hmac) {
 // KDFs and encoders.
 const Pbkdf2 = (await imp('pbkdf2')).default;
 const Hkdf = (await imp('hkdf')).default;
+const Argon2 = (await imp('argon2')).default;
+const Scrypt = (await imp('scrypt')).default;
 const { toBase64 } = await imp('encoder/base64');
 const bytes = await imp('encoder/bytes');
 const { fromUtf } = await imp('encoder/utf');
@@ -98,6 +100,9 @@ const { fromArrayBuffer } = await imp('encoder/array-buffer');
 const sha256 = () => new classes.sha256({ length: 256 });
 eq('pbkdf2', new Pbkdf2('password', sha256(), { salt: 'salt', iterations: 10, length: 160 }).finalize(), expected.kdf.pbkdf2);
 eq('hkdf', new Hkdf('input key material', sha256(), { salt: 'salt', info: 'info', length: 320 }).finalize(), expected.kdf.hkdf);
+// Password hashing: the wasm modules with growable memory, a fresh instance per call.
+eq('argon2', new Argon2('password', { salt: 'somesalt', iterations: 2, memory: 4096, parallelism: 2 }).finalize(), expected.kdf.argon2);
+eq('scrypt', new Scrypt('password', { salt: 'NaCl', cost: 1024, blockSize: 8, parallelization: 2 }).finalize(), expected.kdf.scrypt);
 eq('toBase64', toBase64('abcÿ'), expected.encoders.base64);
 eq('fromUtf', toHex(fromUtf('héllo €')), expected.encoders.utf);
 eq('bytes round trip', bytes.bytesToHex(bytes.hexToBytes('00ff10')), '00ff10');

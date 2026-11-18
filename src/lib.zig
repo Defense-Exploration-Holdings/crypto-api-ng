@@ -19,7 +19,8 @@
 //! one. Copying a hasher value forks its state.
 //!
 //! `Hmac`, `pbkdf2` and `Hkdf` accept any of the hash types here (and the
-//! `std.crypto` ones).
+//! `std.crypto` ones). `argon2.kdf` and `scrypt.kdf` hash passwords with an
+//! allocator for their work memory, like `std.crypto.pwhash`.
 //!
 //! Some of these algorithms are broken or weak (MD2, MD4, MD5, SHA-0, SHA-1,
 //! HAS-160, Snefru with few passes) and are here for compatibility with
@@ -51,6 +52,8 @@ const xxhash = @import("hash/xxhash.zig");
 const xxh3 = @import("hash/xxh3.zig");
 const siphash = @import("hash/siphash.zig");
 const murmur3 = @import("hash/murmur3.zig");
+const argon2_core = @import("kdf/argon2.zig");
+const scrypt_core = @import("kdf/scrypt.zig");
 
 /// Library version.
 pub const version = std.SemanticVersion{ .major = 1, .minor = 3, .patch = 0 };
@@ -989,6 +992,50 @@ pub fn pbkdf2(dk: []u8, password: []const u8, salt: []const u8, rounds: u32, com
 pub fn Hkdf(comptime H: type) type {
     return std.crypto.kdf.hkdf.Hkdf(Hmac(H));
 }
+
+// ---- Password hashing: Argon2, scrypt -------------------------------------------------
+
+/// Argon2d, Argon2i and Argon2id (RFC 9106, version 0x13), on one thread.
+pub const argon2 = struct {
+    pub const Mode = argon2_core.Mode;
+    /// `t` passes, `m` KiB of memory, `p` lanes, and the optional `secret`
+    /// (key K) and `ad` (associated data X).
+    pub const Params = argon2_core.Params;
+    pub const Error = argon2_core.Error || std.mem.Allocator.Error;
+
+    /// Fill `derived_key` (4 bytes or more) with the Argon2 tag of `password`
+    /// and `salt` (8 bytes or more). The memory matrix (`m` KiB, rounded down
+    /// to a multiple of `4 * p` blocks) comes from `allocator` and is zeroed
+    /// before it is freed. Fails with `error.WeakParameters` for parameters
+    /// outside RFC 9106 (`t` 0, `m` below `8 * p`, a short salt or tag).
+    pub fn kdf(allocator: std.mem.Allocator, derived_key: []u8, password: []const u8, salt: []const u8, params: Params, mode: Mode) Error!void {
+        try argon2_core.check(derived_key.len, password.len, salt.len, params);
+        const blocks = std.math.cast(usize, argon2_core.blockCount(params)) orelse return error.OutOfMemory;
+        const memory = try allocator.alignedAlloc(argon2_core.Block, .@"16", blocks);
+        defer allocator.free(memory);
+        argon2_core.hash(derived_key, password, salt, params, mode, memory);
+    }
+};
+
+/// scrypt (RFC 7914).
+pub const scrypt = struct {
+    /// `ln` is log2 of the cost N, `r` the block size, `p` the parallelization.
+    pub const Params = scrypt_core.Params;
+    pub const Error = scrypt_core.Error || std.mem.Allocator.Error;
+
+    /// Fill `derived_key` with the scrypt key of `password` and `salt`. The
+    /// work memory (about `128 * r * (2^ln + p)` bytes) comes from `allocator`
+    /// and is zeroed before it is freed. Fails with `error.WeakParameters` for
+    /// parameters outside RFC 7914 (`ln` 0, `2^ln` not below `2^(16 r)`,
+    /// `r * p` of 2^30 or more, an empty key).
+    pub fn kdf(allocator: std.mem.Allocator, derived_key: []u8, password: []const u8, salt: []const u8, params: Params) Error!void {
+        try scrypt_core.check(derived_key.len, params);
+        const words = scrypt_core.workWords(params) orelse return error.OutOfMemory;
+        const work = try allocator.alignedAlloc(u32, .@"16", words);
+        defer allocator.free(work);
+        scrypt_core.hash(derived_key, password, salt, params, work);
+    }
+};
 
 test {
     _ = @import("lib_test.zig");

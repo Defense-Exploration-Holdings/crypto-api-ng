@@ -28,6 +28,11 @@ pub fn main() void {
     var key: [32]u8 = undefined;
     cryptoapi.pbkdf2(&key, "password", "salt", 1000, cryptoapi.Streebog512) catch unreachable;
     std.debug.print("pbkdf2     {x}\n", .{key});
+
+    // Argon2id takes an allocator for its memory (19 MiB here), and zeroes it before freeing it.
+    var tag: [32]u8 = undefined;
+    cryptoapi.argon2.kdf(std.heap.page_allocator, &tag, "password", "somesalt", .{ .t = 2, .m = 19456, .p = 1 }, .argon2id) catch unreachable;
+    std.debug.print("argon2id   {x}\n", .{tag});
 }
 
 fn hashOf(comptime H: type, data: []const u8) [H.digest_length]u8 {

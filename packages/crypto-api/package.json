@@ -58,6 +58,8 @@
     "./hmac": {"types": "./src/mac/hmac.d.mts", "default": "./src/mac/hmac.mjs"},
     "./pbkdf2": {"types": "./src/kdf/pbkdf2.d.mts", "default": "./src/kdf/pbkdf2.mjs"},
     "./hkdf": {"types": "./src/kdf/hkdf.d.mts", "default": "./src/kdf/hkdf.mjs"},
+    "./argon2": {"types": "./src/kdf/argon2.d.mts", "default": "./src/kdf/argon2.mjs"},
+    "./scrypt": {"types": "./src/kdf/scrypt.d.mts", "default": "./src/kdf/scrypt.mjs"},
     "./encoder/hex": {"types": "./src/encoder/hex.d.mts", "default": "./src/encoder/hex.mjs"},
     "./encoder/base64": {"types": "./src/encoder/base64.d.mts", "default": "./src/encoder/base64.mjs"},
     "./encoder/utf": {"types": "./src/encoder/utf.d.mts", "default": "./src/encoder/utf.mjs"},
@@ -106,6 +108,8 @@
       "hmac": ["src/mac/hmac.d.mts"],
       "pbkdf2": ["src/kdf/pbkdf2.d.mts"],
       "hkdf": ["src/kdf/hkdf.d.mts"],
+      "argon2": ["src/kdf/argon2.d.mts"],
+      "scrypt": ["src/kdf/scrypt.d.mts"],
       "encoder/hex": ["src/encoder/hex.d.mts"],
       "encoder/base64": ["src/encoder/base64.d.mts"],
       "encoder/utf": ["src/encoder/utf.d.mts"],
@@ -142,6 +146,6 @@
     "sha512/224", "sha512/256", "sha3", "sha3-256", "shake128", "shake256", "keccak", "keccak256", "whirlpool", "whirlpool-0", "whirlpool-t", "sm3", "snefru",
     "tiger", "tiger2", "streebog", "gost", "crc32", "crc32c", "xxhash", "xxhash32", "xxhash64",
     "xxh3", "xxh128", "siphash", "murmurhash", "murmurhash3", "murmur3",
-    "hmac", "pbkdf2", "hkdf", "wasm", "webassembly", "zig"
+    "hmac", "pbkdf2", "hkdf", "argon2", "argon2id", "argon2i", "argon2d", "scrypt", "password-hashing", "wasm", "webassembly", "zig"
   ]
 }

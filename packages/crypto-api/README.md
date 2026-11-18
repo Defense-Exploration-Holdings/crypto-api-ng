@@ -83,7 +83,7 @@ Sizes are one bundle of that import alone (esbuild, minified, ES module, the Web
 <!-- entry-sizes:start -->
 | Import | Provides | Minified | Min + gzip |
 |---|---|---:|---:|
-| `crypto-api-ng` | Everything: the `CryptoApi` object with every hasher, HMAC and the encoders | 369.6 KB | 170.7 KB |
+| `crypto-api-ng` | Everything: the `CryptoApi` object with every hasher, HMAC and the encoders | 411.4 KB | 187.3 KB |
 | `crypto-api-ng/md2` | MD2 | 11.5 KB | 5.2 KB |
 | `crypto-api-ng/md4` | MD4 | 18.1 KB | 7.4 KB |
 | `crypto-api-ng/md5` | MD5 | 18.1 KB | 7.3 KB |
@@ -118,6 +118,8 @@ Sizes are one bundle of that import alone (esbuild, minified, ES module, the Web
 | `crypto-api-ng/hmac` | HMAC (takes any hasher object) | 4.2 KB | 1.6 KB |
 | `crypto-api-ng/pbkdf2` | PBKDF2 (RFC 8018) over HMAC with any hasher | 6.0 KB | 2.2 KB |
 | `crypto-api-ng/hkdf` | HKDF (RFC 5869) over HMAC with any hasher | 5.9 KB | 2.2 KB |
+| `crypto-api-ng/argon2` | Argon2id, Argon2i, Argon2d (RFC 9106) | 33.0 KB | 13.0 KB |
+| `crypto-api-ng/scrypt` | scrypt (RFC 7914) | 19.2 KB | 8.9 KB |
 | `crypto-api-ng/encoder/hex` | toHex | 0.1 KB | 0.1 KB |
 | `crypto-api-ng/encoder/base64` | toBase64 | 0.5 KB | 0.3 KB |
 | `crypto-api-ng/encoder/utf` | fromUtf | 0.6 KB | 0.3 KB |
@@ -249,8 +251,9 @@ Where WebAssembly is missing or blocked (a page whose Content-Security-Policy la
 * Added in this package: SHA3-224/256/384/512, SHAKE128/256, Keccak-224/256/384/512, BLAKE2b, BLAKE2s, BLAKE3, Tiger, Tiger2, Streebog-256/512, the keyed hash SipHash (2-4 and 1-3), and the checksums CRC-32, CRC-32C, XXH32, XXH64, XXH3 (64 and 128 bits) and MurmurHash3 (x86_32 and x64_128)
 * MAC: HMAC (`src/mac/hmac.mjs`, works with any hasher object, including your own)
 * Key derivation: PBKDF2 (`src/kdf/pbkdf2.mjs`) and HKDF (`src/kdf/hkdf.mjs`), over HMAC with any hasher
+* Password hashing: Argon2id, Argon2i and Argon2d (`src/kdf/argon2.mjs`, RFC 9106) and scrypt (`src/kdf/scrypt.mjs`, RFC 7914), in WebAssembly with a plain JavaScript fallback
 * Encodings: `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64` (binary strings) and, added in this package, `utf8ToBytes`, `bytesToUtf8`, `bytesToHex`, `hexToBytes`, `bytesToBase64`, `base64ToBytes` (bytes)
-* The `CryptoApi` object: `getHasher`, `hash`, `hashBytes`, `getHmac`, `hmac`, `hmacBytes`, `pbkdf2`, `hkdf`, `encoder`
+* The `CryptoApi` object: `getHasher`, `hash`, `hashBytes`, `getHmac`, `hmac`, `hmacBytes`, `pbkdf2`, `hkdf`, `argon2`, `scrypt`, `encoder`
 
 The full API, with options, errors and examples, is in the [API reference](https://github.com/Defense-Exploration-Holdings/crypto-api-ng/blob/main/docs/api.md). All of the algorithms run their compression function in WebAssembly, with the original JavaScript as the fallback.
 

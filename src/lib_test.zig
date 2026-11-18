@@ -326,3 +326,28 @@ test "final wipes the hasher" {
     _ = h.finalResult();
     for (std.mem.asBytes(&h)) |b| try testing.expectEqual(@as(u8, 0), b);
 }
+
+test "argon2.kdf: RFC 9106 section 5" {
+    const password: [32]u8 = @splat(0x01);
+    const salt: [16]u8 = @splat(0x02);
+    const secret: [8]u8 = @splat(0x03);
+    const ad: [12]u8 = @splat(0x04);
+    const params: lib.argon2.Params = .{ .t = 3, .m = 32, .p = 4, .secret = &secret, .ad = &ad };
+    var tag: [32]u8 = undefined;
+    try lib.argon2.kdf(testing.allocator, &tag, &password, &salt, params, .argon2d);
+    try expectHex("512b391b6f1162975371d30919734294f868e3be3984f3c1a13a4db9fabe4acb", &tag);
+    try lib.argon2.kdf(testing.allocator, &tag, &password, &salt, params, .argon2i);
+    try expectHex("c814d9d1dc7f37aa13f0d77f2494bda1c8de6b016dd388d29952a4c4672b6ce8", &tag);
+    try lib.argon2.kdf(testing.allocator, &tag, &password, &salt, params, .argon2id);
+    try expectHex("0d640df58d78766c08c037a34a8b53c9d01ef0452d75b65eb52520e96b01e659", &tag);
+    try testing.expectError(error.WeakParameters, lib.argon2.kdf(testing.allocator, &tag, "pw", "short", .{ .t = 1, .m = 8, .p = 1 }, .argon2id));
+    try testing.expectError(error.OutOfMemory, lib.argon2.kdf(testing.failing_allocator, &tag, "pw", "saltsalt", .{ .t = 1, .m = 8, .p = 1 }, .argon2id));
+}
+
+test "scrypt.kdf: RFC 7914 section 12" {
+    var dk: [64]u8 = undefined;
+    try lib.scrypt.kdf(testing.allocator, &dk, "password", "NaCl", .{ .ln = 10, .r = 8, .p = 16 });
+    try expectHex("fdbabe1c9d3472007856e7190d01e9fe7c6ad7cbc8237830e77376634b3731622eaf30d92e22a3886ff109279d9830dac727afb94a83ee6d8360cbdfa2cc0640", &dk);
+    try testing.expectError(error.WeakParameters, lib.scrypt.kdf(testing.allocator, &dk, "pw", "salt", .{ .ln = 0, .r = 8, .p = 1 }));
+    try testing.expectError(error.OutOfMemory, lib.scrypt.kdf(testing.failing_allocator, &dk, "pw", "salt", .{ .ln = 4, .r = 1, .p = 1 }));
+}

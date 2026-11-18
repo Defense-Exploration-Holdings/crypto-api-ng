@@ -49,6 +49,8 @@ export const ENTRY_ALGORITHMS = {
   hmac: 'HMAC (takes any hasher object)',
   pbkdf2: 'PBKDF2 (RFC 8018) over HMAC with any hasher',
   hkdf: 'HKDF (RFC 5869) over HMAC with any hasher',
+  argon2: 'Argon2id, Argon2i, Argon2d (RFC 9106)',
+  scrypt: 'scrypt (RFC 7914)',
   'encoder/hex': 'toHex',
   'encoder/base64': 'toBase64',
   'encoder/utf': 'fromUtf',

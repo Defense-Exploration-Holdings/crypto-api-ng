@@ -40,6 +40,8 @@ import {utf8ToBytes, bytesToUtf8, bytesToHex, hexToBytes, bytesToBase64, base64T
 import Hmac from "./mac/hmac.mjs";
 import Pbkdf2 from "./kdf/pbkdf2.mjs";
 import Hkdf from "./kdf/hkdf.mjs";
+import Argon2 from "./kdf/argon2.mjs";
+import Scrypt from "./kdf/scrypt.mjs";
 import {toBinaryString} from "./tools/input.mjs";
 
 /**
@@ -53,6 +55,9 @@ import {toBinaryString} from "./tools/input.mjs";
 function utfOrBytes(value, what) {
   return typeof value === 'string' ? fromUtf(value) : toBinaryString(value, what);
 }
+
+/** Options of `argon2()` that may be text. */
+const ARGON2_TEXT = ['salt', 'secret', 'associatedData'];
 
 /**
  * A copy of own `options` in which the byte options named in `keys` that are strings
@@ -408,6 +413,57 @@ class CryptoApi {
    */
   hkdfBytes(ikm, hasher, options) {
     return new Hkdf(utfOrBytes(ikm, 'ikm'), hasher, utfOptions(options, ['salt', 'info'])).digest();
+  }
+  /**
+   * Argon2 password hashing (Argon2id unless `options.type` says otherwise), result in
+   * hex. A string password, `options.salt`, `options.secret` or `options.associatedData`
+   * is UTF-8 encoded; bytes are used as they are. Not in 0.8.5.
+   *
+   * @param {string|ArrayBuffer|ArrayBufferView} password
+   * @param {{salt: (string|ArrayBuffer|ArrayBufferView), iterations: number, memory: number,
+   *   parallelism: number, type: string, length: number, secret: (string|ArrayBuffer|ArrayBufferView),
+   *   associatedData: (string|ArrayBuffer|ArrayBufferView)}} options - `salt`, `iterations` and
+   *   `memory` (KiB) are required, `length` is in bits
+   * @returns {string}
+   */
+  argon2(password, options) {
+    return toHex(new Argon2(utfOrBytes(password, 'password'), utfOptions(options, ARGON2_TEXT)).finalize());
+  }
+
+  /**
+   * Like {@link CryptoApi#argon2}, but returns the tag as bytes. Not in 0.8.5.
+   *
+   * @param {string|ArrayBuffer|ArrayBufferView} password
+   * @param {Object} options - as for {@link CryptoApi#argon2}
+   * @returns {Uint8Array}
+   */
+  argon2Bytes(password, options) {
+    return new Argon2(utfOrBytes(password, 'password'), utfOptions(options, ARGON2_TEXT)).digest();
+  }
+
+  /**
+   * scrypt key derivation, result in hex. A string password or `options.salt` is UTF-8
+   * encoded; bytes are used as they are. Not in 0.8.5.
+   *
+   * @param {string|ArrayBuffer|ArrayBufferView} password
+   * @param {{cost: number, blockSize: number, parallelization: number,
+   *   salt: (string|ArrayBuffer|ArrayBufferView), length: number}} options - `cost` (N) is
+   *   required, `length` is in bits
+   * @returns {string}
+   */
+  scrypt(password, options) {
+    return toHex(new Scrypt(utfOrBytes(password, 'password'), utfOptions(options, ['salt'])).finalize());
+  }
+
+  /**
+   * Like {@link CryptoApi#scrypt}, but returns the key as bytes. Not in 0.8.5.
+   *
+   * @param {string|ArrayBuffer|ArrayBufferView} password
+   * @param {Object} options - as for {@link CryptoApi#scrypt}
+   * @returns {Uint8Array}
+   */
+  scryptBytes(password, options) {
+    return new Scrypt(utfOrBytes(password, 'password'), utfOptions(options, ['salt'])).digest();
   }
 }
 

@@ -24,6 +24,8 @@ CryptoApi.hash('sha256', 'abc');
 | `pbkdf2(password, hasher, options)` | hex string | PBKDF2 key derivation, see [Key derivation](#key-derivation). Strings are UTF-8 encoded. |
 | `hkdf(ikm, hasher, options?)` | hex string | HKDF key derivation. Strings are UTF-8 encoded. |
 | `pbkdf2Bytes(password, hasher, options)`, `hkdfBytes(ikm, hasher, options?)` | `Uint8Array` | Same as `pbkdf2` and `hkdf`, key as bytes. |
+| `argon2(password, options)`, `scrypt(password, options)` | hex string | Password hashing, see [Password hashing](#password-hashing-argon2-and-scrypt). Strings are UTF-8 encoded. |
+| `argon2Bytes(password, options)`, `scryptBytes(password, options)` | `Uint8Array` | Same as `argon2` and `scrypt`, result as bytes. |
 | `encoder` | object | `fromUtf`, `fromArrayBuffer`, `toHex`, `toBase64` (binary strings), and `utf8ToBytes`, `bytesToUtf8`, `bytesToHex`, `hexToBytes`, `bytesToBase64`, `base64ToBytes` (bytes). |
 
 ### Algorithm names
@@ -296,6 +298,63 @@ Notes:
 - Speed: every iteration is one HMAC in JavaScript around the WebAssembly compression function, about 6 microseconds for SHA-256 on a current machine (600000 iterations take a few seconds). Use [`crypto.subtle.deriveBits`](https://developer.mozilla.org/docs/Web/API/SubtleCrypto/deriveBits) or `node:crypto` where you only need SHA-1/2 and want the platform's speed; use these classes for the algorithms the platform does not have (SM3, BLAKE2, RIPEMD, Whirlpool) or when one code path must work everywhere.
 - Verified against RFC 6070, RFC 7914 and RFC 5869 and, for the digests it has, `node:crypto`.
 
+## Password hashing: Argon2 and scrypt
+
+Argon2 ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106)) and scrypt ([RFC 7914](https://www.rfc-editor.org/rfc/rfc7914)) are memory-hard: every derivation fills a large table, which makes guessing passwords on GPUs and custom hardware expensive. They are not in `crypto-api` 0.8.5. They follow the conventions of `Pbkdf2`: a `new` class per use, binary strings or bytes in, `finalize()` and `digest(encoding?)` out, and `length` in bits.
+
+```javascript
+import Argon2 from "crypto-api-ng/argon2";
+import Scrypt from "crypto-api-ng/scrypt";
+import {fromUtf} from "crypto-api-ng/encoder/utf";
+
+// Argon2id with the second recommended setting of RFC 9106: 64 MiB, 3 passes, 4 lanes
+const tag = new Argon2(fromUtf('correct horse'), {salt: salt, iterations: 3, memory: 65536, parallelism: 4}).digest();
+
+// scrypt with N = 2^17, r = 8, p = 1 (128 MiB)
+const key = new Scrypt(fromUtf('correct horse'), {salt: salt, cost: 131072}).digest();
+
+// Or in one call, with hex output and UTF-8 encoding of strings
+CryptoApi.argon2('correct horse', {salt: 'a random salt', iterations: 3, memory: 65536, parallelism: 4});
+CryptoApi.scrypt('correct horse', {salt: 'a random salt', cost: 131072});
+```
+
+`new Argon2(password, options)`
+
+| Option | Meaning |
+|---|---|
+| `salt` | Required: binary string or bytes, at least 8 bytes. Use 16 random bytes per password. |
+| `iterations` | Required: passes over the memory (`t`), an integer from 1 to 4294967295. |
+| `memory` | Required: memory size in KiB (`m`), from 8 times `parallelism` to 4294967295. It is rounded down to a multiple of 4 times `parallelism` KiB, as the RFC specifies. |
+| `parallelism` | Lanes (`p`), 1 to 16777215. Default 1. |
+| `type` | `'argon2id'` (default), `'argon2i'` or `'argon2d'`. |
+| `length` | Size of the tag in bits, a multiple of 8, at least 32. Default 256. |
+| `secret` | Key `K`, binary string or bytes. Default empty. |
+| `associatedData` | Associated data `X`, binary string or bytes. Default empty. |
+
+RFC 9106 recommends Argon2id with `iterations: 1, memory: 2097152` (2 GiB) or, with less memory, `iterations: 3, memory: 65536` (64 MiB), both with `parallelism: 4`. OWASP lists `iterations: 2, memory: 19456, parallelism: 1` as a minimum (2023). Only version 0x13 of Argon2 is implemented, the one RFC 9106 defines and every current library writes.
+
+`new Scrypt(password, options)`
+
+| Option | Meaning |
+|---|---|
+| `cost` | Required: `N`, a power of two from 2, below 2^(16 `blockSize`). |
+| `blockSize` | `r`, from 1. Default 8. |
+| `parallelization` | `p`, from 1. Default 1. `blockSize * parallelization` must be below 2^30. |
+| `salt` | Binary string or bytes. Default empty; use a random salt of at least 16 bytes per password. |
+| `length` | Size of the key in bits, a multiple of 8. Default 256. |
+
+scrypt needs about `128 * cost * blockSize` bytes. OWASP advised `cost: 131072, blockSize: 8, parallelization: 1` (128 MiB) in 2023.
+
+Notes:
+
+- The work runs in WebAssembly, in a module that takes its memory with `memory.grow`. Each derivation gets a new instance, so the memory is released when it is done instead of staying allocated. The memory table, the inputs and the result are zeroed in it before it is released. Where WebAssembly is not available, a plain JavaScript implementation computes the same values, several times slower for Argon2.
+- Everything runs synchronously on the calling thread, and lanes are computed one after another: `parallelism` changes the result and the memory layout, not the speed. Move large derivations to a worker in a browser.
+- The largest memory a WebAssembly instance can have is 4 GiB, and browsers and phones often allow less. When the module cannot get the memory, the JavaScript implementation is tried, and when that cannot allocate either, `finalize()` throws `RangeError`.
+- `finalize()` and `digest()` do the work again on every call and give the same value.
+- These classes produce the raw tag or key. They do not generate salts, and they do not write or parse encoded hash strings such as `$argon2id$v=19$...`; store the parameters and the salt next to the result.
+- Compare results in constant time (`crypto.timingSafeEqual` in Node.js), not with `===`.
+- Verified against the RFC 9106 and RFC 7914 test vectors, vectors of the Argon2 reference implementation, `node:crypto` for scrypt, and Zig's `std.crypto.pwhash` for both.
+
 ## Encoders
 
 Each is its own module under `src/encoder/` with a named export, and also available as `CryptoApi.encoder.<name>`.
@@ -313,8 +372,8 @@ These four work on binary strings, as in 0.8.5, and stay for compatibility. For 
 
 | Thrown | When |
 |---|---|
-| `TypeError` | `update()` (or an `Hmac` key or message) is not a string or bytes, or is a string with a character above `\xFF`; an option that is not a number. `Pbkdf2` and `Hkdf`: the same for the password, key material, `salt` and `info`, plus a missing `iterations`, a non-object `options` and an unknown option name. |
-| `RangeError` | An option value outside the supported set (table above). `Pbkdf2` and `Hkdf`: `iterations` or `length` outside the ranges above. |
+| `TypeError` | `update()` (or an `Hmac` key or message) is not a string or bytes, or is a string with a character above `\xFF`; an option that is not a number. `Pbkdf2` and `Hkdf`: the same for the password, key material, `salt` and `info`, plus a missing `iterations`, a non-object `options` and an unknown option name. `Argon2` and `Scrypt`: the same for the password and the byte options, a missing required option, and a `type` that is not a string. |
+| `RangeError` | An option value outside the supported set (table above). `Pbkdf2` and `Hkdf`: `iterations` or `length` outside the ranges above. `Argon2` and `Scrypt`: an option outside the ranges above, a salt shorter than 8 bytes for Argon2, a `cost` that is not a power of two; and from `finalize()`, memory that cannot be allocated. |
 
 ## Compatibility notes
 

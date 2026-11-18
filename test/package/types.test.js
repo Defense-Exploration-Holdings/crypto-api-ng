@@ -26,6 +26,8 @@ import Blake3 from "crypto-api-ng/src/hasher/blake3.mjs";
 import Hmac from "crypto-api-ng/src/mac/hmac.mjs";
 import Pbkdf2 from "crypto-api-ng/src/kdf/pbkdf2.mjs";
 import Hkdf from "crypto-api-ng/src/kdf/hkdf.mjs";
+import Argon2 from "crypto-api-ng/argon2";
+import Scrypt from "crypto-api-ng/src/kdf/scrypt.mjs";
 import Sha3 from "crypto-api-ng/src/hasher/sha3.mjs";
 import Shake from "crypto-api-ng/src/hasher/shake.mjs";
 import Keccak from "crypto-api-ng/src/hasher/keccak.mjs";
@@ -107,6 +109,16 @@ const more: string = hk.expand('ctx', 256) + hk.expand();
 const keyHex: string = CryptoApi.pbkdf2('password', known, { iterations: 10, salt: 'salt' }) + CryptoApi.hkdf('ikm', known, { info: 'ctx' });
 const encoded: string = CryptoApi.encoder.toHex(CryptoApi.encoder.fromUtf('x'));
 
+const tagA: Uint8Array = new Argon2('password', { salt: 'saltsalt', iterations: 2, memory: 19456, type: 'argon2i', secret: new Uint8Array(8) }).digest();
+const tagS: string = new Scrypt(new Uint8Array(4), { cost: 1024, blockSize: 8, salt: 'salt' }).finalize();
+const pwHex: string = CryptoApi.argon2('pw', { salt: 'saltsalt', iterations: 1, memory: 8 }) + CryptoApi.scrypt('pw', { cost: 16 });
+const pwBytes: Uint8Array = CryptoApi.argon2Bytes('pw', { salt: 'saltsalt', iterations: 1, memory: 8 }) ?? CryptoApi.scryptBytes('pw', { cost: 16 });
+// @ts-expect-error Argon2 needs memory
+new Argon2('password', { salt: 'saltsalt', iterations: 2 });
+// @ts-expect-error not an Argon2 type
+new Argon2('password', { salt: 'saltsalt', iterations: 2, memory: 8, type: 'argon2x' });
+// @ts-expect-error scrypt needs cost
+new Scrypt('password', { salt: 'salt' });
 // @ts-expect-error PBKDF2 needs iterations
 new Pbkdf2('password', new Sha256(), { salt: 'salt' });
 // @ts-expect-error iterations is a number
@@ -190,7 +202,7 @@ describe('TypeScript declarations', () => {
   it('package.json points at declarations that are shipped', () => {
     const pkg = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'));
     assert.equal(pkg.types, 'index.d.ts');
-    for (const f of ['index.d.ts', 'types.d.ts', 'src/index.d.mts', 'src/hasher/sha256.d.mts', 'src/mac/hmac.d.mts', 'src/kdf/pbkdf2.d.mts', 'src/kdf/hkdf.d.mts']) {
+    for (const f of ['index.d.ts', 'types.d.ts', 'src/index.d.mts', 'src/hasher/sha256.d.mts', 'src/mac/hmac.d.mts', 'src/kdf/pbkdf2.d.mts', 'src/kdf/hkdf.d.mts', 'src/kdf/argon2.d.mts', 'src/kdf/scrypt.d.mts']) {
       assert.ok(existsSync(join(pkgDir, f)), f);
     }
   });

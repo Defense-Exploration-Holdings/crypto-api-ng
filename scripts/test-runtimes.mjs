@@ -58,6 +58,8 @@ async function buildExpected(version) {
   const Hmac = (await imp('mac/hmac.mjs')).default;
   const Pbkdf2 = (await imp('kdf/pbkdf2.mjs')).default;
   const Hkdf = (await imp('kdf/hkdf.mjs')).default;
+  const Argon2 = (await imp('kdf/argon2.mjs')).default;
+  const Scrypt = (await imp('kdf/scrypt.mjs')).default;
   const vectors = (name) => JSON.parse(readFileSync(join(repo, 'test', 'vectors', `${name}.json`), 'utf8'));
 
   const inputs = [['empty', ''], ['abc', 'abc'], ['1000 bytes', 'xyz'.repeat(333) + 'x']];
@@ -103,6 +105,8 @@ async function buildExpected(version) {
     kdf: {
       pbkdf2: new Pbkdf2('password', sha256(), { salt: 'salt', iterations: 10, length: 160 }).finalize(),
       hkdf: new Hkdf('input key material', sha256(), { salt: 'salt', info: 'info', length: 320 }).finalize(),
+      argon2: new Argon2('password', { salt: 'somesalt', iterations: 2, memory: 4096, parallelism: 2 }).finalize(),
+      scrypt: new Scrypt('password', { salt: 'NaCl', cost: 1024, blockSize: 8, parallelization: 2 }).finalize(),
     },
     encoders: { base64: toBase64('abcÿ'), utf: toHex(fromUtf('héllo €')) },
     big: { sha256: toHex(bigHasher.finalize()) },

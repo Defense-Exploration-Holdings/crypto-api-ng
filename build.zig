@@ -66,11 +66,16 @@ pub fn build(b: *std.Build) void {
     // imports one algorithm only pays for that family. To add a family, append
     // its name to `families`; the root file must exist at src/wasm/<name>.zig.
     // Each is also embedded as packages/crypto-api/wasm/<name>.mjs (see `js`).
-    const families = [_][]const u8{ "md", "md2", "has160", "ripemd", "sha1", "sha256", "sha512", "keccak", "sm3", "snefru", "whirlpool", "blake2b", "blake2s", "blake3", "tiger", "streebog", "crc32", "xxhash", "xxh3", "siphash", "murmur3" };
+    const families = [_][]const u8{ "md", "md2", "has160", "ripemd", "sha1", "sha256", "sha512", "keccak", "sm3", "snefru", "whirlpool", "blake2b", "blake2s", "blake3", "tiger", "streebog", "crc32", "xxhash", "xxh3", "siphash", "murmur3", "argon2", "scrypt" };
     // Fixed linear memory: 2 pages = 128 KiB (scratch 64 KiB + 256 B, a 16 KiB
     // stack, data). max == initial so memory can never grow and JS may cache
     // views of it.
     const family_memory_bytes = 2 * 64 * 1024;
+    // The password-hashing families (argon2, scrypt) are the exception: they
+    // take their work memory from memory.grow, up to 4 GiB minus one page, and
+    // JS instantiates them afresh for every derivation (docs/abi.md). Their
+    // stack is larger because a debug build keeps whole 1 KiB blocks in frames.
+    const growable_families = [_][]const u8{ "argon2", "scrypt" };
 
     const js_step = b.step("js", "Generate embedded wasm byte modules (js/generated, packages/crypto-api/wasm)");
     const family_step = b.step("families", "Build zig-out/wasm/<family>.wasm for every family");
@@ -94,9 +99,18 @@ pub fn build(b: *std.Build) void {
         const fam = b.addExecutable(.{ .name = family, .root_module = fam_mod });
         fam.entry = .disabled;
         fam.rdynamic = true;
-        fam.stack_size = 16 * 1024;
-        fam.initial_memory = family_memory_bytes;
-        fam.max_memory = family_memory_bytes;
+        const growable = comptime for (growable_families) |g| {
+            if (std.mem.eql(u8, g, family)) break true;
+        } else false;
+        if (growable) {
+            fam.stack_size = 64 * 1024;
+            fam.initial_memory = 4 * 64 * 1024;
+            fam.max_memory = 65535 * 64 * 1024;
+        } else {
+            fam.stack_size = 16 * 1024;
+            fam.initial_memory = family_memory_bytes;
+            fam.max_memory = family_memory_bytes;
+        }
         const install_fam = b.addInstallArtifact(fam, .{ .dest_dir = .{ .override = .{ .custom = "wasm" } } });
         family_step.dependOn(&install_fam.step);
         b.getInstallStep().dependOn(&install_fam.step);

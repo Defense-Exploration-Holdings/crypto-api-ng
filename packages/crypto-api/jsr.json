@@ -38,6 +38,8 @@
     "./hmac": "./src/mac/hmac.mjs",
     "./pbkdf2": "./src/kdf/pbkdf2.mjs",
     "./hkdf": "./src/kdf/hkdf.mjs",
+    "./argon2": "./src/kdf/argon2.mjs",
+    "./scrypt": "./src/kdf/scrypt.mjs",
     "./encoder/hex": "./src/encoder/hex.mjs",
     "./encoder/base64": "./src/encoder/base64.mjs",
     "./encoder/utf": "./src/encoder/utf.mjs",

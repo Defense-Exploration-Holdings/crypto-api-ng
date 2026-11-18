@@ -29,6 +29,8 @@ pub const xxhash = @import("hash/xxhash.zig");
 pub const xxh3 = @import("hash/xxh3.zig");
 pub const siphash = @import("hash/siphash.zig");
 pub const murmur3 = @import("hash/murmur3.zig");
+pub const argon2 = @import("kdf/argon2.zig");
+pub const scrypt = @import("kdf/scrypt.zig");
 
 test {
     // Pull in tests from every module referenced above.

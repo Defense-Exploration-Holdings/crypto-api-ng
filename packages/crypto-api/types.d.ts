@@ -48,6 +48,36 @@ export interface Pbkdf2Options {
   /** Size of the derived key in bits, a multiple of 8 (default: the digest size of the hasher). */
   length?: number;
 }
+export interface Argon2Options {
+  /** 8 bytes or more; RFC 9106 recommends 16 random bytes. Required. */
+  salt: BinaryInput;
+  /** Passes over the memory, 1 to 4294967295. Required: there is no safe default. */
+  iterations: number;
+  /** Memory size in KiB, from 8 times `parallelism` to 4294967295. Required. */
+  memory: number;
+  /** Lanes, 1 to 16777215 (default 1). */
+  parallelism?: number;
+  /** Argon2 variant (default `'argon2id'`). */
+  type?: "argon2id" | "argon2i" | "argon2d";
+  /** Tag size in bits, a multiple of 8 from 32 (default 256). */
+  length?: number;
+  /** Key K, binary string or bytes (default empty). */
+  secret?: BinaryInput;
+  /** Associated data X, binary string or bytes (default empty). */
+  associatedData?: BinaryInput;
+}
+export interface ScryptOptions {
+  /** N: a power of two from 2, below 2^(16 * blockSize). Required. Memory use is about 128 * N * blockSize bytes. */
+  cost: number;
+  /** r, from 1 (default 8). */
+  blockSize?: number;
+  /** p, from 1 (default 1); `blockSize * parallelization` must be below 2^30. */
+  parallelization?: number;
+  /** Binary string or bytes (default empty). */
+  salt?: BinaryInput;
+  /** Size of the derived key in bits, a multiple of 8 (default 256). */
+  length?: number;
+}
 export interface HkdfOptions {
   /** Binary string or bytes (default empty, the same as a salt of zero bytes). */
   salt?: BinaryInput;
@@ -221,4 +251,12 @@ export interface CryptoApi {
   pbkdf2Bytes(password: BinaryInput, hasher: HasherLike, options: Pbkdf2Options): Uint8Array;
   /** Like `hkdf()`, but returns the key as bytes. */
   hkdfBytes(ikm: BinaryInput, hasher: HasherLike, options?: HkdfOptions): Uint8Array;
+  /** Argon2 (Argon2id by default); the password and the `salt`, `secret` and `associatedData` options are UTF-8 encoded if they are strings. Returns the tag in hex. */
+  argon2(password: BinaryInput, options: Argon2Options): string;
+  /** Like `argon2()`, but returns the tag as bytes. */
+  argon2Bytes(password: BinaryInput, options: Argon2Options): Uint8Array;
+  /** scrypt; the password and `options.salt` are UTF-8 encoded if they are strings. Returns the key in hex. */
+  scrypt(password: BinaryInput, options: ScryptOptions): string;
+  /** Like `scrypt()`, but returns the key as bytes. */
+  scryptBytes(password: BinaryInput, options: ScryptOptions): Uint8Array;
 }
