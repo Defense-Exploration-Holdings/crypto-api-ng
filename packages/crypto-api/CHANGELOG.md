@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.5.1 (unreleased)
+## 1.5.1 (2026-11-19)
 
 Fixes and documentation. Every digest, MAC and derived key is the same as in 1.5.0.
 
