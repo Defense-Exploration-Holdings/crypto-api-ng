@@ -42,15 +42,3 @@ export fn free(ptr: u32, len: u32) void {
     allocator.free(p[0..len]);
 }
 
-// ---- smoke-test export ---------------------------------------------------
-// Proves the JS <-> wasm buffer plumbing end to end without any algorithm.
-// Removed or replaced once the first real algorithm lands.
-
-/// XOR-fold of `len` bytes at `ptr`. Returns the 8-bit result in the low byte.
-export fn smoke_xor(ptr: u32, len: u32) u32 {
-    if (len == 0) return 0;
-    const p: [*]const u8 = @ptrFromInt(ptr);
-    var acc: u8 = 0;
-    for (p[0..len]) |byte| acc ^= byte;
-    return acc;
-}

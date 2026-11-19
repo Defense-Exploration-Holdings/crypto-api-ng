@@ -58,7 +58,7 @@ const argon2_core = @import("kdf/argon2.zig");
 const scrypt_core = @import("kdf/scrypt.zig");
 
 /// Library version.
-pub const version = std.SemanticVersion{ .major = 1, .minor = 5, .patch = 0 };
+pub const version = std.SemanticVersion{ .major = 1, .minor = 5, .patch = 1 };
 
 fn wipe(ptr: anytype) void {
     std.crypto.secureZero(u8, std.mem.asBytes(ptr));

@@ -341,13 +341,13 @@ import Scrypt from "crypto-api-ng/scrypt";
 import {fromUtf} from "crypto-api-ng/encoder/utf";
 
 // Argon2id with the second recommended setting of RFC 9106: 64 MiB, 3 passes, 4 lanes
-const tag = new Argon2(fromUtf('correct horse'), {salt: salt, iterations: 3, memory: 65536, parallelism: 4}).digest();
+const tag = new Argon2(fromUtf('correct horse'), {salt: salt, iterations: 3, memory: 65536, parallelism: 1}).digest();
 
 // scrypt with N = 2^17, r = 8, p = 1 (128 MiB)
 const key = new Scrypt(fromUtf('correct horse'), {salt: salt, cost: 131072}).digest();
 
 // Or in one call, with hex output and UTF-8 encoding of strings
-CryptoApi.argon2('correct horse', {salt: 'a random salt', iterations: 3, memory: 65536, parallelism: 4});
+CryptoApi.argon2('correct horse', {salt: 'a random salt', iterations: 3, memory: 65536, parallelism: 1});
 CryptoApi.scrypt('correct horse', {salt: 'a random salt', cost: 131072});
 ```
 

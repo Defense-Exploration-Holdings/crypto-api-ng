@@ -10,6 +10,10 @@ import createRunner from "../wasm/pwhash.mjs";
 
 const runner = createRunner(wasmBytes);
 
+// The password of each instance, as bytes, kept out of the object's own
+// properties so that logging or serializing an instance does not print it.
+const passwords = new WeakMap();
+
 /**
  * Test-only hooks; not public API and not kept in later releases.
  */
@@ -65,8 +69,7 @@ class Scrypt {
       throw new RangeError('Scrypt: cost must be below 2^(16 * blockSize), got ' + cost);
     }
     const length = integerOption('Scrypt', given, 'length', 8, 0xFFFFFFFF * 256, 8, 256);
-    /** @ignore */
-    this.password = toBinaryString(password, 'password');
+    passwords.set(this, binaryToBytes(toBinaryString(password, 'password')));
     /** @type {{cost: number, blockSize: number, parallelization: number, salt: string, length: number}} */
     this.options = {
       cost: cost, blockSize: blockSize, parallelization: parallelization,
@@ -84,7 +87,7 @@ class Scrypt {
   finalize() {
     const o = this.options;
     const bytes = o.length / 8;
-    const password = binaryToBytes(this.password);
+    const password = passwords.get(this).slice();
     const salt = binaryToBytes(o.salt);
     try {
       let key = runner.run((ex, put, take) => {

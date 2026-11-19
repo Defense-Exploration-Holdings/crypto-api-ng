@@ -15,8 +15,14 @@ test('abi version matches loader', () => {
   assert.equal(rt.exports.abi_version(), EXPECTED_ABI_VERSION);
 });
 
-test('version string is exposed', () => {
-  assert.match(rt.version, /^\d+\.\d+\.\d+/);
+test('version string matches package.json', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const pkg = JSON.parse(await readFile(new URL('../packages/crypto-api/package.json', import.meta.url), 'utf8'));
+  assert.equal(rt.version, pkg.version);
+  const jsr = JSON.parse(await readFile(new URL('../packages/crypto-api/jsr.json', import.meta.url), 'utf8'));
+  assert.equal(jsr.version, pkg.version);
+  const zon = await readFile(new URL('../build.zig.zon', import.meta.url), 'utf8');
+  assert.equal(/\.version = "([^"]+)"/.exec(zon)[1], pkg.version);
 });
 
 test('alloc/free round-trips bytes', () => {
@@ -36,25 +42,19 @@ test('withBytes frees on throw', () => {
   assert.throws(() => rt.withBytes(new Uint8Array(16), () => { throw new Error('boom'); }), /boom/);
 });
 
-test('smoke_xor folds bytes', () => {
-  const out = rt.withBytes(Uint8Array.of(0x0f, 0xf0, 0xaa), (ptr, len) => rt.exports.smoke_xor(ptr, len));
-  assert.equal(out, 0x0f ^ 0xf0 ^ 0xaa);
-  assert.equal(rt.exports.smoke_xor(0, 0), 0);
-});
-
 test('large allocation survives memory growth', () => {
   const big = new Uint8Array(8 * 1024 * 1024).fill(7);
   const out = rt.withBytes(big, (ptr, len) => {
-    const folded = rt.exports.smoke_xor(ptr, len);
     // view() must be re-created after growth; this reads through a fresh view.
     assert.equal(rt.view(ptr, 1)[0], 7);
-    return folded;
+    assert.equal(rt.view(ptr + len - 1, 1)[0], 7);
+    return len;
   });
-  assert.equal(out, 0); // even count of 7s xors to 0
+  assert.equal(out, big.length);
 });
 
 test('sync entry point instantiates from embedded bytes', async () => {
   const { runtime } = await import('../js/sync.js');
   assert.equal(runtime.exports.abi_version(), EXPECTED_ABI_VERSION);
-  assert.equal(runtime.withBytes(Uint8Array.of(1, 2, 3), (p, n) => runtime.exports.smoke_xor(p, n)), 0);
+  assert.deepEqual(runtime.withBytes(Uint8Array.of(1, 2, 3), (p, n) => Array.from(runtime.view(p, n))), [1, 2, 3]);
 });

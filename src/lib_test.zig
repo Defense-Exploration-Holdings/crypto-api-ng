@@ -419,3 +419,10 @@ test "scrypt.kdf: RFC 7914 section 12" {
     try testing.expectError(error.WeakParameters, lib.scrypt.kdf(testing.allocator, &dk, "pw", "salt", .{ .ln = 0, .r = 8, .p = 1 }));
     try testing.expectError(error.OutOfMemory, lib.scrypt.kdf(testing.failing_allocator, &dk, "pw", "salt", .{ .ln = 4, .r = 1, .p = 1 }));
 }
+
+test "runtime.version matches lib.version" {
+    var buf: [32]u8 = undefined;
+    const v = lib.version;
+    const text = try std.fmt.bufPrint(&buf, "{d}.{d}.{d}", .{ v.major, v.minor, v.patch });
+    try std.testing.expectEqualStrings(text, @import("runtime.zig").version);
+}

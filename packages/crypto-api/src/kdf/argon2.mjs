@@ -16,6 +16,11 @@ const runner = createRunner(wasmBytes);
 export const _internal = runner.hooks();
 
 const TYPES = ['argon2d', 'argon2i', 'argon2id'];
+
+// Password and secret of each instance, as bytes. They are kept out of the
+// object's own properties so that logging or serializing an instance does not
+// print them.
+const secrets = new WeakMap();
 const MAX_U32 = 0xFFFFFFFF;
 
 /**
@@ -37,7 +42,7 @@ const MAX_U32 = 0xFFFFFFFF;
  * import Argon2 from "crypto-api-ng/src/kdf/argon2.mjs";
  * import {toHex} from "crypto-api-ng/src/encoder/hex.mjs";
  *
- * const kdf = new Argon2('password', {salt: salt, iterations: 3, memory: 65536, parallelism: 4});
+ * const kdf = new Argon2('password', {salt: salt, iterations: 3, memory: 65536, parallelism: 1});
  * console.log(toHex(kdf.finalize()));
  */
 class Argon2 {
@@ -79,21 +84,22 @@ class Argon2 {
     if (salt.length < 8 || salt.length > MAX_U32) {
       throw new RangeError('Argon2: salt must be 8 bytes or more, got ' + salt.length);
     }
-    const secret = binaryOption('Argon2', given, 'secret');
+    const secret = binaryToBytes(binaryOption('Argon2', given, 'secret'));
     const associatedData = binaryOption('Argon2', given, 'associatedData');
     const iterations = integerOption('Argon2', given, 'iterations', 1, MAX_U32, 1);
     const parallelism = integerOption('Argon2', given, 'parallelism', 1, 0xFFFFFF, 1, 1);
     const memory = integerOption('Argon2', given, 'memory', 8 * parallelism, MAX_U32, 1);
     const length = integerOption('Argon2', given, 'length', 32, MAX_U32 * 8, 8, 256);
-    /** @ignore */
-    this.password = toBinaryString(password, 'password');
+    secrets.set(this, {password: binaryToBytes(toBinaryString(password, 'password')), secret: secret});
     /**
+     * The options in effect. `secret` is not included.
+     *
      * @type {{type: string, salt: string, iterations: number, memory: number, parallelism: number,
-     *   length: number, secret: string, associatedData: string}}
+     *   length: number, associatedData: string}}
      */
     this.options = {
       type: type, salt: salt, iterations: iterations, memory: memory, parallelism: parallelism,
-      length: length, secret: secret, associatedData: associatedData
+      length: length, associatedData: associatedData
     };
   }
 
@@ -108,9 +114,10 @@ class Argon2 {
     const o = this.options;
     const mode = TYPES.indexOf(o.type);
     const bytes = o.length / 8;
-    const password = binaryToBytes(this.password);
+    const kept = secrets.get(this);
+    const password = kept.password.slice();
     const salt = binaryToBytes(o.salt);
-    const secret = binaryToBytes(o.secret);
+    const secret = kept.secret.slice();
     const ad = binaryToBytes(o.associatedData);
     try {
       let tag = runner.run((ex, put, take) => {

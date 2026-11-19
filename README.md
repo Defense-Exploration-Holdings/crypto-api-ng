@@ -29,7 +29,7 @@ const CryptoApi = require('crypto-api-ng');
 CryptoApi.hash('sha256', 'abc');
 // 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
 
-CryptoApi.hmac('key', 'message', CryptoApi.getHasher('md5'));
+CryptoApi.hmac('key', 'message', CryptoApi.getHasher('sha256'));
 
 CryptoApi.hashBytes('sha256', new Uint8Array([1, 2, 3]));   // Uint8Array(32), bytes in and out
 ```
@@ -49,7 +49,7 @@ Added by this package, not in the original: SHA3-224/256/384/512, SHAKE128/256 a
 The algorithms are written in Zig, and the repository is also a Zig package with a native API in the style of `std.crypto.hash`. It needs Zig 0.17.1. Add it to a project:
 
 ```sh
-zig fetch --save git+https://github.com/Defense-Exploration-Holdings/crypto-api-ng#v1.5.0
+zig fetch --save git+https://github.com/Defense-Exploration-Holdings/crypto-api-ng#v1.5.1
 ```
 
 Then import the module in `build.zig`:

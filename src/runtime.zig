@@ -8,9 +8,9 @@ const std = @import("std");
 /// refuses to run against a module whose ABI version differs from its own.
 pub const abi_version: u32 = 2;
 
-/// Library version, kept in sync with package.json by hand until a release
-/// script exists.
-pub const version = "0.0.0";
+/// Library version. Tests check that it matches package.json and the Zig
+/// package version in lib.zig.
+pub const version = "1.5.1";
 
 /// Status codes returned by exported functions that can fail. Zero is success.
 /// Non-zero values are stable once released.

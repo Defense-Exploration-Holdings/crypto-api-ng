@@ -1,10 +1,13 @@
 {
   "name": "crypto-api-ng",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Hashing library with no dependencies: maintained Zig/WebAssembly port of crypto-api",
   "private": true,
   "license": "MIT",
-  "author": "Aleksandr Mogilnikov <nf404.name@gmail.com> (https://nf404.name/)",
+  "author": "Defense Exploration Holdings, LLC",
+  "contributors": [
+    "Aleksandr Mogilnikov <nf404.name@gmail.com> (https://nf404.name/)"
+  ],
   "homepage": "https://github.com/Defense-Exploration-Holdings/crypto-api-ng",
   "repository": {
     "type": "git",
@@ -149,6 +152,9 @@
     "index.d.ts",
     "types.d.ts"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "sideEffects": false,
   "dependencies": {},
   "keywords": [

@@ -5,7 +5,7 @@ The `crypto_api_ng` module (`src/lib.zig`) is the native Zig interface to the al
 ## Installing
 
 ```sh
-zig fetch --save git+https://github.com/Defense-Exploration-Holdings/crypto-api-ng#v1.5.0
+zig fetch --save git+https://github.com/Defense-Exploration-Holdings/crypto-api-ng#v1.5.1
 ```
 
 `zig fetch` adds the dependency, with its hash, to your `build.zig.zon`. In `build.zig`:

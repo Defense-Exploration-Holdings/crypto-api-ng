@@ -30,7 +30,7 @@ import Sha256 from "@defense-exploration/crypto-api-ng/sha256";
 const CryptoApi = require('crypto-api-ng');
 
 console.log(CryptoApi.hash('sha256', 'message'));                        // hex digest of a UTF string
-console.log(CryptoApi.hmac('key', 'message', CryptoApi.getHasher('md5')));
+console.log(CryptoApi.hmac('key', 'message', CryptoApi.getHasher('sha256')));
 ```
 
 ### ES modules (Node.js, bundlers)
@@ -172,7 +172,7 @@ console.log(toHex(hasher.finalize()));
 
 ```html
 <script type="module">
-  import CryptoApi, {Sha256, bytesToHex, utf8ToBytes} from "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.0/crypto-api.min.mjs";
+  import CryptoApi, {Sha256, bytesToHex, utf8ToBytes} from "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.1/crypto-api.min.mjs";
 
   console.log(CryptoApi.hash('sha256', 'message'));  // UTF string in, hex out
 
@@ -182,16 +182,16 @@ console.log(toHex(hasher.finalize()));
 </script>
 ```
 
-The same file is at `https://unpkg.com/crypto-api-ng@1.5.0/crypto-api.min.mjs`. Because it is one file, one hash covers all of the code. An `import` statement cannot carry the hash itself, so declare it in an import map, which current browsers check before they run the module:
+The same file is at `https://unpkg.com/crypto-api-ng@1.5.1/crypto-api.min.mjs`. Because it is one file, one hash covers all of the code. An `import` statement cannot carry the hash itself, so declare it in an import map, which current browsers check before they run the module:
 
 ```html
 <script type="importmap">
 {
   "imports": {
-    "crypto-api-ng": "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.0/crypto-api.min.mjs"
+    "crypto-api-ng": "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.1/crypto-api.min.mjs"
   },
   "integrity": {
-    "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.0/crypto-api.min.mjs": "sha384-HASH_OF_THE_FILE"
+    "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.1/crypto-api.min.mjs": "sha384-HASH_OF_THE_FILE"
   }
 }
 </script>
@@ -208,13 +208,13 @@ To load only the algorithms you use, import the modules under `src/` directly. E
 
 ```html
 <script type="module">
-  import Blake3 from "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.0/src/hasher/blake3.mjs";
+  import Blake3 from "https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.1/src/hasher/blake3.mjs";
 
   console.log(new Blake3().digest('hex'));
 </script>
 ```
 
-CDNs that build packages for the browser, such as esm.sh, also serve the entries of the `exports` map: `https://esm.sh/crypto-api-ng@1.5.0` and `https://esm.sh/crypto-api-ng@1.5.0/sha256`.
+CDNs that build packages for the browser, such as esm.sh, also serve the entries of the `exports` map: `https://esm.sh/crypto-api-ng@1.5.1` and `https://esm.sh/crypto-api-ng@1.5.1/sha256`.
 
 As with the global build below, the code runs without WebAssembly where it is missing or blocked by the page's Content-Security-Policy. To allow WebAssembly under a CSP, add `'wasm-unsafe-eval'` to `script-src`.
 
@@ -223,7 +223,7 @@ As with the global build below, the code runs without WebAssembly where it is mi
 `crypto-api.min.js` (and the unminified `crypto-api.js`) is a UMD build in ES5 syntax that defines the global `CryptoApi`. The WebAssembly modules are embedded, so it is a single file. Load it from your own server or a CDN that mirrors npm. Pin the version in the URL and add an `integrity` attribute, so that the browser rejects a file that differs from the one you checked:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.0/crypto-api.min.js"
+<script src="https://cdn.jsdelivr.net/npm/crypto-api-ng@1.5.1/crypto-api.min.js"
         integrity="sha384-HASH_OF_THE_FILE"
         crossorigin="anonymous"></script>
 <script>
@@ -233,11 +233,11 @@ As with the global build below, the code runs without WebAssembly where it is mi
 
   console.log(CryptoApi.hash('sha256', 'message')); // UTF string in, hex out
 
-  var hmac = CryptoApi.getHmac('key', CryptoApi.getHasher('md5'));
+  var hmac = CryptoApi.getHmac('key', CryptoApi.getHasher('sha256'));
   hmac.update('message');
   console.log(CryptoApi.encoder.toHex(hmac.finalize()));
 
-  console.log(CryptoApi.hmac('key', 'message', CryptoApi.getHasher('md5'))); // UTF key and message
+  console.log(CryptoApi.hmac('key', 'message', CryptoApi.getHasher('sha256'))); // UTF key and message
 </script>
 ```
 

@@ -235,7 +235,7 @@ test('Argon2 options: required, ranges, types', () => {
   const kdf = new Argon2('pw', given);
   assert.deepEqual(given, { ...ok, type: undefined, length: undefined });
   assert.deepEqual(kdf.options, {
-    type: 'argon2id', salt: 'saltsalt', iterations: 1, memory: 8, parallelism: 1, length: 256, secret: '', associatedData: '',
+    type: 'argon2id', salt: 'saltsalt', iterations: 1, memory: 8, parallelism: 1, length: 256, associatedData: '',
   });
 });
 
@@ -361,4 +361,18 @@ test('the raw exports refuse bad parameters with a status', () => {
   assert.equal(s.scrypt_hash(4, 1, 1, 0, 0, 0, 0, so, 0), 1, 'length 0');
   assert.equal(s.scrypt_hash(30, 8, 1, 0, 0, 0, 0, so, 32), 2, 'out of memory');
   assert.equal(s.scrypt_hash(4, 1, 1, 0, 0, 0, 0, so, 32), 0);
+});
+
+test('the password and the secret are not properties of the instance', () => {
+  const pw = 'hunter2-password';
+  const secret = 'the-secret-value';
+  const a = new Argon2(pw, { salt: 'saltsalt', iterations: 1, memory: 8, secret: secret });
+  const s = new Scrypt(new TextEncoder().encode(pw), { cost: 16, blockSize: 1, salt: 'saltsalt' });
+  for (const kdf of [a, s]) {
+    const shown = JSON.stringify(kdf) + Object.getOwnPropertyNames(kdf).join(',');
+    assert.ok(!shown.includes(pw) && !shown.includes(secret), shown);
+    const first = toHex(kdf.finalize());
+    assert.equal(toHex(kdf.finalize()), first); // still derivable, and the same, after the first call
+  }
+  assert.equal(toHex(a.finalize()), toHex(new Argon2(pw, { salt: 'saltsalt', iterations: 1, memory: 8, secret: secret }).finalize()));
 });

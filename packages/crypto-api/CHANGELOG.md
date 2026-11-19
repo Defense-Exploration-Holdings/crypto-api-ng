@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.1 (unreleased)
+
+Fixes and documentation. Every digest, MAC and derived key is the same as in 1.5.0.
+
+* `Argon2` and `Scrypt` no longer keep the password as a string property of the instance, and `Argon2` no longer keeps `secret` in `options`. Both are held as bytes that are not reachable from the object, so logging or serializing an instance does not print them. `Argon2#options` no longer has a `secret` field.
+* The WebAssembly modules report the library version (they reported `0.0.0`), and tests check that it matches `package.json`, `jsr.json`, `build.zig.zon` and the Zig package version.
+* The unused `smoke_xor` export is removed from the development module `crypto-api.wasm`. The modules in the npm package never had it.
+* `package.json` names Defense Exploration Holdings, LLC as the author, lists the author of crypto-api as a contributor, and declares `engines.node` `>=18`.
+* SECURITY.md covers Argon2 and scrypt, says they have not had an independent review, and lists the `1.0.x` line as supported.
+* Examples use HMAC-SHA256 instead of HMAC-MD5, and the Argon2 examples use `parallelism: 1`, since lanes run one after another here.
+
 ## 1.5.0 (2026-11-18)
 
 New algorithms: Argon2 and scrypt password hashing, XXH3, SipHash and MurmurHash3, and the Keccak modes of NIST SP 800-185 and RFC 9861. `update()` with bytes is faster. The digests of the algorithms in 1.4.0 are unchanged.
